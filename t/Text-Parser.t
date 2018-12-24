@@ -29,11 +29,16 @@ is( $pars->last_record,  $content, 'Worked' );
 is( $pars->pop_record,   $content, 'Popped' );
 is( $pars->lines_parsed, 1,        'Still lines_parsed returns 1' );
 
-open OUTFILE,  ">example";
-lives_ok { $pars->filehandle( \*OUTFILE ); } 'Throws no exception for reading an output file handle, because output file handles are readable!';
-close OUTFILE;
-`rm -rf example`;
-lives_ok { $pars->filehandle( \*STDOUT ); } 'No issues in reading from STDOUT';
+TODO: {
+    local $TODO = 'This functionality is not yet implemented properly. The current code doesnt work as expected';
+    open OUTFILE, ">example";
+    throws_ok { $pars->filehandle( \*OUTFILE ); } 'Text::Parser::Exception',
+        'Throws no exception for reading an output file handle, because output file handles are readable!';
+    close OUTFILE;
+    `rm -rf example`;
+};
+lives_ok { $pars->filehandle( \*STDOUT ); }
+'No issues in reading from STDOUT';
 lives_ok { $pars->filehandle( \*STDIN ); } 'No issues in reading from STDIN';
 
 lives_ok { $pars->read( 't/' . $fname ); }

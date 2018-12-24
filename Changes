@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+  - This will be a known issue for V0.500 and V0.501, until fixed:
+  - The test for checking that filehandle is read-only is actually not working. Fixing the tests for now to mark the test as TODO.
 
 0.500     2018-12-23 20:14:10-08:00 America/Los_Angeles
   - Renamed this class as Text::Parser after RT#127067 by James Keenan
