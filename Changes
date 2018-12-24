@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+0.500     2018-12-23 20:14:10-08:00 America/Los_Angeles
   - Renamed this class as Text::Parser after RT#127067 by James Keenan
   - Added the ability to parse text from filehandles, thus the name Text::Parser and not Text::File::Parser
   - Added new method filehandle just to provide interface similar to filename.
