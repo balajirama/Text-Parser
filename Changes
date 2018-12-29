@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+0.502     2018-12-29 08:18:06-08:00 America/Los_Angeles
   - STDOUT and other output files don't uniformly respond to the -r test on all operating systems. This will need more work.
 
 0.501     2018-12-23 20:51:09-08:00 America/Los_Angeles

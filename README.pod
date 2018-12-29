@@ -8,7 +8,7 @@ Text::Parser - an extensible Perl class to parse any text file by specifying gra
 
 =head1 VERSION
 
-version 0.501
+version 0.502
 
 =head1 SYNOPSIS
 
