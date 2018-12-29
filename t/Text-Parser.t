@@ -30,15 +30,16 @@ is( $pars->pop_record,   $content, 'Popped' );
 is( $pars->lines_parsed, 1,        'Still lines_parsed returns 1' );
 
 TODO: {
-    local $TODO = 'This functionality is not yet implemented properly. The current code doesnt work as expected';
+    local $TODO
+        = 'This functionality is not yet implemented properly. The current code doesnt work as expected on all operating systems. Some operating systems actually treat output files as readable, and some dont';
     open OUTFILE, ">example";
     throws_ok { $pars->filehandle( \*OUTFILE ); } 'Text::Parser::Exception',
         'Throws no exception for reading an output file handle, because output file handles are readable!';
     close OUTFILE;
     `rm -rf example`;
-};
-lives_ok { $pars->filehandle( \*STDOUT ); }
-'No issues in reading from STDOUT';
+    throws_ok { $pars->filehandle( \*STDOUT ); } 'Text::Parser::Exception',
+        'No issues in reading from STDOUT';
+}
 lives_ok { $pars->filehandle( \*STDIN ); } 'No issues in reading from STDIN';
 
 lives_ok { $pars->read( 't/' . $fname ); }
