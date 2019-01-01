@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+0.700     2019-01-01 13:20:43-08:00 America/Los_Angeles
   - Some operating systems can read from STDOUT and some cannot. Same goes for output file handles.
   - Improved documentation.
   - Improved code coverage using Devel::Cover for the first time. We now have 99.5% coverage.
