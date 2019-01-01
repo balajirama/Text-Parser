@@ -4,11 +4,11 @@
 
 =head1 NAME
 
-Text::Parser - an extensible Perl class to parse any text file by specifying grammar in derived classes. This module supersedes the older and now defunct C<TextFileParser>.
+Text::Parser - an extensible Perl class to parse a text files. This module supersedes the older and now defunct C<TextFileParser>.
 
 =head1 VERSION
 
-version 0.502
+version 0.503
 
 =head1 SYNOPSIS
 
@@ -20,13 +20,17 @@ version 0.502
 
 The above code reads a text file and prints the content to C<STDOUT>.
 
+=head1 RATIONALE
+
+A simple text parser should have to only specify the "grammar" of the format it intends to read in the form of a few routines. Everything else, like opening a file handle, reading line by line, or tracking how many lines have been read, should be "automatic". Unfortunately, that's not how most programs seem to work. Most programmers spend (waste?) time writing code that calls C<open>, C<close>, etc., and must keep track of things that should have been simple features of every text file parser. And if they have to read multiple files, usually, the calls to C<open>, C<close>, and other things are repeated, and one has to repeat the checks for readability etc. This is an utter waste of time.
+
+C<Text::Parser> does all mundane operations like C<open> file, C<close> file, line-count, and storage/deletion/retrieval of records, etc. You don't have to bother with all that when you write a parser for your favorite text file format. Instead you can usually override just one method (C<save_records>) and voila! you have a parser. Look at L<these examples|/EXAMPLES> to see how easy this can be.
+
 =head1 DESCRIPTION
 
-This class can be used to parse any arbitrary text file format.
+C<Text::Parser> is a bare-bones text file parsing class. It is actually ignorant of the file format, and cannot recognize any grammars, but derived classes that inherit from it can specify this. They can do this by overriding some of the methods in this class.
 
-C<Text::Parser> does all operations like C<open> file, C<close> file, line-count, and storage/deletion/retrieval of records. Future versions are expected to include progress-bar support. All these software features are file-format independent and can be re-used in parsing any text file format. Thus derived classes of C<Text::Parser> will be able to take advantage of these features without having to re-write the code again.
-
-The L<Examples|/"EXAMPLES"> section describes how one could use inheritance to build a parser.
+Future versions are expected to include progress-bar support. All these software features are file-format independent and can be re-used in parsing any text file format. Thus derived classes of C<Text::Parser> will be able to take advantage of these features without having to re-write the code again.
 
 =head1 EXAMPLES
 
@@ -76,7 +80,7 @@ It is easy to add any error checks using exceptions. One of the easiest ways to 
         chomp $line;
         my (@fields) = split /,/, $line;
         my $self->{__csv_header} = \@fields if not scalar($self->get_records);
-        Text::Parser::CSV::TooManyFields->throw(error => "Too many fields on " . $self->lines_parsed)
+        Text::Parser::CSV::TooManyFields->throw(error => "Too many fields on line #" . $self->lines_parsed)
             if scalar(@fields) > scalar(@{$self->{__csv_header}});
         $self->SUPER::save_record(\@fields);
     }
@@ -148,7 +152,7 @@ Once the method has successfully completed, you can parse another file. This mea
     $parser->read(\*STDIN);
     my (@stdin) = $parser->get_records();
 
-B<Inheritance Recommendation:> When inheriting this class (which is what you should do if you want to write a parser for your favorite text file format), don't override this method. Override C<save_record> instead.
+B<Inheritance Recommendation:> When inheriting this class (which is what you should do if you want to write a parser for your favorite text file format), don't override this method. Override C<L<save_record|/save_record>> instead.
 
 =head2 filename
 
@@ -160,6 +164,10 @@ Takes zero or one string argument containing the name of a file. Returns the nam
 
 Takes zero or one C<GLOB> argument and saves it for future a C<read> call. Returns the filehandle last saved, or C<undef> if none was saved. Remember that after a successful C<read> call, filehandles are lost.
 
+    my $fh = $parser->filehandle();
+
+B<Note:> As such there is a check to ensure one is not supplying a write-only filehandle. For example, if you specify the filehandle of a write-only file or if the file is opened for write and you cannot read from it (here is where some Operating Systems can be different - you can actually read from a file that was opened for writing), then this method will throw an exception. But its behavior is heavily dependent on the Operating System. So don't rely on it catching any issues.
+
 =head2 lines_parsed
 
 Takes no arguments. Returns the number of lines last parsed.
@@ -170,9 +178,48 @@ This is also very useful for error message generation.
 
 =head2 save_record
 
-Takes exactly one argument which can be anything: C<SCALAR>, or C<ARRAYREF>, or C<HASHREF> or anything else meaningful. The important thing to remember is that exactly one record is saved per call. So if more than one argument are passed, everything after the first argument is ignored. And if no arguments are passed, then C<undef> is stored as a record.
+Takes exactly one argument and that is is saved as a record. If more than one argument are passed, everything after the first argument is ignored. And if no arguments are passed, then C<undef> is stored as a record.
 
-In an application that uses a text parser, you will most-likely never call this method directly. It is automatically called within C<read> for each line. In this base class C<Text::Parser>, C<save_record> is simply called with a string containing the line text. Derived classes can decide to store records in a different form. See L<Inheritance examples|/"EXAMPLES"> for examples on how C<save_record> could be overridden for other text file formats.
+In an application that uses a text parser, you will most-likely never call this method directly. It is automatically called within C<read> for each line. In this base class C<Text::Parser>, C<save_record> is simply called with a string containing the raw line of text ; the line of text will not be C<chomp>ed or modified in any way. Derived classes can decide to store records in a different form. A derived class could, for example, store the records in the form of hash references (so that when you use C<get_records>, you'd get an array of hashes), or maybe even another array reference (so when you use C<get_records> to you'd get an array of arrays). See L<Inheritance examples|/"EXAMPLES"> for examples on how C<save_record> could be overridden by derived classes.
+
+=head2 abort_reading
+
+This method will be useful if a derived class wants to stop reading a file after it has read all the desired information. For example:
+
+    package Text::Parser::SomeFile;
+    use parent 'Text::Parser';
+
+    sub save_record {
+        my ($self, $line) = @_;
+        my ($leading, $rest) = split /\s+/, $line, 2;
+        return $self->abort_reading() if $leading eq '**ABORT';
+        return $self->SUPER::save_record($line);
+    }
+
+In this derived class, we have a parser C<Text::Parser::SomeFile> that would save each line as a record, but would abort reading the rest of the file as soon as it reaches a line with C<**ABORT> as the first word. When this parser is given the following file as input:
+
+    somefile.txt:
+
+    Some text is here.
+    More text here.
+    **ABORT reading
+    This text is not read
+    This text is not read
+    This text is not read
+    This text is not read
+
+You can now write a program as follows:
+
+    use Text::Parser::SomeFile;
+
+    my $par = Text::Parser::SomeFile->new();
+    $par->read('somefile.txt');
+    print $par->get_records(), "\n";
+
+The output will be:
+
+    Some text is here.
+    More text here.
 
 =head2 get_records
 

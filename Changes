@@ -1,6 +1,10 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+  - Some operating systems can read from STDOUT and some cannot. Same goes for output file handles.
+  - Improved documentation.
+  - Improved code coverage using Devel::Cover for the first time. We now have 95% coverage on average.
+  - Added a new method called abort_read().
 
 0.502     2018-12-29 08:18:06-08:00 America/Los_Angeles
   - STDOUT and other output files don't uniformly respond to the -r test on all operating systems. This will need more work.

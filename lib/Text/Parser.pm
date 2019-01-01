@@ -3,7 +3,7 @@ use strict;
 
 package Text::Parser;
 
-# ABSTRACT: an extensible Perl class to parse any text file by specifying grammar in derived classes. This module supersedes the older and now defunct C<TextFileParser>.
+# ABSTRACT: an extensible Perl class to parse a text files. This module supersedes the older and now defunct C<TextFileParser>.
 
 use Exporter 'import';
 our (@EXPORT_OK) = ();
@@ -19,99 +19,17 @@ our (@EXPORT)    = (@EXPORT_OK);
 
 The above code reads a text file and prints the content to C<STDOUT>.
 
+=head1 RATIONALE
+
+A simple text parser should have to only specify the "grammar" of the format it intends to read in the form of a few routines. Everything else, like opening a file handle, reading line by line, or tracking how many lines have been read, should be "automatic". Unfortunately, that's not how most programs seem to work. Most programmers spend (waste?) time writing code that calls C<open>, C<close>, etc., and must keep track of things that should have been simple features of every text file parser. And if they have to read multiple files, usually, the calls to C<open>, C<close>, and other things are repeated, and one has to repeat the checks for readability etc. This is an utter waste of time.
+
+C<Text::Parser> does all mundane operations like C<open> file, C<close> file, line-count, and storage/deletion/retrieval of records, etc. You don't have to bother with all that when you write a parser for your favorite text file format. Instead you can usually override just one method (C<save_records>) and voila! you have a parser. Look at L<these examples|/EXAMPLES> to see how easy this can be.
+
 =head1 DESCRIPTION
 
-This class can be used to parse any arbitrary text file format.
+C<Text::Parser> is a bare-bones text file parsing class. It is actually ignorant of the file format, and cannot recognize any grammars, but derived classes that inherit from it can specify this. They can do this by overriding some of the methods in this class.
 
-C<Text::Parser> does all operations like C<open> file, C<close> file, line-count, and storage/deletion/retrieval of records. Future versions are expected to include progress-bar support. All these software features are file-format independent and can be re-used in parsing any text file format. Thus derived classes of C<Text::Parser> will be able to take advantage of these features without having to re-write the code again.
-
-The L<Examples|/"EXAMPLES"> section describes how one could use inheritance to build a parser.
-
-=head1 EXAMPLES
-
-The following examples should illustrate the use of inheritance to parse various types of text file formats.
-
-=head2 Basic principle
-
-Derived classes simply need to override one method : C<save_record>. With the help of that any arbitrary file format can be read. C<save_record> should interpret the format of the text and store it in some form by calling C<SUPER::save_record>. The C<main::> program will then use the records and create an appropriate data structure with it.
-
-=head2 Example 1 : A simple CSV Parser
-
-We will write a parser for a simple CSV file that reads each line and stores the records as array references.
-
-    package Text::Parser::CSV;
-    use parent 'Text::Parser';
-
-    sub save_record {
-        my ($self, $line) = @_;
-        chomp $line;
-        my (@fields) = split /,/, $line;
-        $self->SUPER::save_record(\@fields);
-    }
-
-That's it! Now in C<main::> you can write the following.
-
-    use Text::Parser::CSV;
-    
-    my $csvp = Text::Parser::CSV->new();
-    $csvp->read(shift @ARGV);
-
-=head3 Error checking
-
-It is easy to add any error checks using exceptions. One of the easiest ways to do this is to C<use L<Exception::Class>>.
-
-    package Text::Parser::CSV;
-    use Exception::Class (
-        'Text::Parser::CSV::Error', 
-        'Text::Parser::CSV::TooManyFields' => {
-            isa => 'Text::Parser::CSV::Error',
-        },
-    );
-    
-    use parent 'Text::Parser';
-
-    sub save_record {
-        my ($self, $line) = @_;
-        chomp $line;
-        my (@fields) = split /,/, $line;
-        my $self->{__csv_header} = \@fields if not scalar($self->get_records);
-        Text::Parser::CSV::TooManyFields->throw(error => "Too many fields on " . $self->lines_parsed)
-            if scalar(@fields) > scalar(@{$self->{__csv_header}});
-        $self->SUPER::save_record(\@fields);
-    }
-
-The C<Text::Parser> class will close all filehandles automatically as soon as an exception is thrown from C<save_record>. You can then catch the exception in C<main::> by C<use>ing C<L<Try::Tiny>>.
-
-=head2 Example 2 : Multi-line records
-
-Many text file formats have some way to indicate line-continuation. In BASH and many other interpreted shell languages, a line continuation is indicated with a trailing back-slash (\). In SPICE syntax if a line starts with a C<'+'> character then it is to be treated as a continuation of the previous line.
-
-To illustrate multi-line records we will write a derived class that simply joins the lines in a SPICE file and stores them as records.
-
-    package Text::Parser::LineContinuation::Spice;
-    use parent 'Text::Parser'l
-
-    sub save_record {
-        my ($self, $line) = @_;
-        $line = ($line =~ /^[+]\s*/) ? $self->__combine_with_last_record($line) : $line;
-        $self->SUPER::save_record( $line );
-    }
-
-    sub __combine_with_last_record {
-        my ($self, $line) = @_;
-        $line =~ s/^[+]\s*//;
-        my $last_rec = $self->pop_record;
-        chomp $last_rec;
-        return $last_rec . ' ' . $line;
-    }
-
-=head3 Making roles instead
-
-Line-continuation is a classic feature which is common to many different formats. If each syntax grammar generates a new class, one could potentially have to re-write code for line-continuation for each syntax or grammar. Instead it would be good to somehow re-use only the ability to join continued lines, but leave the actual syntax recognition to actual class that understands the syntax.
-
-But if we separate this functionality into a class of its own line we did above with C<Text::Parser::LineContinuation::Spice>, then it gives an impression that we can now create an object of C<Text::Parser::LineContinuation::Spice>. But in reality an object of this class would have not have much functionality and is therefore limited.
-
-This is where L<roles|Role::Tiny> are very useful.
+Future versions are expected to include progress-bar support. All these software features are file-format independent and can be re-used in parsing any text file format. Thus derived classes of C<Text::Parser> will be able to take advantage of these features without having to re-write the code again.
 
 =cut
 
@@ -127,11 +45,22 @@ use Exception::Class (
         description => 'File not found',
         alias       => 'throw_file_not_found'
     },
+    'Text::Parser::Exception::FileNotReadable' => {
+        isa         => 'Text::Parser::Exception',
+        description => 'File not readable',
+        alias       => 'throw_file_not_readable'
+    },
     'Text::Parser::Exception::FileCantOpen' => {
         isa         => 'Text::Parser::Exception',
         description => 'Error opening file',
         alias       => 'throw_cant_open'
-    }
+    },
+    'Text::Parser::Exception::BadReadInput' => {
+        isa => 'Text::Parser::Exception',
+        description =>
+            'The user called read() method with an unsupported type of input',
+        alias => 'throw_bad_input_to_read',
+    },
 );
 
 use Try::Tiny;
@@ -175,38 +104,27 @@ Once the method has successfully completed, you can parse another file. This mea
     $parser->read(\*STDIN);
     my (@stdin) = $parser->get_records();
 
-B<Inheritance Recommendation:> When inheriting this class (which is what you should do if you want to write a parser for your favorite text file format), don't override this method. Override C<save_record> instead.
+B<Inheritance Recommendation:> When inheriting this class (which is what you should do if you want to write a parser for your favorite text file format), don't override this method. Override C<L<save_record|/save_record>> instead.
 
 =cut
 
 sub read {
     my ( $self, $input ) = @_;
     return if not $self->__is_file_known_or_opened($input);
-    $self->__read_and_close_filehandle()
-        if defined $self->__store_read_input($input);
+    $self->__store_check_input($input);
+    $self->__read_and_close_filehandle();
 }
 
-sub __is_file_name {
-    my $inp = shift;
-    return 0 if not defined $inp;
-    my $type = ref($inp);
-    return $type eq '';
-}
-
-sub __is_file_handle {
-    my $inp = shift;
-    return 0 if not defined $inp;
-    my $type = ref($inp);
-    return $type eq 'GLOB';
-}
-
-sub __store_read_input {
+sub __store_check_input {
     my ( $self, $input ) = @_;
-    return $self->filename()         if not defined $input;
-    $self->__close_file              if exists $self->{__filehandle};
-    return $self->filename($input)   if __is_file_name($input);
-    return $self->filehandle($input) if __is_file_handle($input);
-    return undef;
+    return                           if not defined $input;
+    return $self->filename($input)   if ref($input) eq '';
+    return $self->filehandle($input) if ref($input) eq 'GLOB';
+    __throw_bad_input_to_read( ref($input) );
+}
+
+sub __throw_bad_input_to_read {
+    throw_bad_input_to_read error => 'Unexpected ' . shift . ' type input';
 }
 
 sub __is_file_known_or_opened {
@@ -218,25 +136,32 @@ sub __is_file_known_or_opened {
 
 sub __read_and_close_filehandle {
     my $self = shift;
-    delete $self->{__records} if exists $self->{__records};
+    $self->__init_read_fh;
     $self->__read_file_handle;
     $self->__close_file;
-}
-
-sub __read_file_handle {
-    my $self = shift;
-    my $fh   = $self->{__filehandle};
-    $self->__init_read_fh;
-    while (<$fh>) {
-        $self->lines_parsed( $self->lines_parsed + 1 );
-        $self->__try_to_parse($_);
-    }
 }
 
 sub __init_read_fh {
     my $self = shift;
     $self->lines_parsed(0);
     $self->{__bytes_read} = 0;
+    delete $self->{__records} if exists $self->{__records};
+    delete $self->{__abort_reading};
+}
+
+sub __read_file_handle {
+    my $self = shift;
+    my $fh   = $self->filehandle();
+    while (<$fh>) {
+        last if not $self->__parse_line_and_next($_);
+    }
+}
+
+sub __parse_line_and_next {
+    my $self = shift;
+    $self->lines_parsed( $self->lines_parsed + 1 );
+    $self->__try_to_parse(shift);
+    return not exists $self->{__abort_reading};
 }
 
 sub __try_to_parse {
@@ -248,6 +173,12 @@ sub __try_to_parse {
     };
 }
 
+sub __close_file {
+    my $self = shift;
+    close $self->{__filehandle};
+    delete $self->{__filehandle};
+}
+
 =method filename
 
 Takes zero or one string argument containing the name of a file. Returns the name of the file that was last opened if any. Returns C<undef> if no file has been opened.
@@ -257,34 +188,38 @@ Takes zero or one string argument containing the name of a file. Returns the nam
 =cut
 
 sub filename {
-    my ( $self, $fname ) = @_;
-    $self->__check_and_open_file($fname) if defined $fname;
+    my $self = shift;
+    $self->__open_file( $self->__is_readable_file(shift) ) if scalar(@_);
     return ( exists $self->{__filename} and defined $self->{__filename} )
         ? $self->{__filename}
         : undef;
 }
 
-sub __check_and_open_file {
+sub __is_readable_file {
     my ( $self, $fname ) = @_;
-    throw_file_not_found error =>
-        "No such file $fname or it has no read permissions"
-        if not -f $fname or not -r $fname;
-    $self->__open_file($fname);
-    $self->{__filename} = $fname;
+    throw_file_not_found( error => "$fname is not a file" )
+        if not -f $fname;
+    throw_file_not_readable( error => "$fname is not readable" )
+        if not -r $fname;
+    return $fname;
 }
 
 sub __open_file {
     my ( $self, $fname ) = @_;
+    $self->{__filename} = $fname;
     $self->__close_file if exists $self->{__filehandle};
     open my $fh, "<$fname"
-        or throw_cant_open error => "Error while opening file $fname";
-    $self->{__filehandle} = $fh;
-    $self->{__size}       = ( stat $fname )[7];
+        or throw_cant_open( error => "Error while opening file $fname" );
+    $self->filehandle($fh);
 }
 
 =method filehandle
 
 Takes zero or one C<GLOB> argument and saves it for future a C<read> call. Returns the filehandle last saved, or C<undef> if none was saved. Remember that after a successful C<read> call, filehandles are lost.
+
+    my $fh = $parser->filehandle();
+
+B<Note:> As such there is a check to ensure one is not supplying a write-only filehandle. For example, if you specify the filehandle of a write-only file or if the file is opened for write and you cannot read from it (here is where some Operating Systems can be different - you can actually read from a file that was opened for writing), then this method will throw an exception. But its behavior is heavily dependent on the Operating System. So don't rely on it catching any issues.
 
 =cut
 
@@ -305,7 +240,8 @@ sub __save_file_handle {
 sub __check_file_handle {
     my ( $self, $fhref ) = @_;
     return 0 if 'GLOB' ne ref($fhref);
-    throw_file_not_found error => "The filehandle $$fhref is not readable"
+    throw_file_not_readable(
+        error => "The filehandle $$fhref is not readable" )
         if not -r $$fhref;
     return 1;
 }
@@ -328,23 +264,62 @@ sub lines_parsed {
 
 =method save_record
 
-Takes exactly one argument which can be anything: C<SCALAR>, or C<ARRAYREF>, or C<HASHREF> or anything else meaningful. The important thing to remember is that exactly one record is saved per call. So if more than one argument are passed, everything after the first argument is ignored. And if no arguments are passed, then C<undef> is stored as a record.
+Takes exactly one argument and that is is saved as a record. If more than one argument are passed, everything after the first argument is ignored. And if no arguments are passed, then C<undef> is stored as a record.
 
-In an application that uses a text parser, you will most-likely never call this method directly. It is automatically called within C<read> for each line. In this base class C<Text::Parser>, C<save_record> is simply called with a string containing the line text. Derived classes can decide to store records in a different form. See L<Inheritance examples|/"EXAMPLES"> for examples on how C<save_record> could be overridden for other text file formats.
+In an application that uses a text parser, you will most-likely never call this method directly. It is automatically called within C<read> for each line. In this base class C<Text::Parser>, C<save_record> is simply called with a string containing the raw line of text ; the line of text will not be C<chomp>ed or modified in any way. Derived classes can decide to store records in a different form. A derived class could, for example, store the records in the form of hash references (so that when you use C<get_records>, you'd get an array of hashes), or maybe even another array reference (so when you use C<get_records> to you'd get an array of arrays). See L<Inheritance examples|/"EXAMPLES"> for examples on how C<save_record> could be overridden by derived classes.
 
 =cut
 
 sub save_record {
     my $self = shift;
-    return if not @_;
     $self->{__records} = [] if not defined $self->{__records};
     push @{ $self->{__records} }, shift;
 }
 
-sub __close_file {
+=method abort_reading
+
+This method will be useful if a derived class wants to stop reading a file after it has read all the desired information. For example:
+
+    package Text::Parser::SomeFile;
+    use parent 'Text::Parser';
+
+    sub save_record {
+        my ($self, $line) = @_;
+        my ($leading, $rest) = split /\s+/, $line, 2;
+        return $self->abort_reading() if $leading eq '**ABORT';
+        return $self->SUPER::save_record($line);
+    }
+
+In this derived class, we have a parser C<Text::Parser::SomeFile> that would save each line as a record, but would abort reading the rest of the file as soon as it reaches a line with C<**ABORT> as the first word. When this parser is given the following file as input:
+
+    somefile.txt:
+
+    Some text is here.
+    More text here.
+    **ABORT reading
+    This text is not read
+    This text is not read
+    This text is not read
+    This text is not read
+
+You can now write a program as follows:
+
+    use Text::Parser::SomeFile;
+
+    my $par = Text::Parser::SomeFile->new();
+    $par->read('somefile.txt');
+    print $par->get_records(), "\n";
+
+The output will be:
+
+    Some text is here.
+    More text here.
+
+=cut
+
+sub abort_reading {
     my $self = shift;
-    close $self->{__filehandle};
-    delete $self->{__filehandle};
+    $self->{__abort_reading} = 1;
 }
 
 =method get_records
@@ -394,5 +369,93 @@ sub pop_record {
     return undef if not exists $self->{__records};
     pop @{ $self->{__records} };
 }
+
+=head1 EXAMPLES
+
+The following examples should illustrate the use of inheritance to parse various types of text file formats.
+
+=head2 Basic principle
+
+Derived classes simply need to override one method : C<save_record>. With the help of that any arbitrary file format can be read. C<save_record> should interpret the format of the text and store it in some form by calling C<SUPER::save_record>. The C<main::> program will then use the records and create an appropriate data structure with it.
+
+=head2 Example 1 : A simple CSV Parser
+
+We will write a parser for a simple CSV file that reads each line and stores the records as array references.
+
+    package Text::Parser::CSV;
+    use parent 'Text::Parser';
+
+    sub save_record {
+        my ($self, $line) = @_;
+        chomp $line;
+        my (@fields) = split /,/, $line;
+        $self->SUPER::save_record(\@fields);
+    }
+
+That's it! Now in C<main::> you can write the following.
+
+    use Text::Parser::CSV;
+    
+    my $csvp = Text::Parser::CSV->new();
+    $csvp->read(shift @ARGV);
+
+=head3 Error checking
+
+It is easy to add any error checks using exceptions. One of the easiest ways to do this is to C<use L<Exception::Class>>.
+
+    package Text::Parser::CSV;
+    use Exception::Class (
+        'Text::Parser::CSV::Error', 
+        'Text::Parser::CSV::TooManyFields' => {
+            isa => 'Text::Parser::CSV::Error',
+        },
+    );
+    
+    use parent 'Text::Parser';
+
+    sub save_record {
+        my ($self, $line) = @_;
+        chomp $line;
+        my (@fields) = split /,/, $line;
+        my $self->{__csv_header} = \@fields if not scalar($self->get_records);
+        Text::Parser::CSV::TooManyFields->throw(error => "Too many fields on line #" . $self->lines_parsed)
+            if scalar(@fields) > scalar(@{$self->{__csv_header}});
+        $self->SUPER::save_record(\@fields);
+    }
+
+The C<Text::Parser> class will close all filehandles automatically as soon as an exception is thrown from C<save_record>. You can then catch the exception in C<main::> by C<use>ing C<L<Try::Tiny>>.
+
+=head2 Example 2 : Multi-line records
+
+Many text file formats have some way to indicate line-continuation. In BASH and many other interpreted shell languages, a line continuation is indicated with a trailing back-slash (\). In SPICE syntax if a line starts with a C<'+'> character then it is to be treated as a continuation of the previous line.
+
+To illustrate multi-line records we will write a derived class that simply joins the lines in a SPICE file and stores them as records.
+
+    package Text::Parser::LineContinuation::Spice;
+    use parent 'Text::Parser'l
+
+    sub save_record {
+        my ($self, $line) = @_;
+        $line = ($line =~ /^[+]\s*/) ? $self->__combine_with_last_record($line) : $line;
+        $self->SUPER::save_record( $line );
+    }
+
+    sub __combine_with_last_record {
+        my ($self, $line) = @_;
+        $line =~ s/^[+]\s*//;
+        my $last_rec = $self->pop_record;
+        chomp $last_rec;
+        return $last_rec . ' ' . $line;
+    }
+
+=head3 Making roles instead
+
+Line-continuation is a classic feature which is common to many different formats. If each syntax grammar generates a new class, one could potentially have to re-write code for line-continuation for each syntax or grammar. Instead it would be good to somehow re-use only the ability to join continued lines, but leave the actual syntax recognition to actual class that understands the syntax.
+
+But if we separate this functionality into a class of its own line we did above with C<Text::Parser::LineContinuation::Spice>, then it gives an impression that we can now create an object of C<Text::Parser::LineContinuation::Spice>. But in reality an object of this class would have not have much functionality and is therefore limited.
+
+This is where L<roles|Role::Tiny> are very useful.
+
+=cut
 
 1;
