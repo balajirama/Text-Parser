@@ -4,11 +4,11 @@
 
 =head1 NAME
 
-Text::Parser - an extensible Perl class to parse a text files. This module supersedes the older and now defunct C<TextFileParser>.
+Text::Parser - Bundles common text file reading, extensible to read any arbitrary text grammar. Stop re-writing mundane code to parse your next text file. This module supersedes the older and now defunct TextFileParser.
 
 =head1 VERSION
 
-version 0.503
+version 0.700
 
 =head1 SYNOPSIS
 
@@ -18,7 +18,7 @@ version 0.503
     $parser->read(shift @ARGV);
     print $parser->get_records, "\n";
 
-The above code reads a text file and prints the content to C<STDOUT>.
+The above code treats the first command-line argument as a filename, and assuming it is a text file, it will print the content of the file to C<STDOUT>.
 
 =head1 RATIONALE
 
@@ -54,16 +54,22 @@ We will write a parser for a simple CSV file that reads each line and stores the
         $self->SUPER::save_record(\@fields);
     }
 
-That's it! Now in C<main::> you can write the following.
+That's it! Now in C<main::> you can write something like this:
 
     use Text::Parser::CSV;
     
     my $csvp = Text::Parser::CSV->new();
     $csvp->read(shift @ARGV);
+    foreach my $aref ($csvp->get_records) {
+        my (@arr) = @{$aref};
+        print "@arr\n";
+    }
+
+The above program reads the content of a given CSV file and prints the content out in space-separated form.
 
 =head3 Error checking
 
-It is easy to add any error checks using exceptions. One of the easiest ways to do this is to C<use L<Exception::Class>>.
+It is easy to add any error checks using exceptions. One of the easiest ways to do this is to C<use L<Exception::Class>>. We'll demonstrate the use for the CSV parser.
 
     package Text::Parser::CSV;
     use Exception::Class (
@@ -79,13 +85,13 @@ It is easy to add any error checks using exceptions. One of the easiest ways to 
         my ($self, $line) = @_;
         chomp $line;
         my (@fields) = split /,/, $line;
-        my $self->{__csv_header} = \@fields if not scalar($self->get_records);
+        $self->{__csv_header} = \@fields if not scalar($self->get_records);
         Text::Parser::CSV::TooManyFields->throw(error => "Too many fields on line #" . $self->lines_parsed)
             if scalar(@fields) > scalar(@{$self->{__csv_header}});
         $self->SUPER::save_record(\@fields);
     }
 
-The C<Text::Parser> class will close all filehandles automatically as soon as an exception is thrown from C<save_record>. You can then catch the exception in C<main::> by C<use>ing C<L<Try::Tiny>>.
+The C<Text::Parser> class will close all filehandles automatically as soon as an exception is thrown from C<save_record>. You can catch the exception in C<main::> as you would normally, by C<use>ing C<L<Try::Tiny>> or other such class.
 
 =head2 Example 2 : Multi-line records
 
@@ -135,16 +141,16 @@ Takes zero or one argument which could be a string containing the name of the fi
     $parser->read($filename);
 
     # The above is equivalent to the following
-    $parser->filename($anotherfile);
+    $parser->filename($filename);
     $parser->read();
 
-    # Or the following
+    # You can also read from a previously opened file handle directly
     $parser->filehandle(\*STDIN);
     $parser->read();
 
-Returns once all records have been read or if an exception is thrown for any parsing errors. This function will handle all C<open> and C<close> operations on all files even if any exception is thrown.
+Returns once all records have been read or if an exception is thrown for any parsing errors, or if reading has been aborted with the C<abort_reading> method. This function will handle all C<open> and C<close> operations on all files even if any exception is thrown, or if the reading has been aborted.
 
-Once the method has successfully completed, you can parse another file. This means that your parser object is not tied to the file you parse. And when you do read a new file or input stream with this C<read> method, you will lose all the records stored from the previous read operation. So this means that if you want to read a different file with the same parser object, (unless you don't care about the last records read) you should use the C<get_records> method to retrieve all the read records before parsing a new file. So all those calls to C<read> in the example above were parsing three different files, and each successive call overwrote the records from the previous call.
+Once the method has successfully completed, you can parse another file. This means that your parser object is not tied to the file you parse. And when you do read a new file or input stream with this C<read> method, you will lose all the records stored from the previous read operation. So this means that if you want to read a different file with the same parser object, (unless you don't care about the records from the last file you read) you should use the C<get_records> method to retrieve all the read records before parsing a new file. So all those calls to C<read> in the example above were parsing three different files, and each successive call overwrote the records from the previous call.
 
     $parser->read($file1);
     my (@records) = $parser->get_records();
@@ -153,6 +159,8 @@ Once the method has successfully completed, you can parse another file. This mea
     my (@stdin) = $parser->get_records();
 
 B<Inheritance Recommendation:> When inheriting this class (which is what you should do if you want to write a parser for your favorite text file format), don't override this method. Override C<L<save_record|/save_record>> instead.
+
+B<Note:> Reading from output file handles is a weird thing. Some Operating Systems allow this and some don't. Read the documentation for C<L<filehandle|/filehandle>> for more on this.
 
 =head2 filename
 

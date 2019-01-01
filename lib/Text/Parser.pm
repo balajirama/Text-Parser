@@ -3,7 +3,7 @@ use strict;
 
 package Text::Parser;
 
-# ABSTRACT: an extensible Perl class to parse a text files. This module supersedes the older and now defunct C<TextFileParser>.
+# ABSTRACT: Bundles common text file reading, extensible to read any arbitrary text grammar. Stop re-writing mundane code to parse your next text file. This module supersedes the older and now defunct TextFileParser.
 
 use Exporter 'import';
 our (@EXPORT_OK) = ();
@@ -17,7 +17,7 @@ our (@EXPORT)    = (@EXPORT_OK);
     $parser->read(shift @ARGV);
     print $parser->get_records, "\n";
 
-The above code reads a text file and prints the content to C<STDOUT>.
+The above code treats the first command-line argument as a filename, and assuming it is a text file, it will print the content of the file to C<STDOUT>.
 
 =head1 RATIONALE
 
@@ -49,6 +49,16 @@ use Exception::Class (
         isa         => 'Text::Parser::Exception',
         description => 'File not readable',
         alias       => 'throw_file_not_readable'
+    },
+    'Text::Parser::Exception::InvalidFileHandle' => {
+        isa         => 'Text::Parser::Exception',
+        description => 'Bad argument supplied to filehandle()',
+        alias       => 'throw_invalid_filehandle'
+    },
+    'Text::Parser::Exception::InvalidFilename' => {
+        isa         => 'Text::Parser::Exception',
+        description => 'Bad argument supplied to filename()',
+        alias       => 'throw_bad_filename'
     },
     'Text::Parser::Exception::FileCantOpen' => {
         isa         => 'Text::Parser::Exception',
@@ -87,16 +97,16 @@ Takes zero or one argument which could be a string containing the name of the fi
     $parser->read($filename);
 
     # The above is equivalent to the following
-    $parser->filename($anotherfile);
+    $parser->filename($filename);
     $parser->read();
 
-    # Or the following
+    # You can also read from a previously opened file handle directly
     $parser->filehandle(\*STDIN);
     $parser->read();
 
-Returns once all records have been read or if an exception is thrown for any parsing errors. This function will handle all C<open> and C<close> operations on all files even if any exception is thrown.
+Returns once all records have been read or if an exception is thrown for any parsing errors, or if reading has been aborted with the C<abort_reading> method. This function will handle all C<open> and C<close> operations on all files even if any exception is thrown, or if the reading has been aborted.
 
-Once the method has successfully completed, you can parse another file. This means that your parser object is not tied to the file you parse. And when you do read a new file or input stream with this C<read> method, you will lose all the records stored from the previous read operation. So this means that if you want to read a different file with the same parser object, (unless you don't care about the last records read) you should use the C<get_records> method to retrieve all the read records before parsing a new file. So all those calls to C<read> in the example above were parsing three different files, and each successive call overwrote the records from the previous call.
+Once the method has successfully completed, you can parse another file. This means that your parser object is not tied to the file you parse. And when you do read a new file or input stream with this C<read> method, you will lose all the records stored from the previous read operation. So this means that if you want to read a different file with the same parser object, (unless you don't care about the records from the last file you read) you should use the C<get_records> method to retrieve all the read records before parsing a new file. So all those calls to C<read> in the example above were parsing three different files, and each successive call overwrote the records from the previous call.
 
     $parser->read($file1);
     my (@records) = $parser->get_records();
@@ -105,6 +115,8 @@ Once the method has successfully completed, you can parse another file. This mea
     my (@stdin) = $parser->get_records();
 
 B<Inheritance Recommendation:> When inheriting this class (which is what you should do if you want to write a parser for your favorite text file format), don't override this method. Override C<L<save_record|/save_record>> instead.
+
+B<Note:> Reading from output file handles is a weird thing. Some Operating Systems allow this and some don't. Read the documentation for C<L<filehandle|/filehandle>> for more on this.
 
 =cut
 
@@ -124,7 +136,8 @@ sub __store_check_input {
 }
 
 sub __throw_bad_input_to_read {
-    throw_bad_input_to_read error => 'Unexpected ' . shift . ' type input';
+    throw_bad_input_to_read error => 'Unexpected ' . shift
+        . ' type input to read() ; must be either string filename or GLOB';
 }
 
 sub __is_file_known_or_opened {
@@ -190,13 +203,13 @@ Takes zero or one string argument containing the name of a file. Returns the nam
 sub filename {
     my $self = shift;
     $self->__open_file( $self->__is_readable_file(shift) ) if scalar(@_);
-    return ( exists $self->{__filename} and defined $self->{__filename} )
-        ? $self->{__filename}
-        : undef;
+    return ( exists $self->{__filename} ) ? $self->{__filename} : undef;
 }
 
 sub __is_readable_file {
     my ( $self, $fname ) = @_;
+    throw_bad_filename( error => "$fname is not a string" )
+        if ref($fname) ne '';
     throw_file_not_found( error => "$fname is not a file" )
         if not -f $fname;
     throw_file_not_readable( error => "$fname is not readable" )
@@ -226,9 +239,7 @@ B<Note:> As such there is a check to ensure one is not supplying a write-only fi
 sub filehandle {
     my ( $self, $fhref ) = @_;
     $self->__save_file_handle($fhref) if $self->__check_file_handle($fhref);
-    return ( exists $self->{__filehandle} and defined $self->{__filehandle} )
-        ? $self->{__filehandle}
-        : undef;
+    return ( exists $self->{__filehandle} ) ? $self->{__filehandle} : undef;
 }
 
 sub __save_file_handle {
@@ -239,7 +250,9 @@ sub __save_file_handle {
 
 sub __check_file_handle {
     my ( $self, $fhref ) = @_;
-    return 0 if 'GLOB' ne ref($fhref);
+    return 0 if not defined $fhref;
+    throw_invalid_filehandle( error => "$fhref is not a valid filehandle" )
+        if ref($fhref) ne 'GLOB';
     throw_file_not_readable(
         error => "The filehandle $$fhref is not readable" )
         if not -r $$fhref;
@@ -392,16 +405,22 @@ We will write a parser for a simple CSV file that reads each line and stores the
         $self->SUPER::save_record(\@fields);
     }
 
-That's it! Now in C<main::> you can write the following.
+That's it! Now in C<main::> you can write something like this:
 
     use Text::Parser::CSV;
     
     my $csvp = Text::Parser::CSV->new();
     $csvp->read(shift @ARGV);
+    foreach my $aref ($csvp->get_records) {
+        my (@arr) = @{$aref};
+        print "@arr\n";
+    }
+
+The above program reads the content of a given CSV file and prints the content out in space-separated form.
 
 =head3 Error checking
 
-It is easy to add any error checks using exceptions. One of the easiest ways to do this is to C<use L<Exception::Class>>.
+It is easy to add any error checks using exceptions. One of the easiest ways to do this is to C<use L<Exception::Class>>. We'll demonstrate the use for the CSV parser.
 
     package Text::Parser::CSV;
     use Exception::Class (
@@ -417,13 +436,13 @@ It is easy to add any error checks using exceptions. One of the easiest ways to 
         my ($self, $line) = @_;
         chomp $line;
         my (@fields) = split /,/, $line;
-        my $self->{__csv_header} = \@fields if not scalar($self->get_records);
+        $self->{__csv_header} = \@fields if not scalar($self->get_records);
         Text::Parser::CSV::TooManyFields->throw(error => "Too many fields on line #" . $self->lines_parsed)
             if scalar(@fields) > scalar(@{$self->{__csv_header}});
         $self->SUPER::save_record(\@fields);
     }
 
-The C<Text::Parser> class will close all filehandles automatically as soon as an exception is thrown from C<save_record>. You can then catch the exception in C<main::> by C<use>ing C<L<Try::Tiny>>.
+The C<Text::Parser> class will close all filehandles automatically as soon as an exception is thrown from C<save_record>. You can catch the exception in C<main::> as you would normally, by C<use>ing C<L<Try::Tiny>> or other such class.
 
 =head2 Example 2 : Multi-line records
 

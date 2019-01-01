@@ -10,6 +10,12 @@ my $fname = 'text-simple.txt';
 
 my $pars = Text::Parser->new();
 is( $pars->filename(), undef, 'No filename specified so far' );
+lives_ok { is( $pars->filehandle(), undef, 'No filehandles' ); }
+'This should not die, just return undef';
+throws_ok { $pars->filehandle('bad argument'); } 'Text::Parser::Exception',
+    'filehandle() will take only a GLOB input';
+throws_ok { $pars->filename( { a => 'b' } ); } 'Text::Parser::Exception',
+    'filename() will take only string as input';
 throws_ok { $pars->filename($fname) } 'Text::Parser::Exception',
     'No file by this name';
 throws_ok { $pars->read($fname); } 'Text::Parser::Exception',
@@ -24,6 +30,13 @@ is( $pars->pop_record,  undef, 'Nothing on stack' );
 lives_ok { $pars->read(''); } 'Reads no file ; returns doing nothing';
 is( $pars->filename(),     undef, 'No file name still' );
 is( $pars->lines_parsed(), 0,     'Nothing parsed again' );
+
+system('echo "This is unreadable" > t/unreadable.txt');
+system('chmod 200 t/unreadable.txt');
+throws_ok { $pars->filename('t/unreadable.txt'); } 'Text::Parser::Exception',
+    'This file cannot be read';
+is( $pars->filename(), undef, 'Still no file has been read so far' );
+system('rm -rf t/unreadable.txt');
 
 my $content = "This is a file with one line\n";
 lives_ok { $pars->filename( 't/' . $fname ); } 'Now I can open the file';
@@ -51,7 +64,19 @@ lives_ok {
         ['Simple text'], 'Read correct data in file' );
 }
 'Exercising the ability to read from file handles directly';
-`rm -rf example`;
+system('rm -rf example');
+open OUTFILE, ">example";
+if ( -r OUTFILE ) {
+    chmod 0200, 'example';
+    throws_ok { $pars->filehandle( \*OUTFILE ); } 'Text::Parser::Exception',
+        'Now this is not readable'
+        if not -r OUTFILE;
+}
+chmod 0644, 'example';
+close OUTFILE;
+system('rm -rf example');
+
+## Testing the reading from filehandles on STDOUT and STDIN
 if ( -r STDOUT ) {
     lives_ok { $pars->filehandle( \*STDOUT ); }
     'Some systems can read from STDOUT. Your system is one of them.';
@@ -84,8 +109,8 @@ is_deeply(
 
 is( $pars->pop_record,   $add,     'Popped a record' );
 is( $pars->lines_parsed, 1,        'Still only 1 line parsed' );
-is( $pars->last_record,  undef, 'There was an undef in between' );
-is( $pars->pop_record,  undef, 'Now undef is removed' );
+is( $pars->last_record,  undef,    'There was an undef in between' );
+is( $pars->pop_record,   undef,    'Now undef is removed' );
 is( $pars->last_record,  $content, 'Now the last record is the one earlier' );
 is_deeply( [ $pars->get_records ],
     [$content], 'Got correct content after pop' );
