@@ -31,26 +31,30 @@ lives_ok { $pars->read(''); } 'Reads no file ; returns doing nothing';
 is( $pars->filename(),     undef, 'No file name still' );
 is( $pars->lines_parsed(), 0,     'Nothing parsed again' );
 
-system('echo "This is unreadable" > t/unreadable.txt');
-system('chmod 200 t/unreadable.txt');
+open OFILE, ">t/unreadable.txt";
+print OFILE "This is unreadable\n";
+close OFILE;
+chmod 0200, 't/unreadable.txt';
 throws_ok { $pars->filename('t/unreadable.txt'); } 'Text::Parser::Exception',
     'This file cannot be read';
 is( $pars->filename(), undef, 'Still no file has been read so far' );
-system('rm -rf t/unreadable.txt');
+unlink 't/unreadable.txt';
 
 my $content = "This is a file with one line\n";
 lives_ok { $pars->filename( 't/' . $fname ); } 'Now I can open the file';
 lives_ok { $pars->read; } 'Reads the file now';
 is_deeply( [ $pars->get_records ], [$content], 'Get correct data' );
-is( $pars->lines_parsed, 1,        '1 line parsed' );
-is( $pars->last_record,  $content, 'Worked' );
-is( $pars->pop_record,   $content, 'Popped' );
-is( $pars->lines_parsed, 1,        'Still lines_parsed returns 1' );
+is( $pars->lines_parsed, 1,             '1 line parsed' );
+is( $pars->last_record,  $content,      'Worked' );
+is( $pars->pop_record,   $content,      'Popped' );
+is( $pars->lines_parsed, 1,             'Still lines_parsed returns 1' );
+is( $pars->filename(),   't/' . $fname, 'Last file read' );
 
 open OUTFILE, ">example";
 if ( -r OUTFILE ) {
     lives_ok { $pars->filehandle( \*OUTFILE ); }
     'In some systems output file handles are also readable! Your system is one of those. This could be a potential security hole.';
+    is( $pars->filename(), undef, 'Last file read is not available anymore' );
 } else {
     throws_ok { $pars->filehandle( \*OUTFILE ); } 'Text::Parser::Exception',
         'Your system is strict and will not read from an output filehandle. This is potentially good for security.';
@@ -64,7 +68,7 @@ lives_ok {
         ['Simple text'], 'Read correct data in file' );
 }
 'Exercising the ability to read from file handles directly';
-system('rm -rf example');
+unlink 'example';
 open OUTFILE, ">example";
 if ( -r OUTFILE ) {
     chmod 0200, 'example';
@@ -74,7 +78,7 @@ if ( -r OUTFILE ) {
 }
 chmod 0644, 'example';
 close OUTFILE;
-system('rm -rf example');
+unlink 'example';
 
 ## Testing the reading from filehandles on STDOUT and STDIN
 if ( -r STDOUT ) {
