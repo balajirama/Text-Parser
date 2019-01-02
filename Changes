@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+0.751     2019-01-01 20:30:37-08:00 America/Los_Angeles
   - Documentation looks better. Made links where it makes sense. Re-arranged the information better.
 
 0.750     2019-01-01 19:37:50-08:00 America/Los_Angeles
