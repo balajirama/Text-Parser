@@ -8,7 +8,7 @@ Text::Parser - Bundles common text reading tasks. Stop re-writing mundane code t
 
 =head1 VERSION
 
-version 0.750
+version 0.751
 
 =head1 SYNOPSIS
 
@@ -36,13 +36,147 @@ Future versions are also expected to include progress-bar support. All these sof
 
 At present this class handles files as input. You could either give filenames or filehandles (C<GLOB>s) as input to the parser. L<In the future|/"Future Enhancement"> the class may include the ability to read from other input sources. This will be especially useful if you have a series of files/sockets to read from.
 
+=head1 METHODS
+
+=head2 new
+
+Takes no arguments. Returns a blessed reference of the object.
+
+    my $parser = Text::Parser->new();
+
+This C<$parser> variable will be used in examples below.
+
+=head2 read
+
+Takes zero or one argument which could be a string containing the name of the file, or a filehandle reference or a C<GLOB> (e.g. C<\*STDIN>). Throws an exception if filename/C<GLOB> provided is either non-existent or cannot be read for any reason.
+
+B<Note:> Normally if you provide the C<GLOB> of a file opened for write, some Operating Systems allow reading from it too, and some don't. Read the documentation for C<L<filehandle|/filehandle>> for more on this.
+
+    $parser->read($filename);
+
+    # The above is equivalent to the following
+    $parser->filename($filename);
+    $parser->read();
+
+    # You can also read from a previously opened file handle directly
+    $parser->filehandle(\*STDIN);
+    $parser->read();
+
+Returns once all records have been read or if an exception is thrown for any parsing errors, or if reading has been aborted with the C<L<abort_reading|/abort_reading>> method.
+
+If you provide a string file name as input, the function will handle all C<open> and C<close> operations on files even if any exception is thrown, or if the reading has been aborted. But if you pass a file handle C<GLOB> instead, then the file handle won't be closed and it will be the responsibility of the calling program to close the filehandle.
+
+    $parser->read('myfile.txt'); # Will handle open, parsing, and closing of file automatically.
+
+    open MYFH, "<myfile.txt" or die "Can't open file myfile.txt at ";
+    $parser->read(\*MYFH);       # Will not close MYFH and it is the respo
+    close MYFH;
+
+When you do read a new file or input stream with this method, you will lose all the records stored from the previous read operation. So this means that if you want to read a different file with the same parser object, (unless you don't care about the records from the last file you read) you should use the C<L<get_records|/get_records>> method to retrieve all the read records before parsing a new file. So all those calls to C<read> in the example above were parsing three different files, and each successive call overwrote the records from the previous call.
+
+    $parser->read($file1);
+    my (@records) = $parser->get_records();
+
+    $parser->read(\*STDIN);
+    my (@stdin) = $parser->get_records();
+
+B<Inheritance Recommendation:> When inheriting this class (which is what you should do if you want to write a parser for your favorite text file format), don't override this method. Override C<L<save_record|/save_record>> instead.
+
+=head3 Future Enhancement
+
+I<At present the C<read> method takes only two possible inputs argument types, either a file name, or a file handle. In near future this may be enhanced to read from sockets, subroutines, or even just a block of memory (a string reference). Suggestions for other forms of input are welcome.>
+
+=head2 filename
+
+Takes zero or one string argument containing the name of a file. Returns the name of the file that was last opened if any. Returns C<undef> if no file has been opened.
+
+    print "Last read ", $parser->filename, "\n";
+
+The file name is "persistent" in the object. Meaning, even after you have called C<L<read|/read>> once, it still remembers the file name. So you can do this:
+
+    $parser->read(shift @ARGV);
+    print $parser->filename(), ":\n", "=" x (length($parser->filename())+1), "\n", $parser->get_records(), "\n";
+
+But if you do a C<read> with a filehandle as argument, you'll see that the last filename is lost - which makes sense.
+
+    $parser->read(\*MYFH);
+    print "Last file name is lost\n" if not defined $parser->filename();
+
+=head2 filehandle
+
+Takes zero or one C<GLOB> argument and saves it for future a C<L<read|/read>> call. Returns the filehandle last saved, or C<undef> if none was saved. Remember that after a successful C<read> call, filehandles are lost.
+
+    my $fh = $parser->filehandle();
+
+B<Note:> As such there is a check to ensure one is not supplying a write-only filehandle. For example, if you specify the filehandle of a write-only file or if the file is opened for write and you cannot read from it. The weird thing is that some of the standard filehandles like C<STDOUT> don't behave uniformly across all platforms. On most POSIX platforms, C<STDOUT> is readable. On such platforms you will not get any exceptions if you try to do this:
+
+    $parser->filehandle(\*STDOUT);  ## Works on many POSIX platforms
+                                    ## Throws exception on others
+
+Like in the case of C<L<filename|/filename>> method, if after you C<read> with a filehandle, you call C<read> again, this time with a file name, the last filehandle is lost.
+
+    my $lastfh = $parser->filehandle();
+    ## Will return \*STDOUT
+    
+    $parser->read('another.txt');
+    print "No filehandle saved any more\n" if not defined $parser->filehandle();
+
+=head2 lines_parsed
+
+Takes no arguments. Returns the number of lines last parsed. A line is reckoned when the C<\n> character is encountered.
+
+    print $parser->lines_parsed, " lines were parsed\n";
+
+This is also very useful for error message generation.
+
+Again the information in this is "persistent". Meaning, that after a C<L<read|/read>> operation, you can call it to get the number of lines parsed. You can also be assured that every time you call C<read>, the line count will be ways be reset first.
+
+=head2 save_record
+
+Takes exactly one argument and that is saved as a record. Additional arguments are ignored. If no arguments are passed, then C<undef> is stored as a record.
+
+In an application that uses a text parser, you will most-likely never call this method directly. It is automatically called within C<L<read|/read>> for each line. In this base class C<Text::Parser>, C<save_record> is simply called with a string containing the raw line of text ; i.e. the line of text will not be C<chomp>ed or modified in any way. L<Here|/"Example 1 : A simple CSV Parser"> is a basic example.
+
+Derived classes can decide to store records in a different form. A derived class could, for example, store the records in the form of hash references (so that when you use C<L<get_records|/get_records>>, you'd get an array of hashes), or maybe even another array reference (so when you use C<get_records> to you'd get an array of arrays). The L<CSV parser example|/"Example 1 : A simple CSV Parser"> does the latter by example.
+
+=head2 abort_reading
+
+Takes no arguments. Returns C<1>. You will probably never call this method in your main program.
+
+This method is usually used only in the derived class. See L<this example|/"Example 3 : Aborting without errors">.
+
+=head2 get_records
+
+Takes no arguments. Returns an array containing all the records that were read by the parser.
+
+    foreach my $record ( $parser->get_records ) {
+        $i++;
+        print "Record: $i: ", $record, "\n";
+    }
+
+=head2 last_record
+
+Takes no arguments and returns the last saved record. Leaves the saved records untouched.
+
+    my $last_rec = $parser->last_record;
+
+=head2 pop_record
+
+Takes no arguments and pops the last saved record.
+
+    my $last_rec = $parser->pop_record;
+    $uc_last = uc $last_rec;
+    $parser->save_record($uc_last);
+
 =head1 EXAMPLES
 
 The following examples should illustrate the use of inheritance to parse various types of text file formats.
 
 =head2 Basic principle
 
-Derived classes simply need to override one method : C<save_record>. With the help of that any arbitrary file format can be read. C<save_record> should interpret the format of the text and store it in some form by calling C<SUPER::save_record>. The C<main::> program will then use the records and create an appropriate data structure with it.
+Derived classes simply need to override one method : C<L<save_record|/save_record>>. With the help of that any arbitrary file format can be read. C<save_record> should interpret the format of the text and store it in some form by calling C<SUPER::save_record>. The C<main::> program will then use the records and create an appropriate data structure with it.
+
+Notice that the creation of a data structure is not the objective of a parser. It is simply concerned with collecting data and arranging it in a form that can be used. That's all. Data structures can be created by a different part of your program using the data collected by your parser.
 
 =head2 Example 1 : A simple CSV Parser
 
@@ -71,9 +205,9 @@ That's it! Now in C<main::> you can write something like this:
 
 The above program reads the content of a given CSV file and prints the content out in space-separated form.
 
-=head3 Error checking
+=head2 Example 2 : Error checking
 
-It is easy to add any error checks using exceptions. One of the easiest ways to do this is to C<use L<Exception::Class>>. We'll demonstrate the use for the CSV parser.
+It is easy to add any error checks using exceptions. One of the easiest ways to do this is to C<use L<Exception::Class>>. We'll modify the CSV parser above to demonstrate that.
 
     package Text::Parser::CSV;
     use Exception::Class (
@@ -97,112 +231,9 @@ It is easy to add any error checks using exceptions. One of the easiest ways to 
 
 The C<Text::Parser> class will C<close> all filehandles automatically as soon as an exception is thrown from C<save_record>. You can catch the exception in C<main::> as you would normally, by C<use>ing C<L<Try::Tiny>> or other such class.
 
-=head1 METHODS
+=head2 Example 3 : Aborting without errors
 
-=head2 new
-
-Takes no arguments. Returns a blessed reference of the object.
-
-    my $parser = Text::Parser->new();
-
-This C<$parser> variable will be used in examples below.
-
-=head2 read
-
-Takes zero or one argument which could be a string containing the name of the file, or a filehandle reference or a C<GLOB> (e.g. C<\*STDIN>). Throws an exception if filename/C<GLOB> provided is either non-existent or cannot be read for any reason.
-
-B<Note:> Normally if you provide the C<GLOB> of a file opened for write, some Operating Systems allow reading from it too, and some don't. Read the documentation for C<L<filehandle|/filehandle>> for more on this.
-
-    $parser->read($filename);
-
-    # The above is equivalent to the following
-    $parser->filename($filename);
-    $parser->read();
-
-    # You can also read from a previously opened file handle directly
-    $parser->filehandle(\*STDIN);
-    $parser->read();
-
-Returns once all records have been read or if an exception is thrown for any parsing errors, or if reading has been aborted with the C<abort_reading> method.
-
-If you provide a string file name as input, the function will handle all C<open> and C<close> operations on files even if any exception is thrown, or if the reading has been aborted. But if you pass a file handle C<GLOB> instead, then the file handle won't be closed and it will be the responsibility of the calling program to close the filehandle.
-
-    $parser->read('myfile.txt'); # Will handle open, parsing, and closing of file automatically.
-
-    open MYFH, "<myfile.txt" or die "Can't open file myfile.txt at ";
-    $parser->read(\*MYFH);       # Will not close MYFH and it is the respo
-    close MYFH;
-
-When you do read a new file or input stream with this C<read> method, you will lose all the records stored from the previous read operation. So this means that if you want to read a different file with the same parser object, (unless you don't care about the records from the last file you read) you should use the C<get_records> method to retrieve all the read records before parsing a new file. So all those calls to C<read> in the example above were parsing three different files, and each successive call overwrote the records from the previous call.
-
-    $parser->read($file1);
-    my (@records) = $parser->get_records();
-
-    $parser->read(\*STDIN);
-    my (@stdin) = $parser->get_records();
-
-B<Inheritance Recommendation:> When inheriting this class (which is what you should do if you want to write a parser for your favorite text file format), don't override this method. Override C<L<save_record|/save_record>> instead.
-
-=head3 Future Enhancement
-
-I<At present this method takes only inputs interpreted as files. In future this may be enhanced to read from sockets, subroutines, or even just a block of memory (a string reference).>
-
-=head2 filename
-
-Takes zero or one string argument containing the name of a file. Returns the name of the file that was last opened if any. Returns C<undef> if no file has been opened.
-
-    print "Last read ", $parser->filename, "\n";
-
-The file name is "persistent" in the object. Meaning, even after you have called C<read> once, it still remembers the file name. So you can do this:
-
-    $parser->read(shift @ARGV);
-    print $parser->filename(), ":\n", "=" x (length($parser->filename())+1), "\n", $parser->get_records(), "\n";
-
-But if you do a C<read> with a filehandle as argument, you'll see that the last filename is lost - which makes sense.
-
-    $parser->read(\*MYFH);
-    print "Last file name is lost\n" if not defined $parser->filename();
-
-=head2 filehandle
-
-Takes zero or one C<GLOB> argument and saves it for future a C<read> call. Returns the filehandle last saved, or C<undef> if none was saved. Remember that after a successful C<read> call, filehandles are lost.
-
-    my $fh = $parser->filehandle();
-
-B<Note:> As such there is a check to ensure one is not supplying a write-only filehandle. For example, if you specify the filehandle of a write-only file or if the file is opened for write and you cannot read from it. The weird thing is that some of the standard filehandles like C<STDOUT> don't behave uniformly across all platforms. On most POSIX platforms, C<STDOUT> is readable. On such platforms you will not get any exceptions if you try to do this:
-
-    $parser->filehandle(\*STDOUT);  ## Works on many POSIX platforms
-                                    ## Throws exception on others
-
-So be congnizant of this. In general, it is better to simply use the C<L<read|/read>> and C<L<filename|/filename>> methods instead.
-
-Like in the case of C<filename> method, if after you C<read> with a filehandle, you call C<read> again, this time with a file name, the last filehandle is lost.
-
-    my $lastfh = $parser->filehandle();
-    ## Will return \*STDOUT
-    
-    $parser->read('another.txt');
-    print "No filehandle saved any more\n" if not defined $parser->filehandle();
-
-=head2 lines_parsed
-
-Takes no arguments. Returns the number of lines last parsed. A line is reckoned when the C<\n> character is encountered.
-
-    print $parser->lines_parsed, " lines were parsed\n";
-
-This is also very useful for error message generation.
-
-Again the information in this is "persistent". Meaning, that after a C<read> operation, you can call it to get the number of lines parsed. You can also be assured that every time you call C<read>, the line count will be ways be reset first.
-
-=head2 save_record
-
-Takes exactly one argument and that is saved as a record. If more than one argument are passed, everything after the first argument is ignored. And if no arguments are passed, then C<undef> is stored as a record.
-
-In an application that uses a text parser, you will most-likely never call this method directly. It is automatically called within C<read> for each line. In this base class C<Text::Parser>, C<save_record> is simply called with a string containing the raw line of text ; the line of text will not be C<chomp>ed or modified in any way. Derived classes can decide to store records in a different form. A derived class could, for example, store the records in the form of hash references (so that when you use C<get_records>, you'd get an array of hashes), or maybe even another array reference (so when you use C<get_records> to you'd get an array of arrays). See L<Inheritance examples|/"EXAMPLES"> for examples on how C<save_record> could be overridden by derived classes.
-
-=head2 abort_reading
-
-This method will be useful if a derived class wants to stop reading a file after it has read all the desired information. For example:
+We can also abort parsing a text file without throwing an exception. This could be if we got the information we needed. For example:
 
     package Text::Parser::SomeFile;
     use parent 'Text::Parser';
@@ -238,29 +269,6 @@ The output will be:
 
     Some text is here.
     More text here.
-
-=head2 get_records
-
-Takes no arguments. Returns an array containing all the records that were read by the parser.
-
-    foreach my $record ( $parser->get_records ) {
-        $i++;
-        print "Record: $i: ", $record, "\n";
-    }
-
-=head2 last_record
-
-Takes no arguments and returns the last saved record. Leaves the saved records untouched.
-
-    my $last_rec = $parser->last_record;
-
-=head2 pop_record
-
-Takes no arguments and pops the last saved record.
-
-    my $last_rec = $parser->pop_record;
-    $uc_last = uc $last_rec;
-    $parser->save_record($uc_last);
 
 =head1 BUGS
 
