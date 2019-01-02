@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+0.750     2019-01-01 19:37:50-08:00 America/Los_Angeles
   - Correct problems in test for Win32 platform compatibility.
   - Improve documentation to give examples of what all the functions do.
   - Changed the spec for filehandle() and read()
