@@ -7,12 +7,6 @@ perl:
   - "5.20"
   - "5.18"
   - "5.16"
-before_install:
-  - cpanm Test::Pod
-
-install:
-  - cpanm -v --installdeps --notest .
-
 script:
   - perl Makefile.PL && make test
 notifications:
