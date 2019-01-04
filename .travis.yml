@@ -9,7 +9,7 @@ perl:
   - "5.18"
   - "5.16"
 install:
-    - cpanm -q --notest Dist::Zilla || (cat /home/travis/.cpanm/build.log; false)
+    - cpanm -q --notest Dist::Zilla Pod::Weaver::Section::Contributors || (cat /home/travis/.cpanm/build.log; false)
     - dzil authordeps --missing | cpanm -q --notest || (cat /home/travis/.cpanm/build.log; false)
     - dzil listdeps --author --missing | cpanm -q --notest || (cat /home/travis/.cpanm/build.log; false)
 script:
