@@ -1,6 +1,7 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+  - Skip tests of unreadable files for MSWin32.
 
 0.752     2019-01-02 20:25:16-08:00 America/Los_Angeles
   - One test fails for superuser. Fixing that.

@@ -337,7 +337,7 @@ sub save_record {
 
 Takes no arguments. Returns C<1>. You will probably never call this method in your main program.
 
-This method is usually used only in the derived class. See L<this example|/"Example 3 : Aborting without errors"> for an example.
+This method is usually used only in the derived class. See L<this example|/"Example 3 : Aborting without errors">.
 
 =cut
 
