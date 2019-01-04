@@ -8,9 +8,10 @@ perl:
   - "5.20"
   - "5.18"
   - "5.16"
+  - "5.14"
 install:
     - cpanm -q --notest Dist::Zilla Pod::Weaver::Section::Contributors Dist::Zilla::App::Command::cover Dist::Zilla::App::Command::kwalitee || (cat /home/travis/.cpanm/build.log; false)
     - dzil authordeps --missing | cpanm -q --notest || (cat /home/travis/.cpanm/build.log; false)
     - dzil listdeps --author --missing | cpanm -q --notest || (cat /home/travis/.cpanm/build.log; false)
 script:
-    - dzil test --all && dzil cover
+    - dzil test --all && dzil cover && dzil kwalitee
