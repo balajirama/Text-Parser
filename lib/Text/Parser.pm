@@ -21,7 +21,7 @@ The above code reads the first command-line argument as a string, and assuming i
 
 =head1 RATIONALE
 
-A simple text file parser should have to only specify the "grammar" intends to interpret. Everything else, like opening a file handle, tracking how many lines have been read, etc., should be "automatic".
+A simple text file parser should have to only specify the "grammar" it intends to interpret. Everything else, like C<open>ing a file handle, tracking how many lines have been read, etc., should be "automatic".
 
 Unfortunately, most programmers write code that calls C<open>, C<close>, etc., and keep track of things that should have been simple features of every text file parser. And if they have to read multiple files, usually, all these calls are repeated.
 
@@ -29,7 +29,7 @@ This class does all "mundane" operations like C<open>, C<close>, line-count, and
 
 =head1 DESCRIPTION
 
-C<Text::Parser> is a bare-bones text parsing class. It is ignorant of the text format, and cannot recognize any grammars, but derived classes that inherit from it can specify this. They can do this by overriding some of the methods in this class.
+C<Text::Parser> is a bare-bones text parsing class. It is ignorant of the text format, and cannot recognize any grammars, but derived classes that inherit from it can specify this. They can do this usually by overriding just one of the methods in this class.
 
 Future versions are expected to include progress-bar support, parsing text from sockets, or a chunk of memory. All these software features are text-format independent and can be re-used in parsing any text format. Derived classes of C<Text::Parser> will be able to take advantage of these features.
 
@@ -323,7 +323,7 @@ Takes exactly one argument and that is saved as a record. Additional arguments a
 
 In an application that uses a text parser, you will most-likely never call this method directly. It is automatically called within C<L<read|/read>> for each line. In this base class C<Text::Parser>, C<save_record> is simply called with a string containing the raw line of text ; i.e. the line of text will not be C<chomp>ed or modified in any way. L<Here|/"Example 1 : A simple CSV Parser"> is a basic example.
 
-Derived classes can decide to store records in a different form. A derived class could, for example, store the records in the form of hash references (so that when you use C<L<get_records|/get_records>>, you'd get an array of hashes), or maybe even another array reference (so when you use C<get_records> to you'd get an array of arrays). The L<CSV parser example|/"Example 1 : A simple CSV Parser"> does the latter by example.
+Derived classes can decide to store records in a different form. A derived class could, for example, store the records in the form of hash references (so that when you use C<L<get_records|/get_records>>, you'd get an array of hashes), or maybe even another array reference (so when you use C<get_records> you'd get an array of arrays). The L<CSV parser example|/"Example 1 : A simple CSV Parser"> does the latter.
 
 =cut
 
@@ -406,8 +406,7 @@ Notice that the creation of a data structure is not the objective of a parser. I
 
 =head2 Example 1 : A simple CSV Parser
 
-We will write a parser for a simple CSV file that reads each line and stores the records as array references.
-This example is oversimplified, and does B<not> handle embedded newlines.
+We will write a parser for a simple CSV file that reads each line and stores the records as array references. This example is oversimplified, and does B<not> handle embedded newlines.
 
     package Text::Parser::CSV;
     use parent 'Text::Parser';
