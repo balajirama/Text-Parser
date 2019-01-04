@@ -407,15 +407,18 @@ Notice that the creation of a data structure is not the objective of a parser. I
 =head2 Example 1 : A simple CSV Parser
 
 We will write a parser for a simple CSV file that reads each line and stores the records as array references.
+This example is oversimplified, and does B<not> handle embedded newlines.
 
     package Text::Parser::CSV;
     use parent 'Text::Parser';
+    use Text::CSV;
 
+    my $csv;
     sub save_record {
         my ($self, $line) = @_;
-        chomp $line;
-        my (@fields) = split /,/, $line;
-        $self->SUPER::save_record(\@fields);
+        $csv //= Text::CSV->new({ binary => 1, auto_diag => 1});
+        $csv->parse($line);
+        $self->SUPER::save_record([$csv->fields]);
     }
 
 That's it! Now in C<main::> you can write something like this:
