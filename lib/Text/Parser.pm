@@ -446,11 +446,14 @@ It is easy to add any error checks using exceptions. One of the easiest ways to 
     );
     
     use parent 'Text::Parser';
+    use Text::CSV;
 
+    my $csv;
     sub save_record {
         my ($self, $line) = @_;
-        chomp $line;
-        my (@fields) = split /,/, $line;
+        $csv //= Text::CSV->new({ binary => 1, auto_diag => 1});
+        $csv->parse($line);
+        my @fields = $csv->fields;
         $self->{__csv_header} = \@fields if not scalar($self->get_records);
         Text::Parser::CSV::TooManyFields->throw(error => "Too many fields on line #" . $self->lines_parsed)
             if scalar(@fields) > scalar(@{$self->{__csv_header}});
