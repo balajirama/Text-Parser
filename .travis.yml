@@ -8,14 +8,13 @@ perl:
   - "5.18"
   - "5.16"
 before_install:
-    - sudo apt-get update -q
-    - sudo apt-get install -y libgmp-dev
-    - cpanm Test::Pod
+  - cpanm Test::Pod
 
 install:
-    - cpanm -v --installdeps --notest .
+  - cpanm -v --installdeps --notest .
 
-script: "perl Makefile.PL; make test"
+script:
+  - perl Makefile.PL && make test
 notifications:
   recipients:
     - balajiram@cpan.org
