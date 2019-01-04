@@ -1,7 +1,4 @@
 sudo: false
-os:
-  - linux
-  - osx
 language: perl
 perl:
   - "5.28"
@@ -10,8 +7,6 @@ perl:
   - "5.22"
   - "5.20"
   - "5.18"
-  - "5.16"
-  - "5.14"
 install:
     - cpanm -q --notest Pod::Weaver::Section::Contributors || (cat /home/travis/.cpanm/build.log; false)
     - cpanm -q --notest Dist::Zilla Dist::Zilla::App::Command::cover Dist::Zilla::App::Command::kwalitee || (cat /home/travis/.cpanm/build.log; false)
