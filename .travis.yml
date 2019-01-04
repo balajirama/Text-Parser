@@ -1,4 +1,7 @@
 sudo: false
+os:
+  - linux
+  - osx
 language: perl
 perl:
   - "5.28"
@@ -10,8 +13,13 @@ perl:
   - "5.16"
   - "5.14"
 install:
-    - cpanm -q --notest Dist::Zilla Pod::Weaver::Section::Contributors Dist::Zilla::App::Command::cover Dist::Zilla::App::Command::kwalitee || (cat /home/travis/.cpanm/build.log; false)
+    - cpanm -q --notest Pod::Weaver::Section::Contributors || (cat /home/travis/.cpanm/build.log; false)
+    - cpanm -q --notest Dist::Zilla Dist::Zilla::App::Command::cover Dist::Zilla::App::Command::kwalitee || (cat /home/travis/.cpanm/build.log; false)
     - dzil authordeps --missing | cpanm -q --notest || (cat /home/travis/.cpanm/build.log; false)
     - dzil listdeps --author --missing | cpanm -q --notest || (cat /home/travis/.cpanm/build.log; false)
 script:
-    - dzil test --all && dzil cover && dzil kwalitee
+    - dzil test --all
+    - dzil kwalitee
+    - dzil cover
+after_success:
+    - cover -report codecov
