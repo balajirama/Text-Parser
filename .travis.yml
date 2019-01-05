@@ -17,6 +17,5 @@ script:
     - dzil test --all
     - dzil kwalitee
     - dzil cover > cover.log
-after_success:
-    - tail -n 1 cover.log | awk '{print "cd " $2}' | sh
+    - tail -n 1 cover.log | awk '{print "cd " $2}' | sh && pwd
     - cover -report codecov
