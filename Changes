@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+0.753     2019-01-04 21:38:06-08:00 America/Los_Angeles
   - Skip tests of unreadable files for MSWin32.
   - A safer CSV example in Example 1 & 2. Added tests based on that.
   - Grammatical/typo fixes in POD.
