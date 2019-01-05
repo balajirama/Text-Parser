@@ -14,8 +14,10 @@ install:
     - dzil authordeps --missing | cpanm -q --notest || (cat /home/travis/.cpanm/build.log; false)
     - dzil listdeps --author --missing | cpanm -q --notest || (cat /home/travis/.cpanm/build.log; false)
 script:
-    - dzil test --all
     - dzil kwalitee
-    - dzil cover > cover.log
-    - tail -n 1 cover.log | awk '{print "cd " $2}' | sh && pwd
+    - dzil clean
+    - dzil cover -test
+    - cd .build/*
+    - pwd
+after_success:
     - cover -report codecov
