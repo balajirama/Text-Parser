@@ -16,6 +16,7 @@ install:
 script:
     - dzil test --all
     - dzil kwalitee
-    - dzil cover
+    - dzil cover > cover.log
 after_success:
+    - tail -n 1 cover.log | awk '{print "cd " $2}' | sh
     - cover -report codecov
