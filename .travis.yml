@@ -1,14 +1,12 @@
-os: 
-  - linux
-  sudo: false
-  language: perl
-  perl:
-    - "5.28"
-    - "5.26"
-    - "5.24"
-    - "5.22"
-    - "5.20"
-    - "5.18"
+sudo: false
+language: perl
+perl:
+  - "5.28"
+  - "5.26"
+  - "5.24"
+  - "5.22"
+  - "5.20"
+  - "5.18"
   install:
     - cpanm -q --notest Devel::Cover::Report::Codecov || (cat /home/travis/.cpanm/build.log; false)
     - cpanm -q --notest Pod::Weaver::Section::Contributors || (cat /home/travis/.cpanm/build.log; false)
@@ -23,13 +21,3 @@ os:
     - pwd
   after_success:
     - cover -report codecov
-os: 
-  - windows
-  before_install:
-    - choco install strawberryperl
-  install:
-    - echo "Hello"
-  script:
-    - perl -e 'use Data::Dumper "Dumper"; print Dumper(\@INC), "\n";'
-  after_success:
-    - echo "I can install and run perl on Windows"
