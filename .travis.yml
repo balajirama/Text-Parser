@@ -9,7 +9,7 @@ perl:
   - "5.18"
 install:
     - cpanm -q --notest Devel::Cover::Report::Codecov || (cat /home/travis/.cpanm/build.log; false)
-    - cpanm -q --notest Pod::Weaver::Section::Contributors || (cat /home/travis/.cpanm/build.log; false)
+    - cpanm -q --notest Pod::Weaver::Section::Contributors Pod::Elemental::Transformer::List || (cat /home/travis/.cpanm/build.log; false)
     - cpanm -q --notest Dist::Zilla Dist::Zilla::App::Command::cover Dist::Zilla::App::Command::kwalitee || (cat /home/travis/.cpanm/build.log; false)
     - dzil authordeps --missing | cpanm -q --notest || (cat /home/travis/.cpanm/build.log; false)
     - dzil listdeps --author --missing | cpanm -q --notest || (cat /home/travis/.cpanm/build.log; false)
