@@ -19,6 +19,21 @@ To make a multi-line parser, use this role:
 
     with 'Text::Parser::Multiline';
 
+    sub join_last_line {
+        my $self = shift;
+        return if not @_ or not defined $_[0];
+        my $newline = $self->pop_joined_line() . shift;
+        $self->push_joined_line($newline);
+    }
+
+    sub is_line_part_of_last {
+        return 0;
+    }
+
+    sub is_line_continued {
+        return 1;
+    }
+
     1;
 
 Note the use of C<L<Role::Tiny>> and the C<L<with|Role::Tiny/with>> runtime subroutine. Also note that because the C<L<save_record|Text::Parser/save_record>> is not overridden here, the base class's C<save_record> is used in this case. You can of course implement your C<save_record> method for your parser.
@@ -61,7 +76,7 @@ The rest of the algorithm is mostly the same (the only variations caused by whet
 So here are the things you need to do if you have to write a multi-line text parser:
 
 =for :list
-* As usual C<use parent 'Text::Parser'>, never this class
+* As usual inherit from L<Text::Parser>, never this class (C<use parent 'Text::Parser'>)
 * Compose this role into your derived class
 * Implement the following methods: C<multiline_type>, C<join_last_line>, C<is_line_part_of_last>, and C<is_line_continued>
 * Implement your C<save_record> method as described in L<Text::Parser> as if you always get joined lines
@@ -69,7 +84,7 @@ So here are the things you need to do if you have to write a multi-line text par
 =cut
 
 requires(
-    qw(save_record join_last_line is_line_part_of_last is_line_continued multiline_type)
+    qw(save_record join_last_line is_line_part_of_last is_line_continued multiline_type at_eof)
 );
 
 my %save_record_proc = (
@@ -77,7 +92,9 @@ my %save_record_proc = (
         my ( $orig, $self ) = ( shift, shift );
         return $self->join_last_line(@_)
             if $self->is_line_part_of_last(@_);
-        $orig->( $self, $self->pop_joined_line() );
+        my $last_line = $self->pop_joined_line();
+        $orig->( $self, $last_line ) if defined $last_line;
+        $self->push_joined_line(@_);
     },
     join_next => sub {
         my ( $orig, $self ) = ( shift, shift );
@@ -95,33 +112,26 @@ around save_record => sub {
 
 sub push_joined_line {
     my ( $self, $line ) = ( shift, shift );
+    $self->{__temp_joined_line} = [] if not exists $self->{__temp_joined_line};
     push @{ $self->{__temp_joined_line} }, $line;
 }
 
 sub pop_joined_line {
     my $self = shift;
+    return undef if not exists $self->{__temp_joined_line};
     pop @{ $self->{__temp_joined_line} };
 }
 
 sub peek_joined_line {
     my $self = shift;
+    return undef if not exists $self->{__temp_joined_line};
     my $ind  = $#{ $self->{__temp_joined_line} };
     return ${ $self->{__temp_joined_line} }[$ind];
 }
 
-sub join_last_line {
+after __read_file_handle => sub {
     my $self = shift;
-    return if not @_ or not defined $_[0];
-    my $newline = $self->pop_joined_line() . shift;
-    $self->push_joined_line($newline);
-}
-
-sub is_line_part_of_last {
-    return 0;
-}
-
-sub is_line_continued {
-    return 1;
-}
+    $self->at_eof();
+};
 
 1;
