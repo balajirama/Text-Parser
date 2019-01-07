@@ -80,17 +80,48 @@ use Scalar::Util 'openhandle';
 
 =method new
 
-Takes no arguments. Constructor.
+Constructor. Takes options in the form of a hash. The options and their allowed values are:
 
-    my $parser = Text::Parser->new();
+     Option      |  Allowed values | Default
+    -------------|-----------------|-----------
+     auto_chomp  |   0|1           | 0
+
+You can thus create an object of a parser.
+
+    my $parser = Text::Parser->new(auto_chomp => 1);
+    $parser = Text::Parser->new(); # Default auto_chomp => 0
 
 This C<$parser> variable will be used in examples below.
 
 =cut
 
+my (%allowed_options) = ( auto_chomp => 0, );
+
 sub new {
     my $pkg = shift;
-    bless {}, $pkg;
+    bless { __options => __set_options(@_) }, $pkg;
+}
+
+sub __set_options {
+    my (%opt) = @_;
+    foreach my $k ( keys %allowed_options ) {
+        $opt{$k} = $allowed_options{$k} if not exists $opt{$k};
+    }
+    return \%opt;
+}
+
+=method setting
+
+Takes a single string as argument. The string must be one of:
+
+    auto_chomp
+
+=cut
+
+sub setting {
+    my ( $self, $key ) = ( shift, shift );
+    return 0 if not defined $key or not exists $self->{__options}{$key};
+    return $self->{__options}{$key};
 }
 
 =method read
@@ -113,10 +144,12 @@ Returns once all records have been read or if an exception is thrown for any par
 
 If you provide a string file name as input, the function will handle all C<open> and C<close> operations on files even if any exception is thrown, or if the reading has been aborted. But if you pass a file handle C<GLOB> instead, then the file handle won't be closed and it will be the responsibility of the calling program to close the filehandle.
 
-    $parser->read('myfile.txt'); # Will handle open, parsing, and closing of file automatically.
+    $parser->read('myfile.txt');
+    # Will handle open, parsing, and closing of file automatically.
 
     open MYFH, "<myfile.txt" or die "Can't open file myfile.txt at ";
-    $parser->read(\*MYFH);       # Will not close MYFH and it is the respo
+    $parser->read(\*MYFH);
+    # Will not close MYFH and it is the respo
     close MYFH;
 
 When you do read a new file or input stream with this method, you will lose all the records stored from the previous read operation. So this means that if you want to read a different file with the same parser object, (unless you don't care about the records from the last file you read) you should use the C<L<get_records|/get_records>> method to retrieve all the read records before parsing a new file. So all those calls to C<read> in the example above were parsing three different files, and each successive call overwrote the records from the previous call.
@@ -186,9 +219,10 @@ sub __read_file_handle {
 }
 
 sub __parse_line_and_next {
-    my $self = shift;
+    my ( $self, $line ) = ( shift, shift );
     $self->lines_parsed( $self->lines_parsed + 1 );
-    $self->__try_to_parse(shift);
+    chomp $line if $self->setting('auto_chomp');
+    $self->__try_to_parse($line);
     return not exists $self->{__abort_reading};
 }
 
@@ -217,7 +251,11 @@ Takes zero or one string argument containing the name of a file. Returns the nam
 The file name is "persistent" in the object. Meaning, even after you have called C<L<read|/read>> once, it still remembers the file name. So you can do this:
 
     $parser->read(shift @ARGV);
-    print $parser->filename(), ":\n", "=" x (length($parser->filename())+1), "\n", $parser->get_records(), "\n";
+    print $parser->filename(), ":\n",
+          "=" x (length($parser->filename())+1),
+          "\n",
+          $parser->get_records(),
+          "\n";
 
 But if you do a C<read> with a filehandle as argument, you'll see that the last filename is lost - which makes sense.
 
@@ -269,7 +307,8 @@ Like in the case of C<L<filename|/filename>> method, if after you C<read> with a
     ## Will return STDOUT
     
     $parser->read('another.txt');
-    print "No filehandle saved any more\n" if not defined $parser->filehandle();
+    print "No filehandle saved any more\n" if
+                        not defined $parser->filehandle();
 
 =cut
 

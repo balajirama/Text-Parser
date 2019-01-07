@@ -9,6 +9,8 @@ BEGIN { use_ok 'Text::Parser'; }
 my $fname = 'text-simple.txt';
 
 my $pars = Text::Parser->new();
+is ($pars->setting(), 0, 'When no setting is called');
+is ($pars->setting('balaji'), 0, 'balaji is not a setting at all');
 is( $pars->filename(), undef, 'No filename specified so far' );
 lives_ok { is( $pars->filehandle(), undef, 'No filehandles' ); }
 'This should not die, just return undef';
