@@ -38,11 +38,24 @@ Future versions are expected to include progress-bar support, parsing text from 
 
 =head2 new
 
-Takes no arguments. Constructor.
+Constructor. Takes options in the form of a hash. The options and their allowed values are:
 
-    my $parser = Text::Parser->new();
+     Option      |  Allowed values | Default
+    -------------|-----------------|-----------
+     auto_chomp  |   0|1           | 0
+
+You can thus create an object of a parser.
+
+    my $parser = Text::Parser->new(auto_chomp => 1);
+    $parser = Text::Parser->new(); # Default auto_chomp => 0
 
 This C<$parser> variable will be used in examples below.
+
+=head2 setting
+
+Takes a single string as argument. The string must be one of:
+
+    auto_chomp
 
 =head2 read
 

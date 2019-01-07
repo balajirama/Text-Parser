@@ -16,7 +16,7 @@ install:
 script:
     - dzil kwalitee
     - dzil clean
-    - dzil cover -test
+    - dzil cover
     - cd .build/*
     - pwd
 after_success:

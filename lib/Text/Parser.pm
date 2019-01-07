@@ -80,17 +80,48 @@ use Scalar::Util 'openhandle';
 
 =method new
 
-Takes no arguments. Constructor.
+Constructor. Takes options in the form of a hash. The options and their allowed values are:
 
-    my $parser = Text::Parser->new();
+     Option      |  Allowed values | Default
+    -------------|-----------------|-----------
+     auto_chomp  |   0|1           | 0
+
+You can thus create an object of a parser.
+
+    my $parser = Text::Parser->new(auto_chomp => 1);
+    $parser = Text::Parser->new(); # Default auto_chomp => 0
 
 This C<$parser> variable will be used in examples below.
 
 =cut
 
+my (%allowed_options) = ( auto_chomp => 0, );
+
 sub new {
     my $pkg = shift;
-    bless {}, $pkg;
+    bless { __options => __set_options(@_) }, $pkg;
+}
+
+sub __set_options {
+    my (%opt) = @_;
+    foreach my $k ( keys %allowed_options ) {
+        $opt{$k} = $allowed_options{$k} if not exists $opt{$k};
+    }
+    return \%opt;
+}
+
+=method setting
+
+Takes a single string as argument. The string must be one of:
+
+    auto_chomp
+
+=cut
+
+sub setting {
+    my ( $self, $key ) = ( shift, shift );
+    return 0 if not defined $key or not exists $self->{__options}{$key};
+    return $self->{__options}{$key};
 }
 
 =method read
@@ -188,9 +219,10 @@ sub __read_file_handle {
 }
 
 sub __parse_line_and_next {
-    my $self = shift;
+    my ( $self, $line ) = ( shift, shift );
     $self->lines_parsed( $self->lines_parsed + 1 );
-    $self->__try_to_parse(shift);
+    chomp $line if $self->setting('auto_chomp');
+    $self->__try_to_parse($line);
     return not exists $self->{__abort_reading};
 }
 
