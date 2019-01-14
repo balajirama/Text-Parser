@@ -15,25 +15,54 @@ use Role::Tiny;
 To make a multi-line parser (say to parse a file with C<\> as continuation character at end of line):
 
     package MyMultilineParser;
+    use parent 'Text::Parser';
     use Role::Tiny::With;
+    use strict;
+    use warnings;
 
     with 'Text::Parser::Multiline';
 
-    use Text::Parser::Multiline::JoinNext '', '', ;
+    sub multiline_type {
+        return 'join_next';
+    }
+
+    sub is_line_continued {
+        my $self = shift;
+        my $line = shift;
+        chomp $line;
+        return $line =~ /\\\s*$/;
+    }
+
+    sub join_last_line {
+        my $self = shift;
+        my ($last, $line) = (shift, shift);
+        chomp $last;
+        $last =~ s/\\\s*$/ /g;
+        return $last . $line;
+    }
 
     1;
 
-Note the use of C<L<Role::Tiny>> and the C<L<with|Role::Tiny/with>> runtime subroutine. Also note that because the C<L<save_record|Text::Parser/save_record>> is not overridden here, the base class's C<save_record> is used in this case. You can of course implement your C<save_record> method for your parser.
-
-The default multi-line parser joins all lines. The above example just joins all the lines into a single string record. So:
+In your C<main::>
 
     use MyMultilineParser;
+    use strict;
+    use warnings;
 
-    my $multp = MyMultilineParser->new();
-    $multp->read('file.txt');
-    print $multp->get_records(), "\n";
+    my $parser = MyMultilineParser->new();
+    $parser->read('multiline.txt');
+    print "Read:\n"
+    print $parser->get_records(), "\n";
 
-This will print the content of C<file.txt>.
+Try with the following input F<multiline.txt>:
+
+    Garbage In.\
+    Garbage Out!
+
+When you run the above code with this file, you should get:
+
+    Read:
+    Garbage In. Garbage Out!
 
 =head1 RATIONALE
 
