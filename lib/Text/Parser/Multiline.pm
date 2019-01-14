@@ -12,6 +12,14 @@ use Role::Tiny;
 
 =head1 SYNOPSIS
 
+    use Text::Parser;
+
+    my $parser = Text::Parser->new(multiline_type => 'join_last');
+    $parser->read('filename.txt');
+    print $parser->get_records();
+    print scalar($parser->get_records()), " records were read although ",
+        $parser->lines_parsed(), " lines were parsed.\n";
+
 =head1 RATIONALE
 
 Some text formats allow users to split a single line into multiple lines, with a continuation character in the beginning or in the end, usually to improve human readability.
@@ -42,6 +50,8 @@ To create a multi-line text parser you need to know:
 * Recognize if a line has a continuation pattern
 * How to strip the continuation character and join with last line
 
+=head1 REQUIRED METHODS
+
 So here are the things you need to do if you have to write a multi-line text parser:
 
 =for :list
@@ -51,22 +61,24 @@ So here are the things you need to do if you have to write a multi-line text par
 * Override the C<join_last_line> to join the previous line and the current line after stripping any continuation characters.
 * Implement your C<save_record> as if you always get joined lines, and
 
-=head1 REQUIRED METHODS
+There are some default implementations for both these methods, but for most practical purposes you'd want to override those in your own parser class.
 
-The following methods are required to compose this role into an object or a class. There are some default implementations for both these methods, but for most practical purposes you'd want to override those in your own parser class.
+=head2 C<$self->C<E<gt>>C<new(%options)>
 
-=head3 C<$self->E<gt>C<is_line_continued($line)>
+Decide if you want to set any options like C<auto_chomp> by default. In order to get a multi-line parser, you I<must> select one of C<multiline_type> values: C<'join_next'> or C<'join_last'>.
 
-Takes a string argument as input. Returns a boolean that indicates if the current line is continued from the previous line, or is continued on the next line (depending on the type of multi-line text format).
+=head2 C<$self->C<E<gt>>C<is_line_continued($line)>
 
-=head2 C<$self->E<gt>C<join_last_line($last_line, $current_line)>
+Takes a string argument as input. Returns a boolean that indicates if the current line is continued from the previous line, or is continued on the next line (depending on the type of multi-line text format). You don't need to bother about how the boolean result of this routine is interpreted. That is handled depending on the type of multi-line parser. The way the result of this function is interpreted depends on the type of multi-line parser you make. If it is a C<'join_next'> parser, then a true value from this routine means that some data is expected to be in the I<next> line which is expected to be joined with this line. If instead the parser is C<'join_last'>, then a true value from this method would mean that the current line is a continuation from the I<previous> line, and the current line should be appended to the content of the previous line.
 
-Takes two string arguments. The first is the line previously read which is expected to be continued on this line. The function should return a string that has stripped any continuation characters, and joined the current line with the previous line.
+=head2 C<$self->C<E<gt>>C<join_last_line($last_line, $current_line)>
+
+Takes two string arguments. The first is the line previously read which is expected to be continued on this line. You can be certain that the two strings will not be C<undef>. Your method should return a string that has stripped any continuation characters, and joined the current line with the previous line. You don't need to bother about where and how this is being saved. You also don't need to bother about where the last line is stored/coming from. The management of the last line is handled internally.
 
 =cut
 
 requires(
-    qw(save_record lines_parsed has_aborted __read_file_handle),
+    qw(save_record setting lines_parsed has_aborted __read_file_handle),
     qw(join_last_line is_line_continued) );
 
 use Exception::Class (
