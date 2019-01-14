@@ -82,9 +82,8 @@ use Scalar::Util 'openhandle';
 
 Constructor. Takes options in the form of a hash. The options and their allowed values are:
 
-     Option      |  Allowed values | Default
-    -------------|-----------------|-----------
-     auto_chomp  |   0|1           | 0
+     auto_chomp => 0 : Don't chomp lines automatically before calling save_record() - Default
+     auto_chomp => 1 : Automatically chomp lines before calling save_record()
 
 You can thus create an object of a parser.
 
