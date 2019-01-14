@@ -163,6 +163,10 @@ Takes no arguments. Returns C<1>. You will probably never call this method in yo
 
 This method is usually used only in the derived class. See L<this example|/"Example 3 : Aborting without errors">.
 
+=head2 has_aborted
+
+Takes no arguments, returns a boolean to indicate if text reading was aborted in the middle.
+
 =head2 get_records
 
 Takes no arguments. Returns an array containing all the records saved by the parser.
@@ -292,6 +296,10 @@ The output will be:
 
     Some text is here.
     More text here.
+
+=head2 Example 4 : Multi-line support
+
+Some text formats allow users to split a line into several lines with a line continuation character (usually at the end or the beginning of a line). This can be handled easily by composing the L<Text::Parser::Multiline> role into your parser class. Look L<here|Text::Parser::Multiline/EXAMPLES> for examples.
 
 =head1 BUGS
 

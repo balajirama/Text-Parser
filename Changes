@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+  - Added multi-line parser role with Text::Parser::Multiline.
+  - Added example class Text::Parser::Multiline::Typical
 
 0.753     2019-01-04 21:38:06-08:00 America/Los_Angeles
   - Skip tests of unreadable files for MSWin32.

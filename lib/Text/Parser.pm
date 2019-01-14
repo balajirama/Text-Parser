@@ -385,6 +385,18 @@ sub abort_reading {
     return $self->{__abort_reading} = 1;
 }
 
+=method has_aborted
+
+Takes no arguments, returns a boolean to indicate if text reading was aborted in the middle.
+
+=cut
+
+sub has_aborted {
+    my $self = shift;
+    return $self->{__abort_reading} if exists $self->{__abort_reading};
+    return 0;
+}
+
 =method get_records
 
 Takes no arguments. Returns an array containing all the records saved by the parser.
@@ -539,6 +551,10 @@ The output will be:
 
     Some text is here.
     More text here.
+
+=head2 Example 4 : Multi-line support
+
+Some text formats allow users to split a line into several lines with a line continuation character (usually at the end or the beginning of a line). This can be handled easily by composing the L<Text::Parser::Multiline> role into your parser class. Look L<here|Text::Parser::Multiline/EXAMPLES> for examples.
 
 =cut
 
