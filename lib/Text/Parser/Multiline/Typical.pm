@@ -34,7 +34,7 @@ Returns C<'join_last'> string.
 
 use Role::Tiny;
 
-requires 'lines_parsed', 'has_aborted';
+requires 'lines_parsed';
 
 sub multiline_type {
     return 'join_last';
@@ -53,6 +53,8 @@ sub is_line_continued {
 }
 
 =method join_last_line
+
+This default supplied method just appends the current line to the last line and returns the result. There is no continuation character to strip in this case. When you override this method, you might need to strip any continuation characters from the last line or the current line or both.
 
 =cut
 
