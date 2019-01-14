@@ -8,7 +8,7 @@ Text::Parser - Bare text parser, bundles many common "mundane" tasks.
 
 =head1 VERSION
 
-version 0.754
+version 0.800
 
 =head1 SYNOPSIS
 
