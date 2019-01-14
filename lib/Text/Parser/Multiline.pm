@@ -12,58 +12,6 @@ use Role::Tiny;
 
 =head1 SYNOPSIS
 
-To make a multi-line parser (say to parse a file with C<\> as continuation character at end of line):
-
-    package MyMultilineParser;
-    use parent 'Text::Parser';
-    use Role::Tiny::With;
-    use strict;
-    use warnings;
-
-    with 'Text::Parser::Multiline';
-
-    sub multiline_type {
-        return 'join_next';
-    }
-
-    sub is_line_continued {
-        my $self = shift;
-        my $line = shift;
-        chomp $line;
-        return $line =~ /\\\s*$/;
-    }
-
-    sub join_last_line {
-        my $self = shift;
-        my ($last, $line) = (shift, shift);
-        chomp $last;
-        $last =~ s/\\\s*$/ /g;
-        return $last . $line;
-    }
-
-    1;
-
-In your C<main::>
-
-    use MyMultilineParser;
-    use strict;
-    use warnings;
-
-    my $parser = MyMultilineParser->new();
-    $parser->read('multiline.txt');
-    print "Read:\n"
-    print $parser->get_records(), "\n";
-
-Try with the following input F<multiline.txt>:
-
-    Garbage In.\
-    Garbage Out!
-
-When you run the above code with this file, you should get:
-
-    Read:
-    Garbage In. Garbage Out!
-
 =head1 RATIONALE
 
 Some text formats allow users to split a single line into multiple lines, with a continuation character in the beginning or in the end, usually to improve human readability.
@@ -90,34 +38,22 @@ This extension allows users to use the familiar C<save_record> interface to save
 To create a multi-line text parser you need to know:
 
 =for :list
-* If the current line is a continuation of a previous line, or if the current line continues to the next line
-* The continuation character and how to strip it
-* The method of joining the lines
-
-The rest is taken care of by this role.
+* L<Determine|Text::Parser/new> if your parser is a C<'join_next'> type or a C<'join_last'> type. This depends on which line has the continuation character.
+* Recognize if a line has a continuation pattern
+* How to strip the continuation character and join with last line
 
 So here are the things you need to do if you have to write a multi-line text parser:
 
 =for :list
 * As usual inherit from L<Text::Parser>, never this class (C<use parent 'Text::Parser'>)
-* Compose this role into your derived class
-* Implement your C<save_record> method as described in L<Text::Parser> as if you always get joined lines, and
-* Implement the following methods: C<multiline_type>, C<join_last_line>, and C<is_line_continued>
-
-In fact, you may not have to implement most/any of these methods if you C<use> one of L<Text::Parser::Multiline::JoinLast>, or L<Text::Parser::Multiline::JoinNext> in your parser package.
+* Override the C<new> constructor to add C<multiline_type> option by default. Read about the option L<here|Text::Parser/new>.
+* Override the C<is_line_continued> method to detect if there is a continuation character on the line.
+* Override the C<join_last_line> to join the previous line and the current line after stripping any continuation characters.
+* Implement your C<save_record> as if you always get joined lines, and
 
 =head1 REQUIRED METHODS
 
-The following methods are required for this role to work. You can avoid having to define some/all of these methods by simply inheriting them from C<L<Text::Parser::Multiline::Typical>>, which has some default methods that you could override. If you simply inherit all the methods in C<L<Text::Parser::Multiline::Typical>> and don't override them, the resulting multi-line parser will just join all the lines of the text input into a single string. This is how the example code in the L<Synopsis|/SYNOPSIS> is working.
-
-=head2 C<$self->E<gt>C<multiline_type()>
-
-Takes no arguments and returns a string which must be one of:
-
-    join_last
-    join_next
-
-If you inherit from C<L<Text::Parser::Multiline::Typical>>, the default method returns C<'join_next'>, which means that for the given text format, the line continues on the next line. You must override it if in your text format, lines continue from the previous line instead.
+The following methods are required to compose this role into an object or a class. There are some default implementations for both these methods, but for most practical purposes you'd want to override those in your own parser class.
 
 =head3 C<$self->E<gt>C<is_line_continued($line)>
 
@@ -131,7 +67,7 @@ Takes two string arguments. The first is the line previously read which is expec
 
 requires(
     qw(save_record lines_parsed has_aborted __read_file_handle),
-    qw(multiline_type join_last_line is_line_continued) );
+    qw(join_last_line is_line_continued) );
 
 use Exception::Class (
     'Text::Parser::Multiline::Error',
@@ -161,13 +97,13 @@ my %save_record_proc = (
 sub __around_save_record {
     my ( $orig, $self ) = ( shift, shift );
     $orig_save_record = $orig;
-    my $type = $self->multiline_type();
+    my $type = $self->setting('multiline_type');
     $save_record_proc{$type}->( $orig, $self, @_ );
 }
 
 sub __around_is_line_continued {
     my ( $orig, $self ) = ( shift, shift );
-    my $type = $self->multiline_type();
+    my $type = $self->setting('multiline_type');
     return $orig->( $self, @_ ) if $type eq 'join_next';
     __around_is_line_part_of_last( $orig, $self, @_ );
 }
@@ -183,7 +119,7 @@ sub __around_is_line_part_of_last {
 
 sub __after__read_file_handle {
     my $self      = shift;
-    return $self->__after_at_eof() if $self->multiline_type() eq 'join_next';
+    return $self->__after_at_eof() if $self->setting('multiline_type') eq 'join_next';
     my $last_line = $self->__pop_last_line();
     $orig_save_record->( $self, $last_line ) if defined $last_line;
 }

@@ -4,9 +4,10 @@ use warnings;
 package MultBasic;
 use parent 'Text::Parser';
 
-use Role::Tiny::With;
-with 'Text::Parser::Multiline::Typical';
-with 'Text::Parser::Multiline';
+sub new {
+    my $pkg = shift;
+    $pkg->SUPER::new(multiline_type => 'join_last');
+}
 
 package main;
 

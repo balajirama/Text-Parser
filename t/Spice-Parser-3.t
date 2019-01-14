@@ -4,10 +4,6 @@ use warnings;
 package SpiceParser;
 use parent 'Text::Parser';
 
-use Role::Tiny::With;
-with 'Text::Parser::Multiline::Typical';
-with 'Text::Parser::Multiline';
-
 use constant {
     SPICE_LINE_CONTD => qr/^[+]\s*/,
     SPICE_END_FILE   => qr/^\.end/i,
@@ -29,7 +25,7 @@ sub join_last_line {
 
 sub new {
     my $pkg = shift;
-    $pkg->SUPER::new( auto_chomp => 1 );
+    $pkg->SUPER::new( auto_chomp => 1, multiline_type => 'join_last' );
 }
 
 sub save_record {
@@ -44,7 +40,7 @@ use Test::Exception;
 
 my $sp = new SpiceParser;
 isa_ok( $sp, 'SpiceParser' );
-can_ok( $sp, 'multiline_type', 'is_line_continued', 'join_last_line' );
+can_ok( $sp, 'is_line_continued', 'join_last_line' );
 isa_ok( $sp, 'Text::Parser' );
 
 lives_ok { $sp->read('t/example-2.sp'); } 'Works fine';

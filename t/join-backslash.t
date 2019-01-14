@@ -5,10 +5,6 @@ use warnings;
 package MultLineParser;
 use parent 'Text::Parser';
 
-use Role::Tiny::With;
-with 'Text::Parser::Multiline::Typical';
-with 'Text::Parser::Multiline';
-
 sub join_last_line {
     my ( $self, $last, $line ) = ( shift, shift, shift );
     return $line if not defined $last;
@@ -24,8 +20,9 @@ sub is_line_continued {
     return 0;
 }
 
-sub multiline_type {
-    return 'join_next';
+sub new {
+    my $pkg = shift;
+    $pkg->SUPER::new(multiline_type => 'join_next');
 }
 
 package main;

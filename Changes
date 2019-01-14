@@ -1,6 +1,7 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+  - Added auto_chomp option in object construction
   - Added multi-line parser role with Text::Parser::Multiline.
   - Added example class Text::Parser::Multiline::Typical
 
