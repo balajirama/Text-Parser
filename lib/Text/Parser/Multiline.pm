@@ -46,7 +46,7 @@ This extension allows users to use the familiar C<save_record> interface to save
 To create a multi-line text parser you need to know:
 
 =for :list
-* L<Determine|Text::Parser/new> if your parser is a C<'join_next'> type or a C<'join_last'> type. This depends on which line has the continuation character.
+* L<Determine|Text::Parser/new> if your parser is a C<'join_next'> type or a C<'join_last'> type.
 * Recognize if a line has a continuation pattern
 * How to strip the continuation character and join with last line
 
@@ -59,19 +59,19 @@ So here are the things you need to do if you have to write a multi-line text par
 * Override the C<new> constructor to add C<multiline_type> option by default. Read about the option L<here|Text::Parser/new>.
 * Override the C<is_line_continued> method to detect if there is a continuation character on the line.
 * Override the C<join_last_line> to join the previous line and the current line after stripping any continuation characters.
-* Implement your C<save_record> as if you always get joined lines, and
+* Implement your C<save_record> as if you always get joined lines!
 
-There are some default implementations for both these methods, but for most practical purposes you'd want to override those in your own parser class.
+That's it! What's more? There are some default implementations for these methods in L<Text::Parser> class already. But if you want to do any stripping of continuation characters etc., you'd want to override these in your own parser class.
 
-=head2 C<< $self->new(%options) >>
+=head2 C<< Text::Parser->new(%options) >>
 
-Decide if you want to set any options like C<auto_chomp> by default. In order to get a multi-line parser, you I<must> select one of C<multiline_type> values: C<'join_next'> or C<'join_last'>.
+L<Decide|Text::Parser/new> if you want to set any options like C<auto_chomp> by default. In order to get a multi-line parser, you I<must> select one of C<multiline_type> values: C<'join_next'> or C<'join_last'>.
 
-=head2 C<< $self->is_line_continued($line) >>
+=head2 C<< $parser->is_line_continued($line) >>
 
 Takes a string argument as input. Returns a boolean that indicates if the current line is continued from the previous line, or is continued on the next line (depending on the type of multi-line text format). You don't need to bother about how the boolean result of this routine is interpreted. That is handled depending on the type of multi-line parser. The way the result of this function is interpreted depends on the type of multi-line parser you make. If it is a C<'join_next'> parser, then a true value from this routine means that some data is expected to be in the I<next> line which is expected to be joined with this line. If instead the parser is C<'join_last'>, then a true value from this method would mean that the current line is a continuation from the I<previous> line, and the current line should be appended to the content of the previous line.
 
-=head2 C<< $self->join_last_line($last_line, $current_line) >>
+=head2 C<< $parser->join_last_line($last_line, $current_line) >>
 
 Takes two string arguments. The first is the line previously read which is expected to be continued on this line. You can be certain that the two strings will not be C<undef>. Your method should return a string that has stripped any continuation characters, and joined the current line with the previous line. You don't need to bother about where and how this is being saved. You also don't need to bother about where the last line is stored/coming from. The management of the last line is handled internally.
 

@@ -114,6 +114,16 @@ The options have the following interpretation:
      multiline_type => 'join_last' : Multi-line parser, that continues previous line in the current line
                     => undef (Default)
 
+=head3 Which C<multiline_type> is right for me?
+
+If your text format allows users to break up their text into another line while indicating a continuation, you need to use the C<multiline_type> option. The option allows you to join those lines back into a single line, so that your C<save_record> method doesn't have to bother about joining the continued lines, stripping any continuation characters, line-feeds etc. If your text format does not allow users to break up information into multiple lines like that, then this is not what you want.
+
+If you need to write a multi-line parser, then you need to set C<multiline_type> option to one of the values shown above. How do you decide which one?
+
+=for :list
+* If your format allows something like a trailing back-slash or some other character to indicate that text on I<B<next>> line is to be joined with this one, then choose C<join_next>.
+* If your format allows some character to indicate that text on the current line is part of the I<B<last>> line, then choose C<join_last>.
+
 =cut
 
 sub new {
