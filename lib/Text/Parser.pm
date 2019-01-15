@@ -116,10 +116,6 @@ The options have the following interpretation:
 
 =cut
 
-my (%allowed_options)
-    = ( auto_chomp => '0|1', multiline_type => 'join_next|join_last' );
-my (%default_values) = ( auto_chomp => 0, multiline_type => undef );
-
 sub new {
     my $pkg = shift;
     return undef if not __check_options(@_);
@@ -128,12 +124,9 @@ sub new {
     return $obj->__return_my_object();
 }
 
-sub __return_my_object {
-    my $obj = shift;
-    return $obj if not defined $obj->setting('multiline_type');
-    Role::Tiny->apply_roles_to_object( $obj, 'Text::Parser::Multiline' );
-    return $obj;
-}
+my (%allowed_options)
+    = ( auto_chomp => '0|1', multiline_type => 'join_next|join_last' );
+my (%default_values) = ( auto_chomp => 0, multiline_type => undef );
 
 sub __check_options {
     my (%opt) = @_;
@@ -151,6 +144,13 @@ sub __set_options {
         $opt{$k} = $default_values{$k} if not exists $opt{$k};
     }
     return \%opt;
+}
+
+sub __return_my_object {
+    my $obj = shift;
+    return $obj if not defined $obj->setting('multiline_type');
+    Role::Tiny->apply_roles_to_object( $obj, 'Text::Parser::Multiline' );
+    return $obj;
 }
 
 =method setting
@@ -645,19 +645,13 @@ Below is a trivial example where all lines are joined into one:
 
     use strict;
     use warnings;
-    package JoinAllLines;
-    use parent 'Text::Parser';
+    use Text::Parser;
 
-    sub new {
-        $pkg = shift;
-        $pkg->SUPER::new(auto_chomp => 1, multiline_type => 'join_last');
-    }
-
-    package main;
-
-    my $join_all = JoinAllLines->new();
+    my $join_all = Text::Parser->new(auto_chomp => 1, multiline_type => 'join_last');
     $join_all->read('input.txt');
     print $join_all->get_records(), "\n";
+
+Another trivial example is L<here|Text::Parser::Multiline/SYNOPSIS>.
 
 =head3 Continue with character
 
@@ -713,7 +707,7 @@ When you run the above code with this file, you should get:
     Read:
     Garbage In. Garbage Out!
 
-=head3 Continuing from previous line
+=head3 Simple SPICE line joiner
 
 Some text formats allow a line to indicate that it is continuing from a previous line. For example L<SPICE|https://bwrcs.eecs.berkeley.edu/Classes/IcBook/SPICE/> has a continuation character (C<+>) on the next line, indicating that the text on that line should be joined with the I<previous> line. Let's show how to build a simple SPICE line-joiner. To build a full-fledged parser you will have to specify the rich and complex grammar for SPICE circuit description.
 
@@ -750,7 +744,7 @@ Some text formats allow a line to indicate that it is continuing from a previous
         $self->SUPER::save_record($line);
     }
 
-Try this parser with a simple SPICE deck and see what you get.
+Try this parser with a simple SPICE deck and see what you get. You may now write a more elaborate method for C<save_record> above and that could be used to parse a full SPICE file.
 
 =cut
 
