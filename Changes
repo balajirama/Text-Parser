@@ -1,9 +1,7 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
-  - Fixed copyright year.
-  - Made POD brief and readable.
-  - Added LICENSE file
+  - Fixed copyright year. Corrected Bug tracker link. Made POD brief and readable.
 
 0.801     2019-01-14 19:40:50-08:00 America/Los_Angeles
   - Improved documentation
