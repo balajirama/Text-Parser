@@ -91,38 +91,24 @@ use Role::Tiny;
 
 =method new
 
-Constructor. Takes options in the form of a hash. The options and their allowed values are:
+Constructor. Takes options in the form of a hash. You can thus create an object of a parser like this.
 
-    auto_chomp     => 0|1                     (Default: 0)
-    mutliline_type => 'join_next'|'join_last' (Default: undef)
-
-You can thus create an object of a parser like this.
-
-    my $parser = Text::Parser->new(auto_chomp => 1, multiline_type => 'join_last');
+    my $parser = Text::Parser->new(
+        auto_chomp => 0,               # 0 (Default) or 1 - automatically chomps lines
+        multiline_type => 'join_last'  # join_last, or join_next (for multi-line parsers) ; Default: undef
+    );
     $parser = Text::Parser->new(); # Default auto_chomp => 0
 
 This C<$parser> variable will be used in examples below.
 
-=head3 Notes on the options
-
-The options have the following interpretation:
-
-     auto_chomp => 0 : Don't chomp lines automatically before calling save_record() - Default
-     auto_chomp => 1 : Automatically chomp lines before calling save_record()
-
-     multiline_type => 'join_next' : Multi-line parser, that continues current line in the next line
-     multiline_type => 'join_last' : Multi-line parser, that continues previous line in the current line
-                    => undef (Default)
-
 =head3 Which C<multiline_type> is right for me?
 
-If your text format allows users to break up their text into another line while indicating a continuation, you need to use the C<multiline_type> option. The option allows you to join those lines back into a single line, so that your C<save_record> method doesn't have to bother about joining the continued lines, stripping any continuation characters, line-feeds etc. If your text format does not allow users to break up information into multiple lines like that, then this is not what you want.
-
-If you need to write a multi-line parser, then you need to set C<multiline_type> option to one of the values shown above. How do you decide which one?
+If your text format allows users to break up what should be on a single line into another line using a continuation, you need to use the C<multiline_type> option. The option allows you to join those lines back into a single line, so that your C<save_record> method doesn't have to bother about joining the continued lines, stripping any continuation characters, line-feeds etc. There are two variations in this:
 
 =for :list
-* If your format allows something like a trailing back-slash or some other character to indicate that text on I<B<next>> line is to be joined with this one, then choose C<join_next>.
-* If your format allows some character to indicate that text on the current line is part of the I<B<last>> line, then choose C<join_last>.
+* If your format allows something like a trailing back-slash or some other character to indicate that text on I<B<next>> line is to be joined with this one, then choose C<join_next>. See L<this example|/"Continue with character">.
+* If your format allows some character to indicate that text on the current line is part of the I<B<last>> line, then choose C<join_last>. See L<this simple SPICE line-joiner|/"Simple SPICE line joiner"> as an example.
+* If you have no continuation character, but you want to just join all the lines into one single line and then call C<save_record> only once for the whole text block, then use C<join_last>. See L<this trivial line-joiner|/"Trivial line-joiner">.
 
 =cut
 
@@ -167,8 +153,9 @@ sub __return_my_object {
 
 Takes a single string as argument, and returns the value of that setting. The string must be one of:
 
-    auto_chomp
-    multiline_type
+    print "Parser will chomp\n" if $parser->setting('auto_chomp');
+    my $mult = $parser->setting('multiline_type');
+    print "Parser is a multi-line parser of type: $mult\n" if defined $mult;
 
 These settings are set during the parser construction.
 
