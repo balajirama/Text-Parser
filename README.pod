@@ -22,29 +22,11 @@ The above code reads the first command-line argument as a string, and assuming i
 
 =head1 RATIONALE
 
-A simple text file parser should have to only specify the "grammar" it intends to interpret. Everything else, like C<open>ing a file handle, tracking how many lines have been read, etc., should be "automatic".
+A simple text file parser should have to only specify the "grammar" it intends to interpret. Everything else, like C<open>ing a file handle, tracking how many lines have been read, joining continued lines into one, reporting any errors in line continuation, etc., should be "automatic".
 
 Unfortunately, most programmers write code that calls C<open>, C<close>, etc., and keep track of things that should have been simple features of every text file parser. And if they have to read multiple files, usually, all these calls are repeated.
 
-Furthermore, there are times when a text format has what should have been one one line, spread out over several lines. Typically this is done to improve human readability, and uses some sort of continuation character. For example, the bash and other shells treat a trailing back-slash (C<\>) character as a line-continuation character. In such cases, the parser has to do additional tasks of book-keeping. It has to:
-
-=over 4
-
-=item *
-
-join the continuing lines intelligently to read what all was intended on one line
-
-=item *
-
-report any errors in this process of detecting line-continuations etc.
-
-=back
-
-Doing all this along with parsing for the actual data can get hairy and confusing. This class is meant to simplify all that.
-
-First, it does all "mundane" operations like C<open>, C<close>, line-count, and storage/deletion/retrieval of records, etc. You don't have to bother with a lot of book-keeping when you write your next parser. Instead, just inherit this class and override one method (C<L<save_record|/save_record>>). And voila! you have a parser. Look at L<these examples|/EXAMPLES> to see how easy this can be.
-
-Second, if data is expected to be on multiple lines, it is easy to setup a multi-line parser too. See L<these examples|/"Example 4 : Multi-line parsing"> for more on that. Also see L<Text::Parser::Multiline> for how it actually works.
+This class automates all "mundane" operations like C<open>, C<close>, line-count, and storage/deletion/retrieval of records, joining continued lines, etc. You don't have to bother with a lot of book-keeping when you write your parser. You focus on specifying a grammar and retrieving information you need, telling the parser what information to store. To do this, you just inherit this class and override one method (C<L<save_record|/save_record>>). And voila! you have a parser. Look at L<these examples|/EXAMPLES> to see how easy this can be. If your text format allows a single line to be split into several lines with a continuation character, see L<these examples|/"Example 4 : Multi-line parsing"> on parsing them. Also see L<Text::Parser::Multiline> for how it actually works.
 
 =head1 DESCRIPTION
 
@@ -59,14 +41,14 @@ Future versions are expected to include progress-bar support, parsing text from 
 Constructor. Takes options in the form of a hash. You can thus create an object of a parser like this.
 
     my $parser = Text::Parser->new(
-        auto_chomp => 0,               # 0 (Default) or 1 - automatically chomps lines
+        auto_chomp => 0,               # 0 (Default) or 1 - automatically chomp lines
         multiline_type => 'join_last'  # join_last, or join_next (for multi-line parsers) ; Default: undef
     );
     $parser = Text::Parser->new(); # Default auto_chomp => 0
 
 This C<$parser> variable will be used in examples below.
 
-=head3 Which C<multiline_type> is right for me?
+=head3 What is C<multiline_type>, and what value should I choose?
 
 If your text format allows users to break up what should be on a single line into another line using a continuation, you need to use the C<multiline_type> option. The option allows you to join those lines back into a single line, so that your C<save_record> method doesn't have to bother about joining the continued lines, stripping any continuation characters, line-feeds etc. There are two variations in this:
 
@@ -463,7 +445,7 @@ Some text formats allow a line to indicate that it is continuing from a previous
         $self->SUPER::save_record($line);
     }
 
-Try this parser with a simple SPICE deck and see what you get. You may now write a more elaborate method for C<save_record> above and that could be used to parse a full SPICE file.
+Try this parser with a SPICE deck with continuation characters and see what you get. Try having errors in the file. You may now write a more elaborate method for C<save_record> above and that could be used to parse a full SPICE file.
 
 =head1 BUGS
 
