@@ -3,7 +3,7 @@ use strict;
 
 package Text::Parser;
 
-# ABSTRACT: Bare text parser, bundles many common "mundane" tasks.
+# ABSTRACT: Bare text parser, simplifies text parsing.
 
 use Exporter 'import';
 our (@EXPORT_OK) = ();
@@ -21,11 +21,11 @@ The above code reads the first command-line argument as a string, and assuming i
 
 =head1 RATIONALE
 
-A simple text file parser should have to only specify the "grammar" it intends to interpret. Everything else, like C<open>ing a file handle, tracking how many lines have been read, joining continued lines into one, reporting any errors in line continuation, etc., should be "automatic".
+Text parsing is perhaps the single most common thing that almost every program does. Yet we don't have a lean, flexible, file parser, where the programmer only has to specify the grammar/syntax of the text input.
 
-Unfortunately, most programmers write code that calls C<open>, C<close>, etc., and keep track of things that should have been simple features of every text file parser. And if they have to read multiple files, usually, all these calls are repeated.
+A simple text file parser should have to only specify the "grammar" it intends to interpret. Everything else, like C<open>ing a file handle, C<close>ing the file handle, tracking line-count, joining continued lines into one, reporting any errors in line continuation, etc., distract from what should be the main goal : parsing for data records from the text input. Unfortunately, most programmers have to continue writing code that calls C<open>, C<close>, etc., and keep track of things that should have been simple features of every text file parser. And if they have to read a second file with a different grammar, usually, all these calls to C<open>, C<close>, etc. are repeated.
 
-This class automates all "mundane" operations like C<open>, C<close>, line-count, and storage/deletion/retrieval of records, joining continued lines, etc. You don't have to bother with a lot of book-keeping when you write your parser. You focus on specifying a grammar and retrieving information you need, telling the parser what information to store. To do this, you just inherit this class and override one method (C<L<save_record|/save_record>>). And voila! you have a parser. Look at L<these examples|/EXAMPLES> to see how easy this can be. If your text format allows a single line to be split into several lines with a continuation character, see L<these examples|/"Example 4 : Multi-line parsing"> on parsing them. Also see L<Text::Parser::Multiline> for how it actually works.
+This class automates all "mundane" operations like C<open>, C<close>, line-count, and storage/deletion/retrieval of records, joining continued lines, etc. You don't have to bother with a lot of book-keeping when you write your parser. You focus on specifying a grammar and telling the parser what information to store. To do this, you just inherit this class and override one method (C<L<save_record|/save_record>>). And voila! you have a parser. Everything else is taken care of by this class. Look at L<these examples|/EXAMPLES> to see how easy this can be. If your text format allows a single line to be split into several lines with a continuation character, you again need to specify only a few additional things, and everything else is taken care of for you. See L<these examples|/"Example 4 : Multi-line parsing">.
 
 =head1 DESCRIPTION
 
@@ -78,6 +78,7 @@ use Exception::Class (
 use Try::Tiny;
 use Scalar::Util 'openhandle';
 use Role::Tiny;
+use IO::Select;
 
 =method new
 
@@ -93,7 +94,7 @@ This C<$parser> variable will be used in examples below.
 
 =head3 What is C<multiline_type>, and what value should I choose?
 
-If your text format allows users to break up what should be on a single line into another line using a continuation, you need to use the C<multiline_type> option. The option allows you to join those lines back into a single line, so that your C<save_record> method doesn't have to bother about joining the continued lines, stripping any continuation characters, line-feeds etc. There are two variations in this:
+If your text format allows users to break up what should be on a single line into another line using a continuation character, you need to use the C<multiline_type> option. The option tells the parser to join lines back into a single line, so that your C<save_record> method doesn't have to bother about joining the continued lines, stripping any continuation characters, line-feeds etc. There are two variations in this:
 
 =for :list
 * If your format allows something like a trailing back-slash or some other character to indicate that text on I<B<next>> line is to be joined with this one, then choose C<join_next>. See L<this example|/"Continue with character">.
@@ -141,7 +142,7 @@ sub __return_my_object {
 
 =method setting
 
-Takes a single string as argument, and returns the value of that setting. The string must be one of:
+Takes a single string as argument, and returns the value of that setting. The string must be one of C<auto_chomp>, or C<multiline_type>.
 
     print "Parser will chomp\n" if $parser->setting('auto_chomp');
     my $mult = $parser->setting('multiline_type');
@@ -159,7 +160,7 @@ sub setting {
 
 =method read
 
-Takes zero or one argument which could be a string containing the name of the file, or a filehandle reference or a C<GLOB> (e.g. C<\*STDIN>). Throws an exception if filename/C<GLOB> provided is either non-existent or cannot be read for any reason.
+Takes zero or one argument which could be a string containing the name of the file, or a filehandle reference (a C<GLOB>) like C<\*STDIN>. Throws an exception if filename/C<GLOB> provided is either non-existent or cannot be read for any reason.
 
 B<Note:> Normally if you provide the C<GLOB> of a file opened for write, some Operating Systems allow reading from it too, and some don't. Read the documentation for C<L<filehandle|/filehandle>> for more on this.
 
@@ -334,6 +335,8 @@ B<Note:> As such there is a check to ensure one is not supplying a write-only fi
     $parser->filehandle(\*STDOUT);  ## Works on many POSIX platforms
                                     ## Throws exception on others
 
+Again, it looks like on Win32 systems C<-r STDIN> returns C<0>. If someone knows how to fix these, please L<let me know|/BUGS>.
+
 Like in the case of C<L<filename|/filename>> method, if after you C<read> with a filehandle, you call C<read> again, this time with a file name, the last filehandle is lost.
 
     my $lastfh = $parser->filehandle();
@@ -361,13 +364,23 @@ sub __save_file_handle {
 sub __check_file_handle {
     my ( $self, $fhref ) = @_;
     return 0 if not defined $fhref;
+    $self->_invalid_filehandle($fhref);
+    return $self->_fh_is_readable($fhref);
+}
+
+sub _invalid_filehandle {
+    my ( $self, $fhref ) = ( shift, shift );
     throw_invalid_filehandle( error => "$fhref is not a valid filehandle" )
         if ref($fhref) ne 'GLOB';
     throw_file_not_readable( error => "$$fhref is a closed filehandle" )
         if not defined openhandle($fhref);
+}
+
+sub _fh_is_readable {
+    my ( $self, $fhref ) = ( shift, shift );
     throw_file_not_readable(
         error => "The filehandle $$fhref is not readable" )
-        if not -r $$fhref;
+        if not -r $fhref;
     return 1;
 }
 
@@ -379,7 +392,7 @@ Takes no arguments. Returns the number of lines last parsed. A line is reckoned 
 
 The value is auto-updated during the execution of C<L<read|/read>>. See L<this example|/"Example 2 : Error checking"> of how this can be used in derived classes.
 
-Again the information in this is "persistent". You can also be assured that every time you call C<read>, the value be auto-reset before parsing.
+Again the information in this is "persistent". But you can also be assured that every time you call C<read>, the value be auto-reset before parsing.
 
 =cut
 
@@ -503,7 +516,7 @@ sub join_last_line {
 
 =method has_aborted
 
-Takes no arguments, returns a boolean to indicate if text reading was aborted in the middle. This method is used in multi-line parsers.
+Takes no arguments, returns a boolean to indicate if text reading was aborted in the middle.
 
     print "Aborted\n" if $parser->has_aborted();
 
@@ -732,6 +745,11 @@ Some text formats allow a line to indicate that it is continuing from a previous
     }
 
 Try this parser with a SPICE deck with continuation characters and see what you get. Try having errors in the file. You may now write a more elaborate method for C<save_record> above and that could be used to parse a full SPICE file.
+
+=head1 SEE ALSO
+
+=for :list
+* L<Text::Parser::Multiline>
 
 =cut
 
