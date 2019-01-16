@@ -77,8 +77,7 @@ Takes two string arguments. The first is the line previously read which is expec
 
 =cut
 
-requires(
-    qw(save_record setting lines_parsed has_aborted __read_file_handle),
+requires( qw(save_record setting lines_parsed has_aborted __read_file_handle),
     qw(join_last_line is_line_continued) );
 
 use Exception::Class (
@@ -130,8 +129,9 @@ sub __around_is_line_part_of_last {
 }
 
 sub __after__read_file_handle {
-    my $self      = shift;
-    return $self->__after_at_eof() if $self->setting('multiline_type') eq 'join_next';
+    my $self = shift;
+    return $self->__after_at_eof()
+        if $self->setting('multiline_type') eq 'join_next';
     my $last_line = $self->__pop_last_line();
     $orig_save_record->( $self, $last_line ) if defined $last_line;
 }
@@ -187,7 +187,7 @@ sub __stash_line {
 
 sub __pop_last_line {
     my $self = shift;
-    return undef if not exists $self->{__temp_joined_line};
+    return if not exists $self->{__temp_joined_line};
     my $last_line = $self->{__temp_joined_line};
     delete $self->{__temp_joined_line};
     return $last_line;

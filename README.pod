@@ -8,7 +8,7 @@ Text::Parser - Bare text parser, simplifies text parsing.
 
 =head1 VERSION
 
-version 0.802
+version 0.803
 
 =head1 SYNOPSIS
 

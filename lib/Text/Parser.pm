@@ -105,7 +105,7 @@ If your text format allows users to break up what should be on a single line int
 
 sub new {
     my $pkg = shift;
-    return undef if not __check_options(@_);
+    return if not __check_options(@_);
     my $hash = __set_options(@_);
     my $obj  = bless { __options => $hash }, $pkg;
     return $obj->__return_my_object();
@@ -154,7 +154,7 @@ These settings are set during the parser construction.
 
 sub setting {
     my ( $self, $key ) = ( shift, shift );
-    return undef if not defined $key or not exists $self->{__options}{$key};
+    return if not defined $key or not exists $self->{__options}{$key};
     return $self->{__options}{$key};
 }
 
@@ -317,7 +317,7 @@ sub __is_readable_file {
 
 sub __open_file {
     my ( $self, $fname ) = @_;
-    open my $fh, "<$fname"
+    open my $fh, '<', $fname
         or throw_cant_open( error => "Error while opening file $fname" );
     $self->__close_file if exists $self->{__filehandle};
     $self->{__filename}   = $fname;
@@ -458,7 +458,7 @@ Takes no arguments and returns the last saved record. Leaves the saved records u
 
 sub last_record {
     my $self = shift;
-    return undef if not exists $self->{__records};
+    return if not exists $self->{__records};
     my (@record) = @{ $self->{__records} };
     return $record[$#record];
 }
@@ -475,7 +475,7 @@ Takes no arguments and pops the last saved record.
 
 sub pop_record {
     my $self = shift;
-    return undef if not exists $self->{__records};
+    return if not exists $self->{__records};
     pop @{ $self->{__records} };
 }
 
