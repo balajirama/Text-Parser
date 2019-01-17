@@ -1,3 +1,3 @@
-# Hello World
+# How to contribute
 
-Hi there! :smile:
+This repository is managed with Dist::Zilla. So please follow the following steps.
