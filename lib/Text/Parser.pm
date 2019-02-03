@@ -54,7 +54,7 @@ use Moose;
 use namespace::autoclean;
 use FileHandle;
 use Try::Tiny;
-use Moose::Util;
+use Moose::Util 'apply_all_roles';
 use Moose::Util::TypeConstraints;
 
 coerce FileHandle => from GlobRef =>
