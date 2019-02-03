@@ -94,7 +94,7 @@ no Moose::Util::TypeConstraints;
 
 =method new
 
-Constructor. Takes options in the form of a hash. You can thus create an object of a parser like this.
+Constructor. Takes options in the form of a hash. Throws an exception if you use wrong inputs to create an object. You can thus create an object of a parser like this.
 
     my $parser = Text::Parser->new(
         auto_chomp => 0,               # 0 (Default) or 1 - automatically chomp lines
@@ -443,7 +443,11 @@ Takes no arguments. Returns an array containing all the records saved by the par
 
 =method push_records
 
-Don't override this method unless you know what you're doing. This method is useful if you have to copy the records from another parser. It is a general-purpose method for storing records that prepared before-hand.
+Don't override this method unless you know what you're doing. This method is useful if you have to copy the records from another parser. It is a general-purpose method for storing records that prepared before-hand. It is not supposed to be used to modify the arguments and make records (like C<L<save_record|/save_record>> does).
+
+    $parser->push_records(
+        $another_parser->get_records
+    );
 
 =cut
 
