@@ -54,6 +54,7 @@ use Moose;
 use namespace::autoclean;
 use FileHandle;
 use Try::Tiny;
+use Moose::Util;
 use Moose::Util::TypeConstraints;
 
 coerce FileHandle => from GlobRef =>
@@ -102,6 +103,12 @@ before BUILDARGS => sub {
     }
 };
 
+sub BUILD {
+    my $self = shift;
+    return if not $self->_has_mult_type or not defined $self->multiline_type;
+    apply_all_roles $self, 'Text::Parser::Multiline';
+}
+
 =method multiline_type
 
 This method replaces the older C<setting> method and returns the value of the C<multiline_type> attribute.
@@ -112,10 +119,11 @@ This method replaces the older C<setting> method and returns the value of the C<
 =cut
 
 has multiline_type => (
-    is      => 'ro',
-    isa     => 'MultilineType|Undef',
-    lazy    => 1,
-    default => undef,
+    is        => 'ro',
+    isa       => 'MultilineType|Undef',
+    lazy      => 1,
+    default   => undef,
+    predicate => '_has_mult_type',
 );
 
 =method auto_chomp

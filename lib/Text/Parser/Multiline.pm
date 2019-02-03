@@ -8,7 +8,7 @@ package Text::Parser::Multiline;
 use Exporter 'import';
 our (@EXPORT_OK) = ();
 our (@EXPORT)    = ();
-use Role::Tiny;
+use Moose::Role;
 
 =head1 SYNOPSIS
 
@@ -192,5 +192,7 @@ sub __pop_last_line {
     delete $self->{__temp_joined_line};
     return $last_line;
 }
+
+no Moose::Role;
 
 1;
