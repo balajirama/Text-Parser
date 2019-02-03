@@ -42,31 +42,6 @@ use Exception::Class (
         description => 'Bad arguments to new()',
         alias       => 'throw_new'
     },
-    'Text::Parser::Exception::FileNotFound' => {
-        isa         => 'Text::Parser::Exception',
-        description => 'File not found',
-        alias       => 'throw_file_not_found'
-    },
-    'Text::Parser::Exception::FileNotReadable' => {
-        isa         => 'Text::Parser::Exception',
-        description => 'File not readable',
-        alias       => 'throw_file_not_readable'
-    },
-    'Text::Parser::Exception::InvalidFileHandle' => {
-        isa         => 'Text::Parser::Exception',
-        description => 'Bad argument supplied to filehandle()',
-        alias       => 'throw_invalid_filehandle'
-    },
-    'Text::Parser::Exception::InvalidFilename' => {
-        isa         => 'Text::Parser::Exception',
-        description => 'Bad argument supplied to filename()',
-        alias       => 'throw_bad_filename'
-    },
-    'Text::Parser::Exception::FileCantOpen' => {
-        isa         => 'Text::Parser::Exception',
-        description => 'Error opening file',
-        alias       => 'throw_cant_open'
-    },
     'Text::Parser::Exception::BadReadInput' => {
         isa => 'Text::Parser::Exception',
         description =>
