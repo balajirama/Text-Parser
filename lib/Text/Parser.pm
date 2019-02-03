@@ -88,7 +88,7 @@ subtype FileReadable => as
     Any => where { not defined $_ or ( $_ and -f $_ and -r $_ ) },
     message {"\'$_\' is not a valid readable file"};
 
-enum MultilineType => [qw(none join_next join_last)];
+enum MultilineType => [qw(join_next join_last)];
 
 no Moose::Util::TypeConstraints;
 
@@ -138,9 +138,9 @@ This method replaces the older C<setting> method and returns the value of the C<
 
 has multiline_type => (
     is      => 'ro',
-    isa     => 'MultilineType',
+    isa     => 'MultilineType|Undef',
     lazy    => 1,
-    default => 'none',
+    default => undef,
 );
 
 =method auto_chomp
@@ -192,13 +192,13 @@ Takes no arguments, returns a boolean to indicate if text reading was aborted in
 =cut
 
 has abort => (
-    is       => 'rw',
-    isa      => 'Bool',
-    lazy     => 1,
-    default  => 0,
-    traits   => ['Bool'],
-    accessor => 'has_aborted',
-    handles  => {
+    is      => 'rw',
+    isa     => 'Bool',
+    lazy    => 1,
+    default => 0,
+    traits  => ['Bool'],
+    reader  => 'has_aborted',
+    handles => {
         abort_reading => 'set',
         _clear_abort  => 'unset'
     },
@@ -251,7 +251,7 @@ I<At present the C<read> method takes only two possible inputs argument types, e
 sub read {
     my $self = shift;
     return if not defined $self->_handle_read_inp(@_);
-    $self->__read_and_close_filehandle();
+    $self->__read_and_close_filehandle;
 }
 
 sub _handle_read_inp {
@@ -273,10 +273,11 @@ sub __save_file_handle {
 
 sub __read_and_close_filehandle {
     my $self = shift;
-    $self->_reset_line_count();
-    $self->_empty_records();
+    $self->_reset_line_count;
+    $self->_empty_records;
     $self->_clear_abort;
     $self->__read_file_handle;
+    $self->_close_filehandles if $self->_has_filename;
 }
 
 sub __read_file_handle {
@@ -328,7 +329,7 @@ But if you do a C<read> with a filehandle as argument, you'll see that the last 
 
 has filename => (
     is        => 'rw',
-    isa       => 'FileReadable',
+    isa       => 'FileReadable|Undef',
     lazy      => 1,
     init_arg  => undef,
     default   => undef,
@@ -336,12 +337,6 @@ has filename => (
     clearer   => '_clear_filename',
     trigger   => \&_set_filehandle,
 );
-
-around filename => sub {
-    my ( $orig, $self ) = ( shift, shift );
-    return if not @_ and not $self->_has_filename;
-    $orig->( $self, @_ );
-};
 
 sub _set_filehandle {
     my $self  = shift;
@@ -371,23 +366,20 @@ Like in the case of C<L<filename|/filename>> method, if after you C<read> with a
 
 has filehandle => (
     is        => 'rw',
-    isa       => 'FileHandle',
+    isa       => 'FileHandle|Undef',
     lazy      => 1,
     init_arg  => undef,
-    default   => sub { FileHandle->new_from_fd( \*STDIN, 'r' ); },
+    default   => undef,
     predicate => '_has_filehandle',
     writer    => '_save_filehandle',
     clearer   => '_close_filehandles',
     accessor  => 'filehandle',
 );
 
-around filehandle => sub {
-    my ( $orig, $self ) = ( shift, shift );
+after filehandle => sub {
+    my $self = shift;
     return if not @_ and not $self->_has_filehandle;
-    return $orig->($self) if not @_;
-    my $fh = $orig->( $self, @_ );
-    $self->_clear_filename();
-    return $fh;
+    $self->_clear_filename if @_;
 };
 
 =method lines_parsed
@@ -464,13 +456,13 @@ Takes no arguments and pops the last saved record.
 has records => (
     isa        => 'ArrayRef[Any]',
     is         => 'rw',
-    reader     => 'get_records',
     lazy       => 1,
     default    => sub { return []; },
     auto_deref => 1,
     init_arg   => undef,
     traits     => ['Array'],
     handles    => {
+        get_records    => 'elements',
         push_records   => 'push',
         pop_record     => 'pop',
         _empty_records => 'clear',
@@ -508,7 +500,7 @@ But if it is of type C<'join_next'>, then it returns C<1> for all lines uncondit
 
 sub is_line_continued {
     my $self = shift;
-    return 0 if $self->multiline_type eq 'none';
+    return 0 if not defined $self->multiline_type;
     return 0
         if $self->multiline_type eq 'join_last'
         and $self->lines_parsed() == 1;
