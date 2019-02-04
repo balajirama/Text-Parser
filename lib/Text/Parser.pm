@@ -51,6 +51,7 @@ use Exception::Class (
 );
 
 use Moose;
+use MooseX::CoverableModifiers;
 use namespace::autoclean;
 use FileHandle;
 use Try::Tiny;
@@ -322,12 +323,9 @@ has filename => (
 );
 
 sub _set_filehandle {
-    my $self  = shift;
-    my $fname = $self->filename();
-    return if not defined $fname;
-    my $fh = FileHandle->new("< $fname");
-    return $self->_save_filehandle($fh) if defined $fh;
-    $self->_clear_filename;
+    my $self = shift;
+    my $fh   = FileHandle->new( $self->filename, 'r' );
+    return $self->_save_filehandle($fh);
 }
 
 =method filehandle
@@ -359,10 +357,12 @@ has filehandle => (
     accessor  => 'filehandle',
 );
 
-after filehandle => sub {
-    my $self = shift;
+around filehandle => sub {
+    my ( $orig, $self ) = ( shift, shift );
     return if not @_ and not $self->_has_filehandle;
+    my $fh = $orig->($self, @_);
     $self->_clear_filename if @_;
+    return $fh;
 };
 
 =method lines_parsed
@@ -465,7 +465,7 @@ Takes no arguments and returns the last saved record. Leaves the saved records u
 sub last_record {
     my $self  = shift;
     my $count = $self->_num_records();
-    return undef if not $count;
+    return if not $count;
     return $self->_access_record( $count - 1 );
 }
 

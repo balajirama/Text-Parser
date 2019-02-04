@@ -5,15 +5,21 @@ use Test::More;
 use Test::Exception;
 
 BEGIN { use_ok 'Text::Parser'; }
+BEGIN { use_ok 'FileHandle'; }
 
 my $fname = 'text-simple.txt';
 
 my $pars;
+throws_ok { $pars = Text::Parser->new('balaji'); }
+'Text::Parser::Exception::Constructor',
+    'Throws an exception for non-hash input';
 throws_ok { $pars = Text::Parser->new( balaji => 1 ); }
 'Text::Parser::Exception::Constructor', 'Throws an exception for bad keys';
 throws_ok { $pars = Text::Parser->new( multiline_type => 'balaji' ); }
 'Moose::Exception::ValidationFailedForInlineTypeConstraint',
     'Throws an exception for bad value';
+lives_ok { $pars = Text::Parser->new( multiline_type => undef ); }
+'Improve coverage';
 $pars = Text::Parser->new();
 isa_ok( $pars, 'Text::Parser' );
 is( $pars->setting(),         undef, 'When no setting is called' );
@@ -24,13 +30,16 @@ lives_ok { is( $pars->filehandle(), undef, 'Not initialized' ); }
 'This should not die, just return undef';
 throws_ok { $pars->filehandle('bad argument'); }
 'Moose::Exception::ValidationFailedForInlineTypeConstraint',
-    'filehandle() will take only a GLOB input';
+    'filehandle() will take only a GLOB or FileHandle input';
 throws_ok { $pars->filename( { a => 'b' } ); }
 'Moose::Exception::ValidationFailedForInlineTypeConstraint',
     'filename() will take only string as input';
 throws_ok { $pars->filename($fname) }
 'Moose::Exception::ValidationFailedForInlineTypeConstraint',
     'No file by this name';
+throws_ok { $pars->read( bless {}, 'Something' ); }
+'Text::Parser::Exception::BadReadInput',
+    'filehandle() will take only a GLOB or FileHandle input';
 throws_ok { $pars->read($fname); }
 'Moose::Exception::ValidationFailedForInlineTypeConstraint',
     'Throws exception for non-existent file';
@@ -87,6 +96,8 @@ lives_ok {
         ['Simple text'], 'Read correct data in file' );
 }
 'Exercising the ability to read from file handles directly';
+lives_ok { $pars->read( FileHandle->new( 'example', 'r' ) ); }
+'No issues in reading from a FileHandle object of STDIN';
 unlink 'example';
 
 ## Testing the reading from filehandles on STDOUT and STDIN
