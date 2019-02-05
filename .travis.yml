@@ -16,10 +16,11 @@ install:
     - dzil authordeps --missing | cpanm -q --notest || (cat /home/travis/.cpanm/build.log; false)
     - dzil listdeps --author --missing | grep -v -E "^\[checked|tidied\]" | cpanm -q --notest || (cat /home/travis/.cpanm/build.log; false)
 script:
-    - dzil kwalitee
+    - dzil test --all
     - dzil clean
-    - dzil cover
-    - cd .build/*
-    - pwd
+    - dzil kwalitee
+    - cd Text-Parser-*
+    - perl Makefile.PL
+    - HARNESS_PERL_SWITCHES=-MDevel::Cover=-db,cover_db,-coverage,statement,time,branch,condition,subroutine,pod-also_private-BUILD make test
 after_success:
     - cover -report codecov
