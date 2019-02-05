@@ -353,17 +353,18 @@ has filehandle => (
     default   => undef,
     predicate => '_has_filehandle',
     writer    => '_save_filehandle',
+    reader    => '_get_filehandle',
     clearer   => '_close_filehandles',
-    accessor  => 'filehandle',
 );
 
-around filehandle => sub {
-    my ( $orig, $self ) = ( shift, shift );
+sub filehandle {
+    my $self = shift;
     return if not @_ and not $self->_has_filehandle;
-    my $fh = $orig->($self, @_);
+    $self->_save_filehandle(@_) if @_;
     $self->_clear_filename if @_;
+    my $fh = $self->_get_filehandle;
     return $fh;
-};
+}
 
 =method lines_parsed
 
