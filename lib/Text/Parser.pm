@@ -493,7 +493,7 @@ sub is_line_continued {
 
 =method join_last_line
 
-This method is used in multi-line text parsing. The method takes two string arguments. The default implementation just concatenates two strings and returns the result. You should redefine this method to strip any continuation characters and join the strings with any required spaces etc.
+This method can be overridden in multi-line text parsing. The method takes two string arguments and joins them in a way that removes the continuation character. The default implementation just concatenates two strings and returns the result without removing anything. You should redefine this method to strip any continuation characters and join the strings with any required spaces etc.
 
     $parser->join_last_line('last line', ' + this line');
 
