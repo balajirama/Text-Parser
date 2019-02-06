@@ -4,7 +4,7 @@
 
 =head1 NAME
 
-Text::Parser - Bare text parser, simplifies text parsing.
+Text::Parser - Simplifies text parsing, extensible to specific formats
 
 =head1 VERSION
 
@@ -70,14 +70,14 @@ If you have no continuation character, but you want to just join all the lines i
 
 =head2 multiline_type
 
-This method replaces the older C<setting> method and returns the value of the C<multiline_type> attribute.
+This method replaces the older C<setting> method. It is a read-only method and returns the value of the C<multiline_type> attribute.
 
     my $mult = $parser->multiline_type;
     print "Parser is a multi-line parser of type: $mult" if defined $mult;
 
 =head2 auto_chomp
 
-This method replaces the older C<setting> method and returns the status of the C<auto_chomp> attribute.
+This method replaces the older C<setting> method. It is a read-only method and returns the status of the C<auto_chomp> attribute.
 
     print "Parser will chomp lines automatically\n" if $parser->auto_chomp;
 
@@ -237,7 +237,7 @@ But if it is of type C<'join_next'>, then it returns C<1> for all lines uncondit
 
 =head2 join_last_line
 
-This method is used in multi-line text parsing. The method takes two string arguments. The default implementation just concatenates two strings and returns the result. You should redefine this method to strip any continuation characters and join the strings with any required spaces etc.
+This method can be overridden in multi-line text parsing. The method takes two string arguments and joins them in a way that removes the continuation character. The default implementation just concatenates two strings and returns the result without removing anything. You should redefine this method to strip any continuation characters and join the strings with any required spaces etc.
 
     $parser->join_last_line('last line', ' + this line');
 
