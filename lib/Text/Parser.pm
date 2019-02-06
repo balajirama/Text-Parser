@@ -3,7 +3,7 @@ use strict;
 
 package Text::Parser;
 
-# ABSTRACT: Bare text parser, simplifies text parsing.
+# ABSTRACT: Simplifies text parsing, extensible to specific formats
 
 use Exporter 'import';
 our (@EXPORT_OK) = ();
@@ -37,35 +37,10 @@ Future versions are expected to include progress-bar support, parsing text from 
 
 use Exception::Class (
     'Text::Parser::Exception',
-    'Text::Parser::Exception::ParsingError' => {
+    'Text::Parser::Exception::Constructor' => {
         isa         => 'Text::Parser::Exception',
-        description => 'For all parsing errors',
-        alias       => 'throw_text_parsing_error'
-    },
-    'Text::Parser::Exception::FileNotFound' => {
-        isa         => 'Text::Parser::Exception',
-        description => 'File not found',
-        alias       => 'throw_file_not_found'
-    },
-    'Text::Parser::Exception::FileNotReadable' => {
-        isa         => 'Text::Parser::Exception',
-        description => 'File not readable',
-        alias       => 'throw_file_not_readable'
-    },
-    'Text::Parser::Exception::InvalidFileHandle' => {
-        isa         => 'Text::Parser::Exception',
-        description => 'Bad argument supplied to filehandle()',
-        alias       => 'throw_invalid_filehandle'
-    },
-    'Text::Parser::Exception::InvalidFilename' => {
-        isa         => 'Text::Parser::Exception',
-        description => 'Bad argument supplied to filename()',
-        alias       => 'throw_bad_filename'
-    },
-    'Text::Parser::Exception::FileCantOpen' => {
-        isa         => 'Text::Parser::Exception',
-        description => 'Error opening file',
-        alias       => 'throw_cant_open'
+        description => 'Bad arguments to new()',
+        alias       => 'throw_new'
     },
     'Text::Parser::Exception::BadReadInput' => {
         isa => 'Text::Parser::Exception',
@@ -75,14 +50,28 @@ use Exception::Class (
     },
 );
 
+use Moose;
+use MooseX::CoverableModifiers;
+use namespace::autoclean;
+use FileHandle;
 use Try::Tiny;
-use Scalar::Util 'openhandle';
-use Role::Tiny;
-use IO::Select;
+use Moose::Util 'apply_all_roles';
+use Moose::Util::TypeConstraints;
+
+coerce FileHandle => from GlobRef =>
+    via { FileHandle->new_from_fd( $$_, 'r' ) };
+
+subtype FileReadable => as
+    Any => where { not defined $_ or ( $_ and -f $_ and -r $_ ) },
+    message {"\'$_\' is not a valid readable file"};
+
+enum MultilineType => [qw(join_next join_last)];
+
+no Moose::Util::TypeConstraints;
 
 =method new
 
-Constructor. Takes options in the form of a hash. You can thus create an object of a parser like this.
+Constructor. Takes options in the form of a hash. Throws an exception if you use wrong inputs to create an object. You can thus create an object of a parser like this.
 
     my $parser = Text::Parser->new(
         auto_chomp => 0,               # 0 (Default) or 1 - automatically chomp lines
@@ -103,60 +92,101 @@ If your text format allows users to break up what should be on a single line int
 
 =cut
 
-sub new {
-    my $pkg = shift;
-    return if not __check_options(@_);
-    my $hash = __set_options(@_);
-    my $obj  = bless { __options => $hash }, $pkg;
-    return $obj->__return_my_object();
-}
+my %allowed_args = ( auto_chomp => 1, multiline_type => 1 );
 
-my (%allowed_options)
-    = ( auto_chomp => '0|1', multiline_type => 'join_next|join_last' );
-my (%default_values) = ( auto_chomp => 0, multiline_type => undef );
-
-sub __check_options {
-    my (%opt) = @_;
-    foreach my $k ( keys %opt ) {
-        return 0 if not exists $allowed_options{$k};
-        my (@allowed) = split /\s*[|]\s*/, $allowed_options{$k};
-        return 0 if not grep { $_ eq $opt{$k} } @allowed;
+before BUILDARGS => sub {
+    my $class = shift;
+    throw_new error => 'Arguments to new() must be a hash' if @_ % 2;
+    my (%hash) = @_;
+    foreach my $k ( keys %hash ) {
+        throw_new error => "Invalid key $k as input to new()"
+            if not exists $allowed_args{$k};
     }
-    return 1;
+};
+
+sub BUILD {
+    my $self = shift;
+    return if not $self->_has_mult_type or not defined $self->multiline_type;
+    apply_all_roles $self, 'Text::Parser::Multiline';
 }
 
-sub __set_options {
-    my (%opt) = @_;
-    foreach my $k ( keys %default_values ) {
-        $opt{$k} = $default_values{$k} if not exists $opt{$k};
-    }
-    return \%opt;
-}
+=method multiline_type
 
-sub __return_my_object {
-    my $obj = shift;
-    return $obj if not defined $obj->setting('multiline_type');
-    Role::Tiny->apply_roles_to_object( $obj, 'Text::Parser::Multiline' );
-    return $obj;
-}
+This method replaces the older C<setting> method. It is a read-only method and returns the value of the C<multiline_type> attribute.
+
+    my $mult = $parser->multiline_type;
+    print "Parser is a multi-line parser of type: $mult" if defined $mult;
+
+=cut
+
+has multiline_type => (
+    is        => 'ro',
+    isa       => 'MultilineType|Undef',
+    lazy      => 1,
+    default   => undef,
+    predicate => '_has_mult_type',
+);
+
+=method auto_chomp
+
+This method replaces the older C<setting> method. It is a read-only method and returns the status of the C<auto_chomp> attribute.
+
+    print "Parser will chomp lines automatically\n" if $parser->auto_chomp;
+
+=cut
+
+has auto_chomp => (
+    is      => 'ro',
+    isa     => 'Bool',
+    lazy    => 1,
+    default => 0,
+);
 
 =method setting
 
-Takes a single string as argument, and returns the value of that setting. The string must be one of C<auto_chomp>, or C<multiline_type>.
+B<I<Deprecated>>
 
-    print "Parser will chomp\n" if $parser->setting('auto_chomp');
-    my $mult = $parser->setting('multiline_type');
-    print "Parser is a multi-line parser of type: $mult\n" if defined $mult;
-
-These settings are set during the parser construction.
+This method has been deprecated. Use C<multiline_type> and C<auto_chomp> instead.
 
 =cut
 
 sub setting {
-    my ( $self, $key ) = ( shift, shift );
-    return if not defined $key or not exists $self->{__options}{$key};
-    return $self->{__options}{$key};
+    my $self = shift;
+    return if not @_;
+    my $setting = shift;
+    my %allowed = ( multiline_type => 1, auto_chomp => 1 );
+    return if not exists $allowed{$setting};
+    return $self->$setting();
 }
+
+=method abort_reading
+
+Takes no arguments. Returns C<1>. You will probably never call this method in your main program.
+
+This method is usually used only in the derived class. See L<this example|/"Example 3 : Aborting without errors">.
+
+=cut
+
+=method has_aborted
+
+Takes no arguments, returns a boolean to indicate if text reading was aborted in the middle.
+
+    print "Aborted\n" if $parser->has_aborted();
+
+=cut
+
+has abort => (
+    is      => 'rw',
+    isa     => 'Bool',
+    lazy    => 1,
+    default => 0,
+    traits  => ['Bool'],
+    reader  => 'has_aborted',
+    handles => {
+        abort_reading => 'set',
+        _clear_abort  => 'unset'
+    },
+);
 
 =method read
 
@@ -203,77 +233,60 @@ I<At present the C<read> method takes only two possible inputs argument types, e
 =cut
 
 sub read {
-    my ( $self, $input ) = @_;
-    return if not $self->__is_file_known_or_opened($input);
-    $self->__store_check_input($input);
-    $self->__read_and_close_filehandle();
+    my $self = shift;
+    return if not defined $self->_handle_read_inp(@_);
+    $self->__read_and_close_filehandle;
 }
 
-sub __store_check_input {
-    my ( $self, $input ) = @_;
-    return                           if not defined $input;
-    return $self->filename($input)   if ref($input) eq '';
-    return $self->filehandle($input) if ref($input) eq 'GLOB';
-    __throw_bad_input_to_read( ref($input) );
+sub _handle_read_inp {
+    my $self = shift;
+    return $self->filehandle if not @_;
+    my $inp = shift;
+    return if not ref($inp) and not $inp;
+    return $self->__save_file_handle($inp);
 }
 
-sub __throw_bad_input_to_read {
-    throw_bad_input_to_read error => 'Unexpected ' . shift
-        . ' type input to read() ; must be either string filename or GLOB';
-}
-
-sub __is_file_known_or_opened {
-    my ( $self, $fname ) = @_;
-    return 0 if not defined $fname and not exists $self->{__filehandle};
-    return 0 if defined $fname and not $fname;
-    return 1;
+sub __save_file_handle {
+    my ( $self, $inp ) = ( shift, shift );
+    return $self->filename($inp) if not ref($inp);
+    return $self->filehandle($inp)
+        if ref($inp) eq 'GLOB'
+        or ( defined blessed($inp) and blessed($inp) eq 'FileHandle' );
+    throw_bad_input_to_read error => "$inp is an unknown type of input";
 }
 
 sub __read_and_close_filehandle {
     my $self = shift;
-    $self->__init_read_fh;
+    $self->_reset_line_count;
+    $self->_empty_records;
+    $self->_clear_abort;
     $self->__read_file_handle;
-    $self->__close_file;
-}
-
-sub __init_read_fh {
-    my $self = shift;
-    $self->lines_parsed(0);
-    $self->{__bytes_read} = 0;
-    delete $self->{__records} if exists $self->{__records};
-    delete $self->{__abort_reading};
+    $self->_close_filehandles if $self->_has_filename;
 }
 
 sub __read_file_handle {
     my $self = shift;
     my $fh   = $self->filehandle();
     while (<$fh>) {
-        last if not $self->__parse_line_and_next($_);
+        last if not $self->__parse_line($_);
     }
 }
 
-sub __parse_line_and_next {
+sub __parse_line {
     my ( $self, $line ) = ( shift, shift );
-    $self->lines_parsed( $self->lines_parsed + 1 );
-    chomp $line if $self->setting('auto_chomp');
+    $self->_next_line_parsed();
+    chomp $line if $self->auto_chomp;
     $self->__try_to_parse($line);
-    return not exists $self->{__abort_reading};
+    return not $self->has_aborted;
 }
 
 sub __try_to_parse {
     my ( $self, $line ) = @_;
     try { $self->save_record($line); }
     catch {
-        $self->__close_file;
+        $self->_close_filehandles;
         $_->rethrow;
     };
-}
-
-sub __close_file {
-    my $self = shift;
-    return if not exists $self->{__filename};
-    close $self->{__filehandle};
-    delete $self->{__filehandle};
 }
 
 =method filename
@@ -298,44 +311,28 @@ But if you do a C<read> with a filehandle as argument, you'll see that the last 
 
 =cut
 
-sub filename {
+has filename => (
+    is        => 'rw',
+    isa       => 'FileReadable|Undef',
+    lazy      => 1,
+    init_arg  => undef,
+    default   => undef,
+    predicate => '_has_filename',
+    clearer   => '_clear_filename',
+    trigger   => \&_set_filehandle,
+);
+
+sub _set_filehandle {
     my $self = shift;
-    $self->__open_file( $self->__is_readable_file(shift) ) if scalar(@_);
-    return ( exists $self->{__filename} ) ? $self->{__filename} : undef;
-}
-
-sub __is_readable_file {
-    my ( $self, $fname ) = @_;
-    throw_bad_filename( error => "$fname is not a string" )
-        if ref($fname) ne '';
-    throw_file_not_found( error => "$fname is not a file" )
-        if not -f $fname;
-    throw_file_not_readable( error => "$fname is not readable" )
-        if not -r $fname;
-    return $fname;
-}
-
-sub __open_file {
-    my ( $self, $fname ) = @_;
-    open my $fh, '<', $fname
-        or throw_cant_open( error => "Error while opening file $fname" );
-    $self->__close_file if exists $self->{__filehandle};
-    $self->{__filename}   = $fname;
-    $self->{__filehandle} = $fh;
+    my $fh   = FileHandle->new( $self->filename, 'r' );
+    return $self->_save_filehandle($fh);
 }
 
 =method filehandle
 
-Takes zero or one C<GLOB> argument and saves it for future a C<L<read|/read>> call. Returns the filehandle last saved, or C<undef> if none was saved. Remember that after a successful C<read> call, filehandles are lost.
+Takes zero or one argument that must be either a filehandle C<GLOB> (such as C<\*STDIN>) or an object of the C<FileHandle> class. The method saves it for future a C<L<read|/read>> call. Returns the filehandle last saved, or C<undef> if none was saved. Remember that after a successful C<read> call, filehandles are lost.
 
     my $fh = $parser->filehandle();
-
-B<Note:> As such there is a check to ensure one is not supplying a write-only filehandle. For example, if you specify the filehandle of a write-only file or if the file is opened for write and you cannot read from it. The weird thing is that some of the standard filehandles like C<STDOUT> don't behave uniformly across all platforms. On most POSIX platforms, C<STDOUT> is readable. On such platforms you will not get any exceptions if you try to do this:
-
-    $parser->filehandle(\*STDOUT);  ## Works on many POSIX platforms
-                                    ## Throws exception on others
-
-Again, it looks like on Win32 systems C<-r STDIN> returns C<0>. If someone knows how to fix these, please L<let me know|/BUGS>.
 
 Like in the case of C<L<filename|/filename>> method, if after you C<read> with a filehandle, you call C<read> again, this time with a file name, the last filehandle is lost.
 
@@ -348,40 +345,25 @@ Like in the case of C<L<filename|/filename>> method, if after you C<read> with a
 
 =cut
 
+has filehandle => (
+    is        => 'rw',
+    isa       => 'FileHandle|Undef',
+    lazy      => 1,
+    init_arg  => undef,
+    default   => undef,
+    predicate => '_has_filehandle',
+    writer    => '_save_filehandle',
+    reader    => '_get_filehandle',
+    clearer   => '_close_filehandles',
+);
+
 sub filehandle {
-    my ( $self, $fhref ) = @_;
-    $self->__save_file_handle($fhref) if $self->__check_file_handle($fhref);
-    return ( exists $self->{__filehandle} ) ? $self->{__filehandle} : undef;
-}
-
-sub __save_file_handle {
-    my ( $self, $fhref ) = @_;
-    $self->{__filehandle} = $$fhref;
-    delete $self->{__filename} if exists $self->{__filename};
-    $self->{__size} = ( stat $$fhref )[7];
-}
-
-sub __check_file_handle {
-    my ( $self, $fhref ) = @_;
-    return 0 if not defined $fhref;
-    $self->_invalid_filehandle($fhref);
-    return $self->_fh_is_readable($fhref);
-}
-
-sub _invalid_filehandle {
-    my ( $self, $fhref ) = ( shift, shift );
-    throw_invalid_filehandle( error => "$fhref is not a valid filehandle" )
-        if ref($fhref) ne 'GLOB';
-    throw_file_not_readable( error => "$$fhref is a closed filehandle" )
-        if not defined openhandle($fhref);
-}
-
-sub _fh_is_readable {
-    my ( $self, $fhref ) = ( shift, shift );
-    throw_file_not_readable(
-        error => "The filehandle $$fhref is not readable" )
-        if not -r $fhref;
-    return 1;
+    my $self = shift;
+    return if not @_ and not $self->_has_filehandle;
+    $self->_save_filehandle(@_) if @_;
+    $self->_clear_filename if @_;
+    my $fh = $self->_get_filehandle;
+    return $fh;
 }
 
 =method lines_parsed
@@ -396,11 +378,18 @@ Again the information in this is "persistent". But you can also be assured that 
 
 =cut
 
-sub lines_parsed {
-    my $self = shift;
-    return $self->{__current_line} = shift if @_;
-    return ( exists $self->{__current_line} ) ? $self->{__current_line} : 0;
-}
+has lines_parsed => (
+    is       => 'rw',
+    isa      => 'Int',
+    lazy     => 1,
+    init_arg => undef,
+    default  => 0,
+    traits   => ['Counter'],
+    handles  => {
+        _next_line_parsed => 'inc',
+        _reset_line_count => 'reset',
+    }
+);
 
 =method save_record
 
@@ -413,22 +402,8 @@ Derived classes can decide to store records in a different form. A derived class
 =cut
 
 sub save_record {
-    my $self = shift;
-    $self->{__records} = [] if not defined $self->{__records};
-    push @{ $self->{__records} }, shift;
-}
-
-=method abort_reading
-
-Takes no arguments. Returns C<1>. You will probably never call this method in your main program.
-
-This method is usually used only in the derived class. See L<this example|/"Example 3 : Aborting without errors">.
-
-=cut
-
-sub abort_reading {
-    my $self = shift;
-    return $self->{__abort_reading} = 1;
+    my ( $self, $record ) = ( shift, shift );
+    $self->push_records($record);
 }
 
 =method get_records
@@ -442,26 +417,15 @@ Takes no arguments. Returns an array containing all the records saved by the par
 
 =cut
 
-sub get_records {
-    my $self = shift;
-    return () if not exists $self->{__records};
-    return @{ $self->{__records} };
-}
+=method push_records
 
-=method last_record
+Don't override this method unless you know what you're doing. This method is useful if you have to copy the records from another parser. It is a general-purpose method for storing records that prepared before-hand. It is not supposed to be used to modify the arguments and make records (like C<L<save_record|/save_record>> does).
 
-Takes no arguments and returns the last saved record. Leaves the saved records untouched.
-
-    my $last_rec = $parser->last_record;
+    $parser->push_records(
+        $another_parser->get_records
+    );
 
 =cut
-
-sub last_record {
-    my $self = shift;
-    return if not exists $self->{__records};
-    my (@record) = @{ $self->{__records} };
-    return $record[$#record];
-}
 
 =method pop_record
 
@@ -473,10 +437,37 @@ Takes no arguments and pops the last saved record.
 
 =cut
 
-sub pop_record {
-    my $self = shift;
-    return if not exists $self->{__records};
-    pop @{ $self->{__records} };
+has records => (
+    isa        => 'ArrayRef[Any]',
+    is         => 'rw',
+    lazy       => 1,
+    default    => sub { return []; },
+    auto_deref => 1,
+    init_arg   => undef,
+    traits     => ['Array'],
+    handles    => {
+        get_records    => 'elements',
+        push_records   => 'push',
+        pop_record     => 'pop',
+        _empty_records => 'clear',
+        _num_records   => 'count',
+        _access_record => 'accessor',
+    },
+);
+
+=method last_record
+
+Takes no arguments and returns the last saved record. Leaves the saved records untouched.
+
+    my $last_rec = $parser->last_record;
+
+=cut
+
+sub last_record {
+    my $self  = shift;
+    my $count = $self->_num_records();
+    return if not $count;
+    return $self->_access_record( $count - 1 );
 }
 
 =method is_line_continued
@@ -493,16 +484,16 @@ But if it is of type C<'join_next'>, then it returns C<1> for all lines uncondit
 
 sub is_line_continued {
     my $self = shift;
-    return 0 if not defined $self->setting('multiline_type');
+    return 0 if not defined $self->multiline_type;
     return 0
-        if $self->setting('multiline_type') eq 'join_last'
+        if $self->multiline_type eq 'join_last'
         and $self->lines_parsed() == 1;
     return 1;
 }
 
 =method join_last_line
 
-This method is used in multi-line text parsing. The method takes two string arguments. The default implementation just concatenates two strings and returns the result. You should redefine this method to strip any continuation characters and join the strings with any required spaces etc.
+This method can be overridden in multi-line text parsing. The method takes two string arguments and joins them in a way that removes the continuation character. The default implementation just concatenates two strings and returns the result without removing anything. You should redefine this method to strip any continuation characters and join the strings with any required spaces etc.
 
     $parser->join_last_line('last line', ' + this line');
 
@@ -512,20 +503,6 @@ sub join_last_line {
     my $self = shift;
     my ( $last, $line ) = ( shift, shift );
     return $last . $line;
-}
-
-=method has_aborted
-
-Takes no arguments, returns a boolean to indicate if text reading was aborted in the middle.
-
-    print "Aborted\n" if $parser->has_aborted();
-
-=cut
-
-sub has_aborted {
-    my $self = shift;
-    return $self->{__abort_reading} if exists $self->{__abort_reading};
-    return 0;
 }
 
 =head1 EXAMPLES
@@ -752,5 +729,7 @@ Try this parser with a SPICE deck with continuation characters and see what you 
 * L<Text::Parser::Multiline>
 
 =cut
+
+__PACKAGE__->meta->make_immutable;
 
 1;

@@ -8,7 +8,7 @@ Text::Parser - Bare text parser, simplifies text parsing.
 
 =head1 VERSION
 
-version 0.803
+version 0.804
 
 =head1 SYNOPSIS
 
@@ -38,7 +38,7 @@ Future versions are expected to include progress-bar support, parsing text from 
 
 =head2 new
 
-Constructor. Takes options in the form of a hash. You can thus create an object of a parser like this.
+Constructor. Takes options in the form of a hash. Throws an exception if you use wrong inputs to create an object. You can thus create an object of a parser like this.
 
     my $parser = Text::Parser->new(
         auto_chomp => 0,               # 0 (Default) or 1 - automatically chomp lines
@@ -68,15 +68,36 @@ If you have no continuation character, but you want to just join all the lines i
 
 =back
 
+=head2 multiline_type
+
+This method replaces the older C<setting> method and returns the value of the C<multiline_type> attribute.
+
+    my $mult = $parser->multiline_type;
+    print "Parser is a multi-line parser of type: $mult" if defined $mult;
+
+=head2 auto_chomp
+
+This method replaces the older C<setting> method and returns the status of the C<auto_chomp> attribute.
+
+    print "Parser will chomp lines automatically\n" if $parser->auto_chomp;
+
 =head2 setting
 
-Takes a single string as argument, and returns the value of that setting. The string must be one of C<auto_chomp>, or C<multiline_type>.
+B<I<Deprecated>>
 
-    print "Parser will chomp\n" if $parser->setting('auto_chomp');
-    my $mult = $parser->setting('multiline_type');
-    print "Parser is a multi-line parser of type: $mult\n" if defined $mult;
+This method has been deprecated. Use C<multiline_type> and C<auto_chomp> instead.
 
-These settings are set during the parser construction.
+=head2 abort_reading
+
+Takes no arguments. Returns C<1>. You will probably never call this method in your main program.
+
+This method is usually used only in the derived class. See L<this example|/"Example 3 : Aborting without errors">.
+
+=head2 has_aborted
+
+Takes no arguments, returns a boolean to indicate if text reading was aborted in the middle.
+
+    print "Aborted\n" if $parser->has_aborted();
 
 =head2 read
 
@@ -142,16 +163,9 @@ But if you do a C<read> with a filehandle as argument, you'll see that the last 
 
 =head2 filehandle
 
-Takes zero or one C<GLOB> argument and saves it for future a C<L<read|/read>> call. Returns the filehandle last saved, or C<undef> if none was saved. Remember that after a successful C<read> call, filehandles are lost.
+Takes zero or one argument that must be either a filehandle C<GLOB> (such as C<\*STDIN>) or an object of the C<FileHandle> class. The method saves it for future a C<L<read|/read>> call. Returns the filehandle last saved, or C<undef> if none was saved. Remember that after a successful C<read> call, filehandles are lost.
 
     my $fh = $parser->filehandle();
-
-B<Note:> As such there is a check to ensure one is not supplying a write-only filehandle. For example, if you specify the filehandle of a write-only file or if the file is opened for write and you cannot read from it. The weird thing is that some of the standard filehandles like C<STDOUT> don't behave uniformly across all platforms. On most POSIX platforms, C<STDOUT> is readable. On such platforms you will not get any exceptions if you try to do this:
-
-    $parser->filehandle(\*STDOUT);  ## Works on many POSIX platforms
-                                    ## Throws exception on others
-
-Again, it looks like on Win32 systems C<-r STDIN> returns C<0>. If someone knows how to fix these, please L<let me know|/BUGS>.
 
 Like in the case of C<L<filename|/filename>> method, if after you C<read> with a filehandle, you call C<read> again, this time with a file name, the last filehandle is lost.
 
@@ -180,12 +194,6 @@ In an application that uses a text parser, you will most-likely never call this 
 
 Derived classes can decide to store records in a different form. A derived class could, for example, store the records in the form of hash references (so that when you use C<L<get_records|/get_records>>, you'd get an array of hashes), or maybe even another array reference (so when you use C<get_records> you'd get an array of arrays). The L<CSV parser example|/"Example 1 : A simple CSV Parser"> does the latter.
 
-=head2 abort_reading
-
-Takes no arguments. Returns C<1>. You will probably never call this method in your main program.
-
-This method is usually used only in the derived class. See L<this example|/"Example 3 : Aborting without errors">.
-
 =head2 get_records
 
 Takes no arguments. Returns an array containing all the records saved by the parser.
@@ -195,11 +203,13 @@ Takes no arguments. Returns an array containing all the records saved by the par
         print "Record: $i: ", $record, "\n";
     }
 
-=head2 last_record
+=head2 push_records
 
-Takes no arguments and returns the last saved record. Leaves the saved records untouched.
+Don't override this method unless you know what you're doing. This method is useful if you have to copy the records from another parser. It is a general-purpose method for storing records that prepared before-hand. It is not supposed to be used to modify the arguments and make records (like C<L<save_record|/save_record>> does).
 
-    my $last_rec = $parser->last_record;
+    $parser->push_records(
+        $another_parser->get_records
+    );
 
 =head2 pop_record
 
@@ -208,6 +218,12 @@ Takes no arguments and pops the last saved record.
     my $last_rec = $parser->pop_record;
     $uc_last = uc $last_rec;
     $parser->save_record($uc_last);
+
+=head2 last_record
+
+Takes no arguments and returns the last saved record. Leaves the saved records untouched.
+
+    my $last_rec = $parser->last_record;
 
 =head2 is_line_continued
 
@@ -224,12 +240,6 @@ But if it is of type C<'join_next'>, then it returns C<1> for all lines uncondit
 This method is used in multi-line text parsing. The method takes two string arguments. The default implementation just concatenates two strings and returns the result. You should redefine this method to strip any continuation characters and join the strings with any required spaces etc.
 
     $parser->join_last_line('last line', ' + this line');
-
-=head2 has_aborted
-
-Takes no arguments, returns a boolean to indicate if text reading was aborted in the middle.
-
-    print "Aborted\n" if $parser->has_aborted();
 
 =head1 EXAMPLES
 
