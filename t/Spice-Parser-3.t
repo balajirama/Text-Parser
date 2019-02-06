@@ -86,6 +86,7 @@ throws_ok {
     'Exception thrown if you try to change auto_chomp';
 
 lives_ok { $sp->read('t/example-2.sp'); } 'Works fine';
+is( $sp->has_aborted,             1, 'Has aborted' );
 is( scalar( $sp->get_records() ), 1, '1 record saved' );
 is( $sp->lines_parsed(),          6, '6 lines parsed' );
 is( $sp->last_record, "Minst net1 net2 net3 net4 nmos l=0.09u w=0.13u" );

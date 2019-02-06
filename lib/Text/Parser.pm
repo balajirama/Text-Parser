@@ -3,7 +3,7 @@ use strict;
 
 package Text::Parser;
 
-# ABSTRACT: Bare text parser, simplifies text parsing.
+# ABSTRACT: Simplifies text parsing, extensible to specific formats
 
 use Exporter 'import';
 our (@EXPORT_OK) = ();
@@ -112,7 +112,7 @@ sub BUILD {
 
 =method multiline_type
 
-This method replaces the older C<setting> method and returns the value of the C<multiline_type> attribute.
+This method replaces the older C<setting> method. It is a read-only method and returns the value of the C<multiline_type> attribute.
 
     my $mult = $parser->multiline_type;
     print "Parser is a multi-line parser of type: $mult" if defined $mult;
@@ -129,7 +129,7 @@ has multiline_type => (
 
 =method auto_chomp
 
-This method replaces the older C<setting> method and returns the status of the C<auto_chomp> attribute.
+This method replaces the older C<setting> method. It is a read-only method and returns the status of the C<auto_chomp> attribute.
 
     print "Parser will chomp lines automatically\n" if $parser->auto_chomp;
 
