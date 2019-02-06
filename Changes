@@ -1,11 +1,10 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
-  - Changed implementation to be based on Moose.
+  - Changed implementation to be Moose-based, so that Moose users can easily use this class.
   - Deprecated setting method, added two new methods instead: multiline_type, auto_chomp
   - Added a new method push_records. Save records internally calls push_records.
-  - Changed the short description.
-  - Minor updates to the POD.
+  - Added tests for all methods. Updated POD.
 
 0.803     2019-01-21 15:49:03-08:00 America/Los_Angeles
   - Cleaned up code using tidyall ; perlcritic warnings fixed

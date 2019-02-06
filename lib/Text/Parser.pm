@@ -3,7 +3,7 @@ use strict;
 
 package Text::Parser;
 
-# ABSTRACT: Simplifies text parsing, extensible to specific formats
+# ABSTRACT: Simplifies text parsing. Extensible to parse various grammars.
 
 use Exporter 'import';
 our (@EXPORT_OK) = ();
@@ -21,17 +21,15 @@ The above code reads the first command-line argument as a string, and assuming i
 
 =head1 RATIONALE
 
-Text parsing is perhaps the single most common thing that almost every program does. Yet we don't have a lean, flexible, file parser, where the programmer only has to specify the grammar/syntax of the text input.
-
-A simple text file parser should have to only specify the "grammar" it intends to interpret. Everything else, like C<open>ing a file handle, C<close>ing the file handle, tracking line-count, joining continued lines into one, reporting any errors in line continuation, etc., distract from what should be the main goal : parsing for data records from the text input. Unfortunately, most programmers have to continue writing code that calls C<open>, C<close>, etc., and keep track of things that should have been simple features of every text file parser. And if they have to read a second file with a different grammar, usually, all these calls to C<open>, C<close>, etc. are repeated.
+Text parsing is perhaps the single most common thing that almost every Perl program does. Yet we don't have a lean, flexible, text parser. A simple text parser should have to only specify the "grammar" it intends to interpret and collect records from. Everything else, like C<open>ing a file handle, C<close>ing the file handle, tracking line-count, joining continued lines into one, reporting any errors in line continuation, etc., distract from the main goal : getting data records from the text input. Unfortunately, most programmers have to continue writing code that should just have been simple features of every text file parser. And if they have to read a second file with a different grammar, usually, all that code needs to be repeated.
 
 This class automates all "mundane" operations like C<open>, C<close>, line-count, and storage/deletion/retrieval of records, joining continued lines, etc. You don't have to bother with a lot of book-keeping when you write your parser. You focus on specifying a grammar and telling the parser what information to store. To do this, you just inherit this class and override one method (C<L<save_record|/save_record>>). And voila! you have a parser. Everything else is taken care of by this class. Look at L<these examples|/EXAMPLES> to see how easy this can be. If your text format allows a single line to be split into several lines with a continuation character, you again need to specify only a few additional things, and everything else is taken care of for you. See L<these examples|/"Example 4 : Multi-line parsing">.
 
 =head1 DESCRIPTION
 
-C<Text::Parser> is a bare-bones text parsing class. It is ignorant of the text format, and cannot recognize any grammars, but derived classes that inherit from it can specify this. They can do this usually by overriding just one of the methods in this class.
+C<Text::Parser> is a bare-bones text parsing class. It is ignorant of the text format, and cannot recognize any grammars, but derived classes that inherit from it can specify this. They can do this usually by overriding just one of the methods in this class. Of course derived classes can create any additional attributes and methods they need to do their task of extracting information records out of each line.
 
-Future versions are expected to include progress-bar support, parsing text from sockets, or a chunk of memory. All these software features are text-format independent and can be re-used in parsing any text format. Derived classes of C<Text::Parser> will be able to take advantage of these features.
+Future versions are expected to include progress-bar support, parsing text from sockets, UTF support, or parsing from a chunk of memory. All these software features are text-format independent and can be re-used in parsing any text format. Derived classes of C<Text::Parser> will be able to take advantage of these features seamlessly and only have to focus on extracting information, while the base class handles the "mundane" parts.
 
 =cut
 
@@ -515,6 +513,8 @@ Derived classes simply need to override one method : C<L<save_record|/save_recor
 
 Notice that the creation of a data structure is not the objective of a parser. It is simply concerned with collecting data and arranging it in a form that can be used. That's all. Data structures can be created by a different part of your program using the data collected by your parser.
 
+B<Note:> There is support for L<Moose>. So you could use C<extends 'Text::Parser'> instead of the C<use parent> pragma in these examples. The examples in this documentation will show non-L<Moose> classic Perl OO derived classes for ease of understanding. Those who know how to C<use> class automators like L<Moo>/L<Moose> should be able to follow.
+
 =head2 Example 1 : A simple CSV Parser
 
 We will write a parser for a simple CSV file that reads each line and stores the records as array references. This example is oversimplified, and does B<not> handle embedded newlines.
@@ -727,6 +727,8 @@ Try this parser with a SPICE deck with continuation characters and see what you 
 
 =for :list
 * L<Text::Parser::Multiline>
+* L<Moose>
+* L<Text::CSV>
 
 =cut
 
