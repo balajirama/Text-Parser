@@ -95,7 +95,7 @@ Takes no arguments, returns a boolean to indicate if text reading was aborted in
 
 =head2 read
 
-Takes zero or one argument which could be a string containing the name of the file, or a filehandle reference (a C<GLOB>) like C<\*STDIN>. Throws an exception if filename/C<GLOB> provided is either non-existent or cannot be read for any reason.
+Takes zero or one argument which could be a string containing the name of the file, or a filehandle reference (a C<GLOB>) like C<\*STDIN> or an object of the C<L<FileHandle>> class. Throws an exception if filename/C<GLOB> provided is either non-existent or cannot be read for any reason.
 
 B<Note:> Normally if you provide the C<GLOB> of a file opened for write, some Operating Systems allow reading from it too, and some don't. Read the documentation for C<L<filehandle|/filehandle>> for more on this.
 
@@ -111,7 +111,7 @@ B<Note:> Normally if you provide the C<GLOB> of a file opened for write, some Op
 
 Returns once all records have been read or if an exception is thrown for any parsing errors, or if reading has been aborted with the C<L<abort_reading|/abort_reading>> method.
 
-If you provide a string file name as input, the function will handle all C<open> and C<close> operations on files even if any exception is thrown, or if the reading has been aborted. But if you pass a file handle C<GLOB> instead, then the file handle won't be closed and it will be the responsibility of the calling program to close the filehandle.
+If you provide a filename as input, the function will handle all C<open> and C<close> operations on files even if any exception is thrown, or if the reading has been aborted. But if you pass a file handle C<GLOB> or C<FileHandle> object instead, then the file handle won't be closed and it will be the responsibility of the calling program to close the filehandle.
 
     $parser->read('myfile.txt');
     # Will handle open, parsing, and closing of file automatically.
@@ -121,7 +121,7 @@ If you provide a string file name as input, the function will handle all C<open>
     # Will not close MYFH and it is the respo
     close MYFH;
 
-When you do read a new file or input stream with this method, you will lose all the records stored from the previous read operation. So this means that if you want to read a different file with the same parser object, (unless you don't care about the records from the last file you read) you should use the C<L<get_records|/get_records>> method to retrieve all the read records before parsing a new file. So all those calls to C<read> in the example above were parsing three different files, and each successive call overwrote the records from the previous call.
+When you do read a new file name or file handle with this method, you will lose all the records stored from the previous read operation. So this means that if you want to read a different file with the same parser object, (unless you don't care about the records from the last file you read) you should use the C<L<get_records|/get_records>> method to retrieve all the read records before parsing a new file. So all those calls to C<read> in the example above were parsing three different files, and each successive call overwrote the records from the previous call.
 
     $parser->read($file1);
     my (@records) = $parser->get_records();
@@ -129,7 +129,7 @@ When you do read a new file or input stream with this method, you will lose all 
     $parser->read(\*STDIN);
     my (@stdin) = $parser->get_records();
 
-B<Inheritance Recommendation:> To extend the class to other file formats, override C<L<save_record|/save_record>> instead of this one.
+B<Note:> To extend the class to other file formats, override C<L<save_record|/save_record>> instead of this one.
 
 =head3 Future Enhancement
 
@@ -462,6 +462,10 @@ Try this parser with a SPICE deck with continuation characters and see what you 
 =item *
 
 L<Text::Parser::Multiline>
+
+=item *
+
+L<FileHandle>
 
 =item *
 
