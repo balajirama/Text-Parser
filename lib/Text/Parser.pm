@@ -85,8 +85,7 @@ If your text format allows users to break up what should be on a single line int
 
 =for :list
 * If your format allows something like a trailing back-slash or some other character to indicate that text on I<B<next>> line is to be joined with this one, then choose C<join_next>. See L<this example|/"Continue with character">.
-* If your format allows some character to indicate that text on the current line is part of the I<B<last>> line, then choose C<join_last>. See L<this simple SPICE line-joiner|/"Simple SPICE line joiner"> as an example.
-* If you have no continuation character, but you want to just join all the lines into one single line and then call C<save_record> only once for the whole text block, then use C<join_last>. See L<this trivial line-joiner|/"Trivial line-joiner">.
+* If your format allows some character to indicate that text on the current line is part of the I<B<last>> line, then choose C<join_last>. See L<this simple SPICE line-joiner|/"Simple SPICE line joiner"> as an example. B<Note:> If you have no continuation character, but you want to just join all the lines into one single line and then call C<save_record> only once for the whole text block, then use C<join_last>. See L<this trivial line-joiner|/"Trivial line-joiner">.
 
 =cut
 
@@ -437,7 +436,7 @@ Takes no arguments and pops the last saved record.
 
 has records => (
     isa        => 'ArrayRef[Any]',
-    is         => 'rw',
+    is         => 'ro',
     lazy       => 1,
     default    => sub { return []; },
     auto_deref => 1,
