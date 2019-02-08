@@ -1,6 +1,7 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+  - Fix issues with FreeBSD
 
 0.900     2019-02-06 20:43:40-08:00 America/Los_Angeles
   - Changed implementation to be Moose-based, so that Moose users can easily use this class.
