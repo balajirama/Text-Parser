@@ -59,11 +59,11 @@ use Moose::Util::TypeConstraints;
 coerce FileHandle => from GlobRef =>
     via { FileHandle->new_from_fd( $$_, 'r' ) };
 
-subtype FileReadable => as
+subtype 'Text::Parser::Types::FileReadable' => as
     Any => where { not defined $_ or ( $_ and -f $_ and -r $_ ) },
     message {"\'$_\' is not a valid readable file"};
 
-enum MultilineType => [qw(join_next join_last)];
+enum 'Text::Parser::Types::MultilineType' => [qw(join_next join_last)];
 
 no Moose::Util::TypeConstraints;
 
@@ -118,7 +118,7 @@ This method replaces the older C<setting> method. It is a read-only method and r
 
 has multiline_type => (
     is        => 'ro',
-    isa       => 'MultilineType|Undef',
+    isa       => 'Text::Parser::Types::MultilineType|Undef',
     lazy      => 1,
     default   => undef,
     predicate => '_has_mult_type',
@@ -310,7 +310,7 @@ But if you do a C<read> with a filehandle as argument, you'll see that the last 
 
 has filename => (
     is        => 'rw',
-    isa       => 'FileReadable|Undef',
+    isa       => 'Text::Parser::Types::FileReadable|Undef',
     lazy      => 1,
     init_arg  => undef,
     default   => undef,
