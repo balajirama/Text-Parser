@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+0.903     2019-02-08 20:21:31-08:00 America/Los_Angeles
   - Reduce redundate Moose types, improve code coverage
 
 0.902     2019-02-07 22:24:40-08:00 America/Los_Angeles
