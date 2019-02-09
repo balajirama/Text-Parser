@@ -3,7 +3,7 @@ use strict;
 
 package Text::Parser;
 
-# ABSTRACT: Simplifies text parsing. Extensible to parse various grammars.
+# ABSTRACT: Simplifies text parsing. Easily extensible to parse various text formats.
 
 use Exporter 'import';
 our (@EXPORT_OK) = ();
@@ -56,12 +56,10 @@ use Try::Tiny;
 use Moose::Util 'apply_all_roles';
 use Moose::Util::TypeConstraints;
 
-coerce FileHandle => from GlobRef =>
-    via { FileHandle->new_from_fd( $$_, 'r' ) };
-
 subtype 'Text::Parser::Types::FileReadable' => as
-    Any => where { not defined $_ or ( $_ and -f $_ and -r $_ ) },
-    message {"\'$_\' is not a valid readable file"};
+    Str => where( \&_condition_FileReadable );
+
+sub _condition_FileReadable { $_ and -f $_ and -r $_; }
 
 enum 'Text::Parser::Types::MultilineType' => [qw(join_next join_last)];
 

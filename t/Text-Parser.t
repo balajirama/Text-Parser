@@ -34,6 +34,9 @@ throws_ok { $pars->filehandle('bad argument'); }
 throws_ok { $pars->filename( { a => 'b' } ); }
 'Moose::Exception::ValidationFailedForInlineTypeConstraint',
     'filename() will take only string as input';
+throws_ok { $pars->filename('') }
+'Moose::Exception::ValidationFailedForInlineTypeConstraint',
+    'Empty filename string';
 throws_ok { $pars->filename($fname) }
 'Moose::Exception::ValidationFailedForInlineTypeConstraint',
     'No file by this name';
