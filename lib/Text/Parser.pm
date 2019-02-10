@@ -300,7 +300,7 @@ sub __parse_line {
     my ( $self, $line ) = ( shift, shift );
     $self->_next_line_parsed();
     chomp $line if $self->auto_chomp;
-    $self->_trim_line($line);
+    $line = $self->_trim_line($line);
     $self->__try_to_parse($line);
     return not $self->has_aborted;
 }

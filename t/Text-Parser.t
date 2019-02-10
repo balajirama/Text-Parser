@@ -26,6 +26,21 @@ is( $pars->setting(),         undef, 'When no setting is called' );
 is( $pars->setting('balaji'), undef, 'balaji is not a setting at all' );
 is( $pars->filename(),        undef, 'No filename specified so far' );
 
+is( $pars->multiline_type, undef, 'Not a multi-line parser' );
+is( $pars->multiline_type('join_next'),
+    'join_next', 'I can set this to join_next if need be' );
+throws_ok {
+    $pars->multiline_type(undef);
+}
+'Text::Parser::Exception',
+    'Correct error when trying to reset multiline_type';
+lives_ok {
+    is( $pars->multiline_type('join_last'),
+        'join_last', 'Make it another type of Multiline Parser' );
+} 'No errors on changing multiline_type';
+
+$pars = Text::Parser->new();
+
 lives_ok { is( $pars->filehandle(), undef, 'Not initialized' ); }
 'This should not die, just return undef';
 throws_ok { $pars->filehandle('bad argument'); }
