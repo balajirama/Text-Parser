@@ -11,10 +11,10 @@ my $fname = 'text-simple.txt';
 
 my $pars;
 throws_ok { $pars = Text::Parser->new('balaji'); }
-'Text::Parser::Exception::Constructor',
+'Moose::Exception::SingleParamsToNewMustBeHashRef',
     'Throws an exception for non-hash input';
 throws_ok { $pars = Text::Parser->new( balaji => 1 ); }
-'Text::Parser::Exception::Constructor', 'Throws an exception for bad keys';
+'Moose::Exception::Legacy', 'Throws an exception for bad keys';
 throws_ok { $pars = Text::Parser->new( multiline_type => 'balaji' ); }
 'Moose::Exception::ValidationFailedForInlineTypeConstraint',
     'Throws an exception for bad value';

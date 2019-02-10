@@ -8,7 +8,7 @@ Text::Parser - Simplifies text parsing. Easily extensible to parse various text 
 
 =head1 VERSION
 
-version 0.903
+version 0.904
 
 =head1 SYNOPSIS
 
@@ -39,10 +39,12 @@ Future versions are expected to include progress-bar support, parsing text from 
 Constructor. Takes options in the form of a hash. Throws an exception if you use wrong inputs to create an object. You can thus create an object of a parser like this.
 
     my $parser = Text::Parser->new(
-        auto_chomp => 0,               # 0 (Default) or 1 - automatically chomp lines
-        multiline_type => 'join_last'  # join_last, or join_next (for multi-line parsers) ; Default: undef
+        auto_chomp     => 0,           # 0 (Default) or 1
+                                       #   - automatically chomp lines
+        multiline_type => 'join_last', # 'join_last'|'join_next'|undef ; Default: undef
+        auto_trim      => 'b',         # 'l' (left), 'r' (right), 'b' (both), 'n' (neither) (Default)
+                                       #   - automatically trim leading and trailing whitespaces
     );
-    $parser = Text::Parser->new(); # Default auto_chomp => 0
 
 This C<$parser> variable will be used in examples below.
 
@@ -62,16 +64,26 @@ If your format allows some character to indicate that text on the current line i
 
 =back
 
+Remember that C<join_next> multi-line parsers will blindly look for input to be continued on the next line, even if C<EOF> has been reached. This means, if you want to "slurp" a file into a single large string, without any continuation characters, you must use the C<join_last> multi-line type.
+
 =head2 multiline_type
 
-This method replaces the older C<setting> method. It is a read-only method and returns the value of the C<multiline_type> attribute.
+This method replaces the older C<setting> method. It is a read-write accessor method for the C<multiline_type> attribute.
 
     my $mult = $parser->multiline_type;
     print "Parser is a multi-line parser of type: $mult" if defined $mult;
 
+    $parser->multiline_type(undef);
+                        # setting this to undef will throw an exception if it was previously set to a real value like
+                        # 'join_next' or 'join_last'. In this case, since $parser was of 'join_last' type, there will
+                        # be an exception
+    $parser->multiline_type('join_next');
+                        # Changes the parser to a multiline parser of type 'join_next'
+                        # This is okay.
+
 =head2 auto_chomp
 
-This method replaces the older C<setting> method. It is a read-only method and returns the status of the C<auto_chomp> attribute.
+This method replaces the older C<setting> method. It is a read-write accessor method for the C<auto_chomp> attribute. It takes a boolean value as parameter.
 
     print "Parser will chomp lines automatically\n" if $parser->auto_chomp;
 
@@ -79,7 +91,11 @@ This method replaces the older C<setting> method. It is a read-only method and r
 
 B<I<Deprecated>>
 
-This method has been deprecated. Use C<multiline_type> and C<auto_chomp> instead.
+This method has been deprecated. Use C<multiline_type> and C<auto_chomp> instead. I<(Note: This deprecated method cannot be used with the >C<auto_trim>I< attribute)>
+
+=head2 auto_trim
+
+Read-write accessor method for the C<auto_trim> attribute.
 
 =head2 abort_reading
 
