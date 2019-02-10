@@ -35,33 +35,37 @@ Future versions are expected to include progress-bar support, parsing text from 
 
 use Exception::Class (
     'Text::Parser::Exception',
-    'Text::Parser::Exception::Constructor' => {
-        isa         => 'Text::Parser::Exception',
-        description => 'Bad arguments to new()',
-        alias       => 'throw_new'
-    },
     'Text::Parser::Exception::BadReadInput' => {
         isa => 'Text::Parser::Exception',
         description =>
             'The user called read() method with an unsupported type of input',
         alias => 'throw_bad_input_to_read',
     },
+    'Text::Parser::Exception::MultilineCantBeUndone' => {
+        isa => 'Text::Parser::Exception',
+        description =>
+            'The parser was originally set as a multiline parser, and that cannot be undone now',
+        alias => 'throw_multiline',
+    },
 );
 
 use Moose;
 use MooseX::CoverableModifiers;
+use MooseX::StrictConstructor;
 use namespace::autoclean;
 use FileHandle;
 use Try::Tiny;
-use Moose::Util 'apply_all_roles';
+use Moose::Util 'apply_all_roles', 'ensure_all_roles';
 use Moose::Util::TypeConstraints;
+use String::Util qw(trim ltrim rtrim);
 
-subtype 'Text::Parser::Types::FileReadable' => as
-    Str => where( \&_condition_FileReadable );
+subtype 'Text::Parser::Types::FileReadable' => as Str =>
+    where( \&_condition_FileReadable );
 
 sub _condition_FileReadable { $_ and -f $_ and -r $_; }
 
 enum 'Text::Parser::Types::MultilineType' => [qw(join_next join_last)];
+enum 'Text::Parser::Types::TrimType'      => [qw(l r b n)];
 
 no Moose::Util::TypeConstraints;
 
@@ -70,10 +74,12 @@ no Moose::Util::TypeConstraints;
 Constructor. Takes options in the form of a hash. Throws an exception if you use wrong inputs to create an object. You can thus create an object of a parser like this.
 
     my $parser = Text::Parser->new(
-        auto_chomp => 0,               # 0 (Default) or 1 - automatically chomp lines
-        multiline_type => 'join_last'  # join_last, or join_next (for multi-line parsers) ; Default: undef
+        auto_chomp     => 0,           # 0 (Default) or 1
+                                       #   - automatically chomp lines
+        multiline_type => 'join_last', # 'join_last'|'join_next'|undef ; Default: undef
+        auto_trim      => 'b',         # 'l' (left), 'r' (right), 'b' (both), 'n' (neither) (Default)
+                                       #   - automatically trim leading and trailing whitespaces
     );
-    $parser = Text::Parser->new(); # Default auto_chomp => 0
 
 This C<$parser> variable will be used in examples below.
 
@@ -85,53 +91,63 @@ If your text format allows users to break up what should be on a single line int
 * If your format allows something like a trailing back-slash or some other character to indicate that text on I<B<next>> line is to be joined with this one, then choose C<join_next>. See L<this example|/"Continue with character">.
 * If your format allows some character to indicate that text on the current line is part of the I<B<last>> line, then choose C<join_last>. See L<this simple SPICE line-joiner|/"Simple SPICE line joiner"> as an example. B<Note:> If you have no continuation character, but you want to just join all the lines into one single line and then call C<save_record> only once for the whole text block, then use C<join_last>. See L<this trivial line-joiner|/"Trivial line-joiner">.
 
+Remember that C<join_next> multi-line parsers will blindly look for input to be continued on the next line, even if C<EOF> has been reached. This means, if you want to "slurp" a file into a single large string, without any continuation characters, you must use the C<join_last> multi-line type.
+
 =cut
-
-my %allowed_args = ( auto_chomp => 1, multiline_type => 1 );
-
-before BUILDARGS => sub {
-    my $class = shift;
-    throw_new error => 'Arguments to new() must be a hash' if @_ % 2;
-    my (%hash) = @_;
-    foreach my $k ( keys %hash ) {
-        throw_new error => "Invalid key $k as input to new()"
-            if not exists $allowed_args{$k};
-    }
-};
-
-sub BUILD {
-    my $self = shift;
-    return if not $self->_has_mult_type or not defined $self->multiline_type;
-    apply_all_roles $self, 'Text::Parser::Multiline';
-}
 
 =method multiline_type
 
-This method replaces the older C<setting> method. It is a read-only method and returns the value of the C<multiline_type> attribute.
+This method replaces the older C<setting> method. It is a read-write accessor method for the C<multiline_type> attribute.
 
     my $mult = $parser->multiline_type;
     print "Parser is a multi-line parser of type: $mult" if defined $mult;
 
+    $parser->multiline_type(undef);
+                        # setting this to undef will throw an exception if it was previously set to a real value like
+                        # 'join_next' or 'join_last'. In this case, since $parser was of 'join_last' type, there will
+                        # be an exception
+    $parser->multiline_type('join_next');
+                        # Changes the parser to a multiline parser of type 'join_next'
+                        # This is okay.
+
 =cut
 
 has multiline_type => (
-    is        => 'ro',
+    is        => 'rw',
     isa       => 'Text::Parser::Types::MultilineType|Undef',
     lazy      => 1,
     default   => undef,
     predicate => '_has_mult_type',
+    trigger   => \&_set_multiline_type,
 );
+
+around multiline_type => sub {
+    my ( $orig, $self ) = ( shift, shift );
+    return $orig->($self) if not @_;
+    return $orig->( $self, shift ) if not defined $orig->($self);
+    my $newval = shift;
+    throw_multiline error =>
+        'Cannot turn a multiline parser into a single-line parser'
+        if not defined $newval;
+    $orig->( $self, $newval );
+};
+
+sub _set_multiline_type {
+    my $self = shift;
+    return if not defined $self->multiline_type;
+    ensure_all_roles $self, 'Text::Parser::Multiline';
+}
 
 =method auto_chomp
 
-This method replaces the older C<setting> method. It is a read-only method and returns the status of the C<auto_chomp> attribute.
+This method replaces the older C<setting> method. It is a read-write accessor method for the C<auto_chomp> attribute. It takes a boolean value as parameter.
 
     print "Parser will chomp lines automatically\n" if $parser->auto_chomp;
 
 =cut
 
 has auto_chomp => (
-    is      => 'ro',
+    is      => 'rw',
     isa     => 'Bool',
     lazy    => 1,
     default => 0,
@@ -141,7 +157,7 @@ has auto_chomp => (
 
 B<I<Deprecated>>
 
-This method has been deprecated. Use C<multiline_type> and C<auto_chomp> instead.
+This method has been deprecated. Use C<multiline_type> and C<auto_chomp> instead. I<(Note: This deprecated method cannot be used with the >C<auto_trim>I< attribute)>
 
 =cut
 
@@ -153,6 +169,19 @@ sub setting {
     return if not exists $allowed{$setting};
     return $self->$setting();
 }
+
+=method auto_trim
+
+Read-write accessor method for the C<auto_trim> attribute.
+
+=cut
+
+has auto_trim => (
+    is      => 'rw',
+    isa     => 'Text::Parser::Types::TrimType',
+    lazy    => 1,
+    default => 'n',
+);
 
 =method abort_reading
 
@@ -271,8 +300,17 @@ sub __parse_line {
     my ( $self, $line ) = ( shift, shift );
     $self->_next_line_parsed();
     chomp $line if $self->auto_chomp;
+    $line = $self->_trim_line($line);
     $self->__try_to_parse($line);
     return not $self->has_aborted;
+}
+
+sub _trim_line {
+    my ( $self, $line ) = ( shift, shift );
+    return $line        if $self->auto_trim eq 'n';
+    return trim($line)  if $self->auto_trim eq 'b';
+    return ltrim($line) if $self->auto_trim eq 'l';
+    return rtrim($line);
 }
 
 sub __try_to_parse {
