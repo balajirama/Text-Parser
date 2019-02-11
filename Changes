@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+0.910     2019-02-10 17:52:24-08:00 America/Los_Angeles
   - Added a new attribute auto_trim and have four different values for it
   - Added a method line_auto_manip that can be overridden in subclasses
   - Enabled rw accessors for multiline_type and auto_chomp attributes
