@@ -8,7 +8,7 @@ Text::Parser - Simplifies text parsing. Easily extensible to parse various text 
 
 =head1 VERSION
 
-version 0.904
+version 0.910
 
 =head1 SYNOPSIS
 
@@ -235,7 +235,7 @@ If you override this method, remember that it takes a string as input and return
 
 =head2 push_records
 
-Don't override this method unless you know what you're doing. This method is useful if you have to copy the records from another parser. It is a general-purpose method for storing records that prepared before-hand. It is not supposed to be used to modify the arguments and make records (like C<L<save_record|/save_record>> does).
+Don't override this method unless you know what you're doing. This method is useful if you have to copy the records from another parser. It is a general-purpose method for storing records that have been prepared before-hand. It is not supposed to be used to modify the arguments and make records (like C<L<save_record|/save_record>> does).
 
     $parser->push_records(
         $another_parser->get_records
