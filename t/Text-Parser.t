@@ -147,4 +147,6 @@ is( $pars->last_record,  $content, 'Now the last record is the one earlier' );
 is_deeply( [ $pars->get_records ],
     [$content], 'Got correct content after pop' );
 
+is($pars->line_auto_manip, undef, 'Returns nothing for empty call');
+
 done_testing;

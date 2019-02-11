@@ -69,9 +69,9 @@ enum 'Text::Parser::Types::TrimType'      => [qw(l r b n)];
 
 no Moose::Util::TypeConstraints;
 
-=method new
+=constr new
 
-Constructor. Takes options in the form of a hash. Throws an exception if you use wrong inputs to create an object. You can thus create an object of a parser like this.
+Takes options in the form of a hash. Throws an exception if you use wrong inputs to create an object. You can thus create an object of a parser like this.
 
     my $parser = Text::Parser->new(
         auto_chomp     => 0,           # 0 (Default) or 1
@@ -83,19 +83,9 @@ Constructor. Takes options in the form of a hash. Throws an exception if you use
 
 This C<$parser> variable will be used in examples below.
 
-=head3 What is C<multiline_type>, and what value should I choose?
-
-If your text format allows users to break up what should be on a single line into another line using a continuation character, you need to use the C<multiline_type> option. The option tells the parser to join lines back into a single line, so that your C<save_record> method doesn't have to bother about joining the continued lines, stripping any continuation characters, line-feeds etc. There are two variations in this:
-
-=for :list
-* If your format allows something like a trailing back-slash or some other character to indicate that text on I<B<next>> line is to be joined with this one, then choose C<join_next>. See L<this example|/"Continue with character">.
-* If your format allows some character to indicate that text on the current line is part of the I<B<last>> line, then choose C<join_last>. See L<this simple SPICE line-joiner|/"Simple SPICE line joiner"> as an example. B<Note:> If you have no continuation character, but you want to just join all the lines into one single line and then call C<save_record> only once for the whole text block, then use C<join_last>. See L<this trivial line-joiner|/"Trivial line-joiner">.
-
-Remember that C<join_next> multi-line parsers will blindly look for input to be continued on the next line, even if C<EOF> has been reached. This means, if you want to "slurp" a file into a single large string, without any continuation characters, you must use the C<join_last> multi-line type.
-
 =cut
 
-=method multiline_type
+=attr multiline_type
 
 This method replaces the older C<setting> method. It is a read-write accessor method for the C<multiline_type> attribute.
 
@@ -109,6 +99,16 @@ This method replaces the older C<setting> method. It is a read-write accessor me
     $parser->multiline_type('join_next');
                         # Changes the parser to a multiline parser of type 'join_next'
                         # This is okay.
+
+=head3 What value should I choose?
+
+If your text format allows users to break up what should be on a single line into another line using a continuation character, you need to use the C<multiline_type> option. The option tells the parser to join lines back into a single line, so that your C<save_record> method doesn't have to bother about joining the continued lines, stripping any continuation characters, line-feeds etc. There are two variations in this:
+
+=for :list
+* If your format allows something like a trailing back-slash or some other character to indicate that text on I<B<next>> line is to be joined with this one, then choose C<join_next>. See L<this example|/"Continue with character">.
+* If your format allows some character to indicate that text on the current line is part of the I<B<last>> line, then choose C<join_last>. See L<this simple SPICE line-joiner|/"Simple SPICE line joiner"> as an example. B<Note:> If you have no continuation character, but you want to just join all the lines into one single line and then call C<save_record> only once for the whole text block, then use C<join_last>. See L<this trivial line-joiner|/"Trivial line-joiner">.
+
+Remember that C<join_next> multi-line parsers will blindly look for input to be continued on the next line, even if C<EOF> has been reached. This means, if you want to "slurp" a file into a single large string, without any continuation characters, you must use the C<join_last> multi-line type.
 
 =cut
 
@@ -138,7 +138,7 @@ sub _set_multiline_type {
     ensure_all_roles $self, 'Text::Parser::Multiline';
 }
 
-=method auto_chomp
+=attr auto_chomp
 
 This method replaces the older C<setting> method. It is a read-write accessor method for the C<auto_chomp> attribute. It takes a boolean value as parameter.
 
@@ -153,11 +153,13 @@ has auto_chomp => (
     default => 0,
 );
 
-=method setting
+=deprecated setting
 
-B<I<Deprecated>>
+This method has been deprecated. Use C<multiline_type> and C<auto_chomp> instead.
 
-This method has been deprecated. Use C<multiline_type> and C<auto_chomp> instead. I<(Note: This deprecated method cannot be used with the >C<auto_trim>I< attribute)>
+I<(Note: This deprecated method cannot be used with the >C<auto_trim>I< attribute)>
+
+I<This method will disappear from version 1.0 onwards.>
 
 =cut
 
@@ -170,9 +172,11 @@ sub setting {
     return $self->$setting();
 }
 
-=method auto_trim
+=attr auto_trim
 
-Read-write accessor method for the C<auto_trim> attribute.
+Read-write accessor method for the C<auto_trim> attribute. The values this can take are shown under the C<L<new|/new>> constructor also.
+
+    $parser->auto_trim('l');       # 'l' (left), 'r' (right), 'b' (both), 'n' (neither) (Default)
 
 =cut
 
@@ -181,35 +185,6 @@ has auto_trim => (
     isa     => 'Text::Parser::Types::TrimType',
     lazy    => 1,
     default => 'n',
-);
-
-=method abort_reading
-
-Takes no arguments. Returns C<1>. You will probably never call this method in your main program.
-
-This method is usually used only in the derived class. See L<this example|/"Example 3 : Aborting without errors">.
-
-=cut
-
-=method has_aborted
-
-Takes no arguments, returns a boolean to indicate if text reading was aborted in the middle.
-
-    print "Aborted\n" if $parser->has_aborted();
-
-=cut
-
-has abort => (
-    is      => 'rw',
-    isa     => 'Bool',
-    lazy    => 1,
-    default => 0,
-    traits  => ['Bool'],
-    reader  => 'has_aborted',
-    handles => {
-        abort_reading => 'set',
-        _clear_abort  => 'unset'
-    },
 );
 
 =method read
@@ -299,18 +274,9 @@ sub __read_file_handle {
 sub __parse_line {
     my ( $self, $line ) = ( shift, shift );
     $self->_next_line_parsed();
-    chomp $line if $self->auto_chomp;
-    $line = $self->_trim_line($line);
+    $line = $self->line_auto_manip($line);
     $self->__try_to_parse($line);
     return not $self->has_aborted;
-}
-
-sub _trim_line {
-    my ( $self, $line ) = ( shift, shift );
-    return $line        if $self->auto_trim eq 'n';
-    return trim($line)  if $self->auto_trim eq 'b';
-    return ltrim($line) if $self->auto_trim eq 'l';
-    return rtrim($line);
 }
 
 sub __try_to_parse {
@@ -399,7 +365,7 @@ sub filehandle {
     return $fh;
 }
 
-=method lines_parsed
+=attr lines_parsed
 
 Takes no arguments. Returns the number of lines last parsed. A line is reckoned when the C<\n> character is encountered.
 
@@ -424,7 +390,7 @@ has lines_parsed => (
     }
 );
 
-=method save_record
+=inherit save_record
 
 Takes exactly one argument and that is saved as a record. Additional arguments are ignored. If no arguments are passed, then C<undef> is stored as a record.
 
@@ -439,6 +405,31 @@ sub save_record {
     $self->push_records($record);
 }
 
+=inherit line_auto_manip
+
+A method that could be overridden to manipulate each line before it gets to C<save_record> method. Because this is called before the C<save_record> method, it is called even before the C<Text::Parser::Multiline> role can be called. You will almost never call this method in a program directly but might use it in subclasses.
+
+The default implementation C<chomp>s lines (if C<auto_chomp> is true) and trims leading/trailing whitespace (if C<auto_trim> is not C<'n'>).
+
+If you override this method, remember that it takes a string as input and returns a string.
+
+=cut
+
+sub line_auto_manip {
+    my ($self, $line) = (shift, shift);
+    return if not defined $line;
+    chomp $line if $self->auto_chomp;
+    return $self->_trim_line($line);
+}
+
+sub _trim_line {
+    my ( $self, $line ) = ( shift, shift );
+    return $line        if $self->auto_trim eq 'n';
+    return trim($line)  if $self->auto_trim eq 'b';
+    return ltrim($line) if $self->auto_trim eq 'l';
+    return rtrim($line);
+}
+
 =method get_records
 
 Takes no arguments. Returns an array containing all the records saved by the parser.
@@ -450,15 +441,34 @@ Takes no arguments. Returns an array containing all the records saved by the par
 
 =cut
 
-=method push_records
+=sub_use_method abort_reading
 
-Don't override this method unless you know what you're doing. This method is useful if you have to copy the records from another parser. It is a general-purpose method for storing records that prepared before-hand. It is not supposed to be used to modify the arguments and make records (like C<L<save_record|/save_record>> does).
+Takes no arguments. Returns C<1>. You will probably never call this method in your main program.
 
-    $parser->push_records(
-        $another_parser->get_records
-    );
+This method is usually used only in the derived class. See L<this example|/"Example 3 : Aborting without errors">.
 
 =cut
+
+=method has_aborted
+
+Takes no arguments, returns a boolean to indicate if text reading was aborted in the middle.
+
+    print "Aborted\n" if $parser->has_aborted();
+
+=cut
+
+has abort => (
+    is      => 'rw',
+    isa     => 'Bool',
+    lazy    => 1,
+    default => 0,
+    traits  => ['Bool'],
+    reader  => 'has_aborted',
+    handles => {
+        abort_reading => 'set',
+        _clear_abort  => 'unset'
+    },
+);
 
 =method pop_record
 
@@ -503,7 +513,17 @@ sub last_record {
     return $self->_access_record( $count - 1 );
 }
 
-=method is_line_continued
+=dont_touch_method push_records
+
+Don't override this method unless you know what you're doing. This method is useful if you have to copy the records from another parser. It is a general-purpose method for storing records that have been prepared before-hand. It is not supposed to be used to modify the arguments and make records (like C<L<save_record|/save_record>> does).
+
+    $parser->push_records(
+        $another_parser->get_records
+    );
+
+=cut
+
+=multiline_method is_line_continued
 
 Takes a string argument. The default method provided will return C<0> if the parser is not a multi-line parser. If it is a multi-line parser, return value depends on the type of multiline parser. 
 
@@ -524,7 +544,7 @@ sub is_line_continued {
     return 1;
 }
 
-=method join_last_line
+=multiline_method join_last_line
 
 This method can be overridden in multi-line text parsing. The method takes two string arguments and joins them in a way that removes the continuation character. The default implementation just concatenates two strings and returns the result without removing anything. You should redefine this method to strip any continuation characters and join the strings with any required spaces etc.
 
