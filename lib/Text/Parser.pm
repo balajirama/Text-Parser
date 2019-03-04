@@ -136,13 +136,8 @@ around multiline_type => sub {
     throw_multiline error =>
         'Cannot turn a multiline parser into a single-line parser'
         if not defined $newval;
-    $orig->( $self, $newval );
-};
-
-after multiline_type => sub {
-    my $self = shift;
-    return if not defined $self->multiline_type;
     ensure_all_roles $self, 'Text::Parser::Multiline';
+    $orig->( $self, $newval );
 };
 
 =attr auto_chomp
@@ -302,7 +297,7 @@ has field_separator => (
     is      => 'rw',
     isa     => 'RegexpRef',
     lazy    => 1,
-    default => qr/\s+/,
+    default => sub {qr/\s+/},
 );
 
 =method read
