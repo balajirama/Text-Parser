@@ -71,23 +71,32 @@ no Moose::Util::TypeConstraints;
 
 =constr new
 
-Takes options in the form of a hash. Throws an exception if you use wrong inputs to create an object. You can thus create an object of a parser like this.
+Takes optional attributes in the form of a hash. See section L<ATTRIBUTES|/ATTRIBUTES> for a list of the attributes and their description. Throws an exception if you use wrong inputs to create an object.
 
     my $parser = Text::Parser->new(
-        auto_chomp     => 0,           # 0 (Default) or 1
-                                       #   - automatically chomp lines
-        multiline_type => 'join_last', # 'join_last'|'join_next'|undef ; Default: undef
-        auto_trim      => 'b',         # 'l' (left), 'r' (right), 'b' (both), 'n' (neither) (Default)
-                                       #   - automatically trim leading and trailing whitespaces
+        auto_chomp      => 0,           # 0 (Default) or 1
+                                        #   - automatically chomp lines
+        multiline_type  => 'join_last', # 'join_last'|'join_next'|undef ; Default: undef
+        auto_trim       => 'b',         # 'l' (left), 'r' (right), 'b' (both), 'n' (neither) (Default)
+                                        #   - automatically trim leading and trailing whitespaces
+        auto_split      => 1,           # Auto-splits lines into fields
+        field_separator => qr/\s+/,     # Used by auto_split feature above. Default: qr/\s+/
     );
 
-This C<$parser> variable will be used in examples below.
+This C<$parser> variable will be used in all examples below.
 
 =cut
 
+sub BUILD {
+    my $self = shift;
+    ensure_all_roles $self, 'Text::Parser::AutoSplit' if $self->auto_split;
+    return if not defined $self->multiline_type;
+    ensure_all_roles $self, 'Text::Parser::Multiline';
+}
+
 =attr multiline_type
 
-This method replaces the older C<setting> method. It is a read-write accessor method for the C<multiline_type> attribute.
+Read-write attribute. Takes a value that is either C<undef> or one of strings C<'join_next'> or C<'join_last'>.
 
     my $mult = $parser->multiline_type;
     print "Parser is a multi-line parser of type: $mult" if defined $mult;
@@ -113,12 +122,10 @@ Remember that C<join_next> multi-line parsers will blindly look for input to be 
 =cut
 
 has multiline_type => (
-    is        => 'rw',
-    isa       => 'Text::Parser::Types::MultilineType|Undef',
-    lazy      => 1,
-    default   => undef,
-    predicate => '_has_mult_type',
-    trigger   => \&_set_multiline_type,
+    is      => 'rw',
+    isa     => 'Text::Parser::Types::MultilineType|Undef',
+    lazy    => 1,
+    default => undef,
 );
 
 around multiline_type => sub {
@@ -132,15 +139,15 @@ around multiline_type => sub {
     $orig->( $self, $newval );
 };
 
-sub _set_multiline_type {
+after multiline_type => sub {
     my $self = shift;
     return if not defined $self->multiline_type;
     ensure_all_roles $self, 'Text::Parser::Multiline';
-}
+};
 
 =attr auto_chomp
 
-This method replaces the older C<setting> method. It is a read-write accessor method for the C<auto_chomp> attribute. It takes a boolean value as parameter.
+Read-write attribute. Takes a boolean value as parameter.
 
     print "Parser will chomp lines automatically\n" if $parser->auto_chomp;
 
@@ -174,7 +181,7 @@ sub setting {
 
 =attr auto_trim
 
-Read-write accessor method for the C<auto_trim> attribute. The values this can take are shown under the C<L<new|/new>> constructor also.
+Read-write attribute. The values this can take are shown under the C<L<new|/new>> constructor also.
 
     $parser->auto_trim('l');       # 'l' (left), 'r' (right), 'b' (both), 'n' (neither) (Default)
 
@@ -185,6 +192,117 @@ has auto_trim => (
     isa     => 'Text::Parser::Types::TrimType',
     lazy    => 1,
     default => 'n',
+);
+
+=attr auto_split
+
+Read-only attribute that can be set only during object construction. This attribute indicates if the parser will automatically split every line into fields. If it is set to a true value, each line will be split into fields which can be accessed through special methods that become available. These methods are documented L<here|/"METHODS AVAILABLE ON AUTO-SPLIT">. The field separator can be set using another attribute named C<'field_separator'>.
+
+=cut
+
+has auto_split => (
+    is      => 'ro',
+    isa     => 'Bool',
+    lazy    => 1,
+    default => 0,
+);
+
+=head1 METHODS AVAILABLE ON AUTO-SPLIT
+
+These methods become available when C<auto_split> attribute is true. You'll get a runtime error if you try to use them otherwise. They would be most likely used inside your own implementation of C<L<save_record|/save_record>> since the splits are done for each line.
+
+=auto_split_meth NF
+
+The name of this method comes from the C<NF> variable in the popular GNU Awk program. It stands for number of fields.
+
+    sub save_record {
+        my $self = shift;
+        $self->save_record(@_) if $self->NF > 0;
+    }
+
+=auto_split_meth field
+
+Takes an integer argument and returns the field whose index is passed as argument. You can specify negative elements to start counting from the end. For example index C<-1> is the last element, C<-2> is the penultimate one, etc.
+
+    sub save_record {
+        my $self = shift;
+        $self->abort if $self->field(0) eq 'END';
+    }
+
+=auto_split_meth find_field
+
+This method finds an element matching a given criterion. The match is done by a subroutine reference passed as argument to this method. The matching subroutine will be called against each field on the line, until one matches or all elements have been checked. Each field will be available in the subroutine as C<$_>. Its behavior is the same as the C<first> function of L<List::Util>.
+
+    sub save_record {
+        my $self = shift;
+        my $param = $self->find_field(
+            sub { $_ =~ /[=]/ }
+        );
+    }
+
+=auto_split_meth find_field_index
+
+This is similar to the C<L<find_field|/find_field>> method above, but returns the index of the element instead of the element itself.
+
+    sub save_record {
+        my $self = shift;
+        my $idx = $self->find_field_index(
+            sub { $_ =~ /[=]/ }
+        );
+    }
+
+=auto_split_meth splice_fields
+
+Just like Perl's built-in C<splice> function.
+
+    ## Inside your own save_record method ...
+    $self->splice_fields($offset, $length, @values);
+    $self->splice_fields($offset, $length);
+    $self->splice_fields($offset);
+
+The offset above is a required argument. It can be negative.
+
+=auto_split_meth line_fields
+
+Takes no argument and returns all the fields as an array.
+
+    ## Inside your own save_record method ...
+    foreach my $fld ($self->line_fields) {
+        # do something ...
+    }
+
+=auto_split_meth n_field_iterator
+
+Similar to C<natatime> function of L<List::SomeUtils>.
+
+    ## Inside your own save_record method ...
+    my $it = $self->n_field_iterator($n);
+    while ($it->()) {
+        ## do something with this group of $n fields...
+    }
+
+It returns an iterator, which on each call returns the next C<$n> elements of the fields. If you pass an optional subroutine reference, you can avoid writing a while loop and the call to this function will go through all the elements making groups of C<$n> elements each time and calling the subroutine for each group.
+
+    ## Inside your own save_record method ...
+    $self->n_field_iterator($n,
+        sub { 
+            ## do something with the $n fields in @_
+        }
+    );
+
+=attr field_separator
+
+Read-write attribute that can be used to specify the field separator along with C<auto_split> attribute. It must be a regular expression reference enclosed in the C<qr> function, like C<qr/\s+|[,]/> which will split across either spaces or commas. The default value for this argument is C<qr/\s+/>.
+
+    $parser->field_separator( qr/\s+\(*|\s*\)/ );
+
+=cut
+
+has field_separator => (
+    is      => 'rw',
+    isa     => 'RegexpRef',
+    lazy    => 1,
+    default => qr/\s+/,
 );
 
 =method read
@@ -365,7 +483,7 @@ sub filehandle {
     return $fh;
 }
 
-=attr lines_parsed
+=method lines_parsed
 
 Takes no arguments. Returns the number of lines last parsed. A line is reckoned when the C<\n> character is encountered.
 
@@ -416,7 +534,7 @@ If you override this method, remember that it takes a string as input and return
 =cut
 
 sub line_auto_manip {
-    my ($self, $line) = (shift, shift);
+    my ( $self, $line ) = ( shift, shift );
     return if not defined $line;
     chomp $line if $self->auto_chomp;
     return $self->_trim_line($line);
@@ -521,17 +639,23 @@ Don't override this method unless you know what you're doing. This method is use
         $another_parser->get_records
     );
 
-=cut
+=inherit is_line_continued
+
+This method is to be defined by the derived class and is used only for multi-line parsers. Look under L<FOR MULTI-LINE TEXT PARSING|/"FOR MULTI-LINE TEXT PARSING"> for details.
 
 =multiline_method is_line_continued
 
-Takes a string argument. The default method provided will return C<0> if the parser is not a multi-line parser. If it is a multi-line parser, return value depends on the type of multiline parser. 
+Takes a string argument and returns a boolean indicating of the line is continued or not. If the user defines a new text format with multi-line support, they should implement this method. An example implementation would look like this:
 
-If it is of type C<'join_last'>, then it returns C<1> for all lines except the first line. This means all lines continue from the previous line (except the first line, because there is no line before that).
+    sub is_line_continued {
+        my ($self, $line) = @_;
+        chomp $line;
+        $line =~ /\\\s+/;
+    }
 
-But if it is of type C<'join_next'>, then it returns C<1> for all lines unconditionally. This means the parser will expect further lines, even when the last line in the text input has been read. Thus you need to have a way to indicate that there is no further continuation. This is why if you are building a trivial line-joiner, you should use the C<'join_last'> type. See L<this example|/"Trivial line-joiner">.
+The default method provided in this class will return C<0> if the parser is not a multi-line parser. If it is a multi-line parser, return value depends on the type of multiline parser. If it is of type C<'join_last'>, then it returns C<1> for all lines except the first line. This means all lines continue from the previous line (except the first line, because there is no line before that). But if it is of type C<'join_next'>, then it returns C<1> for all lines unconditionally. B<Note:> This means the parser will expect further lines, even when the last line in the text input has been read. Thus you need to have a way to indicate that there is no further continuation. This is why if you are building a trivial line-joiner, you should use the C<'join_last'> type. See L<this example|/"Trivial line-joiner">
 
-    $parser->is_line_continued();
+Most users would never need to use this method in their own programs, but if one is writing a parser for a specific format that supports multi-line extension, mostly they'd have to implement it.
 
 =cut
 
