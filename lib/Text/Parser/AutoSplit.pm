@@ -61,12 +61,11 @@ has _fields => (
     },
 );
 
-requires 'save_record', 'field_separator';
+requires 'save_record', 'FS';
 
 around save_record => sub {
-    my ( $orig, $self, $line ) = ( shift, shift );
-    my (@flds) = split $line, $self->FS;
-    $self->_fields( \@flds );
+    my ( $orig, $self, $line ) = ( shift, shift, shift );
+    $self->_fields( [ split $self->FS, $line ] );
     $orig->( $self, $line );
 };
 
