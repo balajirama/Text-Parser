@@ -94,6 +94,82 @@ sub BUILD {
     ensure_all_roles $self, 'Text::Parser::Multiline';
 }
 
+=head1 ATTRIBUTES
+
+The attributes below can be used as options to the C<new> constructor. Each attribute has an accessor with the same name.
+
+=attr auto_chomp
+
+Read-write attribute. Takes a boolean value as parameter.
+
+    print "Parser will chomp lines automatically\n" if $parser->auto_chomp;
+
+=cut
+
+has auto_chomp => (
+    is      => 'rw',
+    isa     => 'Bool',
+    lazy    => 1,
+    default => 0,
+);
+
+=attr auto_split
+
+Read-only attribute that can be set only during object construction. This attribute indicates if the parser will automatically split every line into fields. If it is set to a true value, each line will be split into fields which can be accessed through special methods that become available. These methods are documented in L<Text::Parser::AutoSplit>. The field separator can be set using another attribute named C<'field_separator'>.
+
+=cut
+
+has auto_split => (
+    is      => 'ro',
+    isa     => 'Bool',
+    lazy    => 1,
+    default => 0,
+);
+
+=attr auto_trim
+
+Read-write attribute. The values this can take are shown under the C<L<new|/new>> constructor also.
+
+    $parser->auto_trim('l');       # 'l' (left), 'r' (right), 'b' (both), 'n' (neither) (Default)
+
+=cut
+
+has auto_trim => (
+    is      => 'rw',
+    isa     => 'Text::Parser::Types::TrimType',
+    lazy    => 1,
+    default => 'n',
+);
+
+=attr FS
+
+Read-write attribute that can be used to specify the field separator along with C<auto_split> attribute. It must be a regular expression reference enclosed in the C<qr> function, like C<qr/\s+|[,]/> which will split across either spaces or commas. The default value for this argument is C<qr/\s+/>. The name comes from the built-in C<FS> variable in the popular GNU Awk program.
+
+    $parser->FS( qr/\s+\(*|\s*\)/ );
+
+You I<can> change the field separator in the course of parsing a file. But the changes would take effect only on the next line. For example:
+
+    package MyParser;
+
+    use Moose;
+    extends 'Text::Parser';
+
+    sub save_record {
+        my $self = shift;
+        $self->FS(qr/[,]/) if $self->field(0) eq 'CSV_BELOW';
+    }
+
+Now, let's say you have a file
+
+=cut
+
+has FS => (
+    is      => 'rw',
+    isa     => 'RegexpRef',
+    lazy    => 1,
+    default => sub {qr/\s+/},
+);
+
 =attr multiline_type
 
 Read-write attribute. Takes a value that is either C<undef> or one of strings C<'join_next'> or C<'join_last'>.
@@ -140,21 +216,6 @@ around multiline_type => sub {
     $orig->( $self, $newval );
 };
 
-=attr auto_chomp
-
-Read-write attribute. Takes a boolean value as parameter.
-
-    print "Parser will chomp lines automatically\n" if $parser->auto_chomp;
-
-=cut
-
-has auto_chomp => (
-    is      => 'rw',
-    isa     => 'Bool',
-    lazy    => 1,
-    default => 0,
-);
-
 =deprecated setting
 
 This method has been deprecated. Use C<multiline_type> and C<auto_chomp> instead.
@@ -173,132 +234,6 @@ sub setting {
     return if not exists $allowed{$setting};
     return $self->$setting();
 }
-
-=attr auto_trim
-
-Read-write attribute. The values this can take are shown under the C<L<new|/new>> constructor also.
-
-    $parser->auto_trim('l');       # 'l' (left), 'r' (right), 'b' (both), 'n' (neither) (Default)
-
-=cut
-
-has auto_trim => (
-    is      => 'rw',
-    isa     => 'Text::Parser::Types::TrimType',
-    lazy    => 1,
-    default => 'n',
-);
-
-=attr auto_split
-
-Read-only attribute that can be set only during object construction. This attribute indicates if the parser will automatically split every line into fields. If it is set to a true value, each line will be split into fields which can be accessed through special methods that become available. These methods are documented L<here|/"METHODS AVAILABLE ON AUTO-SPLIT">. The field separator can be set using another attribute named C<'field_separator'>.
-
-=cut
-
-has auto_split => (
-    is      => 'ro',
-    isa     => 'Bool',
-    lazy    => 1,
-    default => 0,
-);
-
-=head1 METHODS AVAILABLE ON AUTO-SPLIT
-
-These methods become available when C<auto_split> attribute is true. You'll get a runtime error if you try to use them otherwise. They would be most likely used inside your own implementation of C<L<save_record|/save_record>> since the splits are done for each line.
-
-=auto_split_meth NF
-
-The name of this method comes from the C<NF> variable in the popular GNU Awk program. It stands for number of fields.
-
-    sub save_record {
-        my $self = shift;
-        $self->save_record(@_) if $self->NF > 0;
-    }
-
-=auto_split_meth field
-
-Takes an integer argument and returns the field whose index is passed as argument. You can specify negative elements to start counting from the end. For example index C<-1> is the last element, C<-2> is the penultimate one, etc.
-
-    sub save_record {
-        my $self = shift;
-        $self->abort if $self->field(0) eq 'END';
-    }
-
-=auto_split_meth find_field
-
-This method finds an element matching a given criterion. The match is done by a subroutine reference passed as argument to this method. The matching subroutine will be called against each field on the line, until one matches or all elements have been checked. Each field will be available in the subroutine as C<$_>. Its behavior is the same as the C<first> function of L<List::Util>.
-
-    sub save_record {
-        my $self = shift;
-        my $param = $self->find_field(
-            sub { $_ =~ /[=]/ }
-        );
-    }
-
-=auto_split_meth find_field_index
-
-This is similar to the C<L<find_field|/find_field>> method above, but returns the index of the element instead of the element itself.
-
-    sub save_record {
-        my $self = shift;
-        my $idx = $self->find_field_index(
-            sub { $_ =~ /[=]/ }
-        );
-    }
-
-=auto_split_meth splice_fields
-
-Just like Perl's built-in C<splice> function.
-
-    ## Inside your own save_record method ...
-    $self->splice_fields($offset, $length, @values);
-    $self->splice_fields($offset, $length);
-    $self->splice_fields($offset);
-
-The offset above is a required argument. It can be negative.
-
-=auto_split_meth line_fields
-
-Takes no argument and returns all the fields as an array.
-
-    ## Inside your own save_record method ...
-    foreach my $fld ($self->line_fields) {
-        # do something ...
-    }
-
-=auto_split_meth n_field_iterator
-
-Similar to C<natatime> function of L<List::SomeUtils>.
-
-    ## Inside your own save_record method ...
-    my $it = $self->n_field_iterator($n);
-    while ($it->()) {
-        ## do something with this group of $n fields...
-    }
-
-It returns an iterator, which on each call returns the next C<$n> elements of the fields. If you pass an optional subroutine reference, you can avoid writing a while loop and the call to this function will go through all the elements making groups of C<$n> elements each time and calling the subroutine for each group.
-
-    ## Inside your own save_record method ...
-    $self->n_field_iterator($n,
-        sub { 
-            ## do something with the $n fields in @_
-        }
-    );
-
-=attr field_separator
-
-Read-write attribute that can be used to specify the field separator along with C<auto_split> attribute. It must be a regular expression reference enclosed in the C<qr> function, like C<qr/\s+|[,]/> which will split across either spaces or commas. The default value for this argument is C<qr/\s+/>.
-
-    $parser->field_separator( qr/\s+\(*|\s*\)/ );
-
-=cut
-
-has field_separator => (
-    is      => 'rw',
-    isa     => 'RegexpRef',
-    lazy    => 1,
-    default => sub {qr/\s+/},
-);
 
 =method read
 
