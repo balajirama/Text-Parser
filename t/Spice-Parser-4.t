@@ -15,19 +15,6 @@ use Exception::Class (
 
 use constant { SPICE_LINE_CONTD => qr/^[+]\s*/, };
 
-my %SPICE_COMMAND = (
-    '.END' => sub {
-        my $self = shift;
-        $self->abort_reading;
-    },
-    '.INCLUDE' => sub {
-        my ( $self, $rest ) = @_;
-        my $parser = SpiceParser->new();
-        $parser->read($rest);
-        $self->push_records( $parser->get_records );
-    },
-);
-
 sub is_line_continued {
     my ( $self, $line ) = @_;
     return 0 if not defined $line;
@@ -62,6 +49,26 @@ sub _dont_allow_overwrite {
     super();
 }
 
+my %SPICE_COMMAND = (
+    '.END' => sub {
+        my $self = shift;
+        $self->abort_reading;
+    },
+    '.INCLUDE' => sub {
+        my ( $self, $rest ) = @_;
+        my $parser = SpiceParser->new();
+        $parser->read($rest);
+        $self->push_records( $parser->get_records );
+    },
+);
+
+sub save_record {
+    my $self = shift;
+    return if $self->NF == 0;
+    return $self->_add_instance(@_) if $self->field(0) !~ /^[.]/;
+    $self->_call_spice_command(@_);
+}
+
 sub _call_spice_command {
     my $self = shift;
     my $cmd = uc $self->field(0);
@@ -73,12 +80,6 @@ sub _add_instance {
     $self->SUPER::save_record(@_);
 }
 
-sub save_record {
-    my $self = shift;
-    return if $self->NF == 0;
-    return $self->_add_instance(@_) if $self->field(0) !~ /^[.]/;
-    $self->_call_spice_command(@_);
-}
 
 package main;
 use Test::More;
@@ -102,6 +103,10 @@ throws_ok {
 'SpiceParser::Exception::ReadOnlyAttribute',
     'Exception thrown if you try to change auto_chomp';
 ok( $sp->auto_chomp, 'Retains true value' );
+
+throws_ok {
+    $sp->auto_split(0);
+} 'Moose::Exception::CannotAssignValueToReadOnlyAccessor', 'Dont change auto_split ; it is ro';
 
 lives_ok { $sp->read('t/example-2.sp'); } 'Works fine';
 is( $sp->has_aborted,             1, 'Has aborted' );
