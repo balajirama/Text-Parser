@@ -14,10 +14,30 @@ our (@EXPORT)    = (@EXPORT_OK);
     use Text::Parser;
 
     my $parser = Text::Parser->new();
-    $parser->read(shift @ARGV);
+    $parser->read(shift);
     print $parser->get_records, "\n";
 
 The above code reads the first command-line argument as a string, and assuming it is the name of a text file, it will print the content of the file to C<STDOUT>. If the string is not the name of a text file it will throw an exception and exit.
+
+    package MyParser;
+
+    use parent 'Text::Parser';
+    ## or use Moose; extends 'Text::Parser';
+
+    sub save_record {
+        my $self = shift;
+        ## ...
+    }
+
+    package main;
+
+    my $parser = MyParser->new(auto_split => 1, auto_chomp => 1, auto_trim => 'b');
+    $parser->read(shift);
+    foreach my $rec ($parser->get_records) {
+        ## ...
+    }
+
+This example shows how C<Text::Parser> could be easily extended to parse a specific text format, while introducing some of the useful attributes.
 
 =head1 RATIONALE
 
