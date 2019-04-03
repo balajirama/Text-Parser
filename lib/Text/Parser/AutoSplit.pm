@@ -57,7 +57,7 @@ has _fields => (
         'find_field'       => 'first',
         'find_field_index' => 'first_index',
         'splice_fields'    => 'splice',
-        'line_fields'      => 'elements',
+        'fields'      => 'elements',
     },
 );
 
@@ -124,12 +124,12 @@ Just like Perl's built-in C<splice> function.
 
 The offset above is a required argument. It can be negative.
 
-=auto_split_meth line_fields
+=auto_split_meth fields
 
 Takes no argument and returns all the fields as an array.
 
     ## Inside your own save_record method ...
-    foreach my $fld ($self->line_fields) {
+    foreach my $fld ($self->fields) {
         # do something ...
     }
 

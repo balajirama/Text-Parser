@@ -120,7 +120,7 @@ The attributes below can be used as options to the C<new> constructor. Each attr
 
 =attr auto_chomp
 
-Read-write attribute. Takes a boolean value as parameter.
+Read-write attribute. Takes a boolean value as parameter. Defaults to 0.
 
     print "Parser will chomp lines automatically\n" if $parser->auto_chomp;
 
@@ -135,7 +135,7 @@ has auto_chomp => (
 
 =attr auto_split
 
-Read-only attribute that can be set only during object construction. This attribute indicates if the parser will automatically split every line into fields. If it is set to a true value, each line will be split into fields which can be accessed through special methods that become available. These methods are documented in L<Text::Parser::AutoSplit>. The field separator can be set using another attribute named C<'field_separator'>.
+Read-only attribute that can be set only during object construction. This attribute indicates if the parser will automatically split every line into fields. If it is set to a true value, each line will be split into fields which can be accessed through special methods that become available. These methods are documented in L<Text::Parser::AutoSplit>. The field separator can be set using another attribute named C<'field_separator'>. Defaults to 0.
 
 =cut
 
@@ -148,7 +148,7 @@ has auto_split => (
 
 =attr auto_trim
 
-Read-write attribute. The values this can take are shown under the C<L<new|/new>> constructor also.
+Read-write attribute. The values this can take are shown under the C<L<new|/new>> constructor also. Defaults to C<'n'> (neither side spaces will be trimmed).
 
     $parser->auto_trim('l');       # 'l' (left), 'r' (right), 'b' (both), 'n' (neither) (Default)
 
@@ -163,7 +163,9 @@ has auto_trim => (
 
 =attr FS
 
-Read-write attribute that can be used to specify the field separator along with C<auto_split> attribute. It must be a regular expression reference enclosed in the C<qr> function, like C<qr/\s+|[,]/> which will split across either spaces or commas. The default value for this argument is C<qr/\s+/>. The name comes from the built-in C<FS> variable in the popular GNU Awk program.
+Read-write attribute that can be used to specify the field separator along with C<auto_split> attribute. It must be a regular expression reference enclosed in the C<qr> function, like C<qr/\s+|[,]/> which will split across either spaces or commas. The default value for this argument is C<qr/\s+/>.
+
+The name for this attribute comes from the built-in C<FS> variable in the popular GNU Awk program.
 
     $parser->FS( qr/\s+\(*|\s*\)/ );
 
@@ -174,12 +176,47 @@ You I<can> change the field separator in the course of parsing a file. But the c
     use Moose;
     extends 'Text::Parser';
 
+    sub BUILDARGS {
+        return {
+            auto_split => 1,
+            auto_chomp => 1,
+            auto_trim => 'b'
+        };
+    }
+
     sub save_record {
         my $self = shift;
         $self->FS(qr/[,]/) if $self->field(0) eq 'CSV_BELOW';
+        $self->SUPER::save_record([$self->fields]);
     }
 
-Now, let's say you have a file
+    package main;
+
+    use Data::Dumper 'Dumper';
+
+    my $parser = MyParser->new();
+    $parser->read('input.txt');
+    print Dumper([$parser->get_records]), "\n";
+
+Now, let us say you have a file F<input.txt> with the following content:
+
+    Some information in this file
+    CSV_BELOW
+    col1,col2,col3
+    data1,1,1
+    data2,2,4
+    data3,3,9
+
+Then the output will be:
+
+    $VAR1 = [
+        [ 'Some', 'information', 'in', 'this', 'file' ],
+        [ 'CSV_BELOW' ], 
+        [ 'col1', 'col2', 'col3' ], 
+        [ 'data1', '1', '1' ], 
+        [ 'data2', '2', '4' ], 
+        [ 'data3', '3', '9' ]
+    ]; 
 
 =cut
 
