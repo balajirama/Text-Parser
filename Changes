@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+  - Added two new attributes auto_split and FS to split lines into fields
+  - Updated POD
 
 0.910     2019-02-10 17:52:24-08:00 America/Los_Angeles
   - Added a new attribute auto_trim and have four different values for it
