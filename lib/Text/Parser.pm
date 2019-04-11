@@ -87,7 +87,8 @@ use MooseX::CoverableModifiers;
 use MooseX::StrictConstructor;
 use namespace::autoclean;
 use FileHandle;
-use Try::Tiny;
+use Syntax::Keyword::Try;
+use feature ':5.14';
 use Moose::Util 'apply_all_roles', 'ensure_all_roles';
 use Moose::Util::TypeConstraints;
 use String::Util qw(trim ltrim rtrim);
@@ -400,10 +401,7 @@ sub __parse_line {
 sub __try_to_parse {
     my ( $self, $line ) = @_;
     try { $self->save_record($line); }
-    catch {
-        $self->_close_filehandles;
-        $_->rethrow;
-    };
+    finally {}
 }
 
 =method filename
