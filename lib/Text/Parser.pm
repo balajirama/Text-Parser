@@ -3,7 +3,7 @@ use strict;
 
 package Text::Parser;
 
-# ABSTRACT: Simplifies text parsing. Easily extensible to parse various text formats.
+# ABSTRACT: Simplifies text parsing. Easily extensible to parse any text format.
 
 use Exporter 'import';
 our (@EXPORT_OK) = ();
@@ -37,19 +37,32 @@ The above code reads the first command-line argument as a string, and assuming i
         ## ...
     }
 
-This example shows how C<Text::Parser> could be easily extended to parse a specific text format, while introducing some of the useful attributes.
+The above example shows how C<Text::Parser> could be easily extended to parse a specific text format.
 
 =head1 RATIONALE
 
-Text parsing is perhaps the single most common thing that almost every Perl program does. Yet we don't have a lean, flexible, text parser. A simple text parser should have to only specify the "grammar" it intends to interpret and collect records from. Everything else, like C<open>ing a file handle, C<close>ing the file handle, tracking line-count, joining continued lines into one, reporting any errors in line continuation, etc., distract from the main goal : getting data records from the text input. Unfortunately, most programmers have to continue writing code that should just have been simple features of every text file parser. And if they have to read a second file with a different grammar, usually, all that code needs to be repeated.
+Text parsing is perhaps the single most common thing that almost every Perl program does. Yet we don't have a lean, flexible, text parsing utility. The developer need only specify the "grammar" of the text file she intends to parse. Everything else, like C<open>ing a file handle, C<close>ing the file handle, tracking line-count, joining continued lines into one, reporting any errors in line continuation, trimming white space, splitting each line into fields, etc., should be automatic. Unfortunately however, this is how most file parsing code looks:
 
-This class automates all "mundane" operations like C<open>, C<close>, line-count, and storage/deletion/retrieval of records, joining continued lines, etc. You don't have to bother with a lot of book-keeping when you write your parser. You focus on specifying a grammar and telling the parser what information to store. To do this, you just inherit this class and override one method (C<L<save_record|/save_record>>). And voila! you have a parser. Everything else is taken care of by this class. Look at L<these examples|/EXAMPLES> to see how easy this can be. If your text format allows a single line to be split into several lines with a continuation character, you again need to specify only a few additional things, and everything else is taken care of for you. See L<these examples|/"Example 4 : Multi-line parsing">.
+    open FH, "<$fname";
+    my $line_count = 0;
+    while (<FH>) {
+        $line_count++;
+        chomp;
+        $_ = trim $_;  ## From String::Util
+        my (@fields) = split /\s+/;
+        # do something for each line ...
+    }
+    close FH;
+
+Developers have to write a lot of redundant code. And if they have to read a second file with a different grammar, all that code needs to be repeated. And if the file needs to process line-continuation characters, it isn't easy to implement it well with the C<while> loop above.
+
+With C<Text::Parser> on the contrary, developers don't have to bother with a lot of book-keeping. They can focus on specifying the grammar and leave the rest to this class. Just inherit the class and override one method (C<L<save_record|/save_record>>). Voila! you have a parser. L<These examples|/EXAMPLES> illustrate how easy this can be.
 
 =head1 DESCRIPTION
 
-C<Text::Parser> is a bare-bones text parsing class. It is ignorant of the text format, and cannot recognize any grammars, but derived classes that inherit from it can specify this. They can do this usually by overriding just one of the methods in this class. Of course derived classes can create any additional attributes and methods they need to do their task of extracting information records out of each line.
+C<Text::Parser> is a format-agnostic text parsing utility class. Derived classes can specify the format-specific syntax they intend to parse. Usually just methods needs to be overridden to do this. But of course derived classes can create any additional attributes or methods needed to interpret the fomart and extract records.
 
-Future versions are expected to include progress-bar support, parsing text from sockets, UTF support, or parsing from a chunk of memory. All these software features are text-format independent and can be re-used in parsing any text format. Derived classes of C<Text::Parser> will be able to take advantage of these features seamlessly and only have to focus on extracting information, while the base class handles the "mundane" parts.
+Future versions are expected to include progress-bar support, parsing text from sockets, UTF support, or parsing from a chunk of memory. All these software features are text-format independent and should be re-used. Derived classes of C<Text::Parser> will be able to take advantage of these features seamlessly, while the base class handles the "mundane" details.
 
 =cut
 
@@ -499,7 +512,7 @@ has lines_parsed => (
 
 Takes exactly one argument and that is saved as a record. Additional arguments are ignored. If no arguments are passed, then C<undef> is stored as a record.
 
-In an application that uses a text parser, you will most-likely never call this method directly. It is automatically called within C<L<read|/read>> for each line. In this base class C<Text::Parser>, C<save_record> is simply called with a string containing the raw line of text ; i.e. the line of text will not be C<chomp>ed or modified in any way. L<Here|/"Example 1 : A simple CSV Parser"> is a basic example.
+In an application that uses a text parser, you will most-likely never call this method directly. It is automatically called within C<L<read|/read>> for each line. In this base class C<Text::Parser>, C<save_record> is simply called with a string containing the raw line of text ; i.e. the line of text will not be C<chomp>ed or modified in any way (unless of course the C<auto_chomp> attribute is turned on). L<Here|/"Example 1 : A simple CSV Parser"> is a basic example.
 
 Derived classes can decide to store records in a different form. A derived class could, for example, store the records in the form of hash references (so that when you use C<L<get_records|/get_records>>, you'd get an array of hashes), or maybe even another array reference (so when you use C<get_records> you'd get an array of arrays). The L<CSV parser example|/"Example 1 : A simple CSV Parser"> does the latter.
 
@@ -637,8 +650,10 @@ Takes a string argument and returns a boolean indicating of the line is continue
     sub is_line_continued {
         my ($self, $line) = @_;
         chomp $line;
-        $line =~ /\\\s+/;
+        $line =~ /\\\s*$/;
     }
+
+The above example method checks if a line is being continued by using a back-slash character (C<\>).
 
 The default method provided in this class will return C<0> if the parser is not a multi-line parser. If it is a multi-line parser, return value depends on the type of multiline parser. If it is of type C<'join_last'>, then it returns C<1> for all lines except the first line. This means all lines continue from the previous line (except the first line, because there is no line before that). But if it is of type C<'join_next'>, then it returns C<1> for all lines unconditionally. B<Note:> This means the parser will expect further lines, even when the last line in the text input has been read. Thus you need to have a way to indicate that there is no further continuation. This is why if you are building a trivial line-joiner, you should use the C<'join_last'> type. See L<this example|/"Trivial line-joiner">
 
@@ -657,9 +672,14 @@ sub is_line_continued {
 
 =multiline_method join_last_line
 
-This method can be overridden in multi-line text parsing. The method takes two string arguments and joins them in a way that removes the continuation character. The default implementation just concatenates two strings and returns the result without removing anything. You should redefine this method to strip any continuation characters and join the strings with any required spaces etc.
+This method can be overridden in multi-line text parsing. The method takes two string arguments and joins them in a way that removes the continuation character. The default implementation just concatenates two strings and returns the result without removing anything. You should redefine this method to strip any continuation characters and join the strings with any required spaces. Below is an example of a method which strips the ending back-slash continuation characters, that were detected in the C<L<is_line_continued|/is_line_continued>> method above.
 
-    $parser->join_last_line('last line', ' + this line');
+    sub join_last_line {
+        my $self = shift;
+        my ($last, $line) = (shift, shift);
+        $last =~ s/\\\s*$//g;
+        return "$last $line";
+    }
 
 =cut
 
@@ -670,8 +690,6 @@ sub join_last_line {
 }
 
 =head1 EXAMPLES
-
-The following examples should illustrate the use of inheritance to parse various types of text file formats.
 
 =head2 Basic principle
 
