@@ -41,7 +41,9 @@ The above example shows how C<Text::Parser> could be easily extended to parse a 
 
 =head1 RATIONALE
 
-Text parsing is perhaps the single most common thing that almost every Perl program does. Yet we don't have a lean, flexible, text parsing utility. The developer need only specify the "grammar" of the text file she intends to parse. Everything else, like C<open>ing a file handle, C<close>ing the file handle, tracking line-count, joining continued lines into one, reporting any errors in line continuation, trimming white space, splitting each line into fields, etc., should be automatic. Unfortunately however, this is how most file parsing code looks:
+Text parsing is perhaps the single most common thing that almost every Perl program does. Yet we don't have a lean, flexible, text parsing utility. Ideally, the developer should only have to specify the "grammar" of the text file she intends to parse. Everything else, like C<open>ing a file handle, C<close>ing the file handle, tracking line-count, joining continued lines into one, reporting any errors in line continuation, trimming white space, splitting each line into fields, etc., should be automatic.
+
+Unfortunately however, how most file parsing code looks like this:
 
     open FH, "<$fname";
     my $line_count = 0;
@@ -54,9 +56,9 @@ Text parsing is perhaps the single most common thing that almost every Perl prog
     }
     close FH;
 
-Developers have to write a lot of redundant code. And if they have to read a second file with a different grammar, all that code needs to be repeated. And if the file needs to process line-continuation characters, it isn't easy to implement it well with the C<while> loop above.
+Note that a developer may have to repeat all of the above if she has to read another file with different content or format. And if the text has line-continuation characters, it isn't easy to implement it well with the C<while> loop above.
 
-With C<Text::Parser> on the contrary, developers don't have to bother with a lot of book-keeping. They can focus on specifying the grammar and leave the rest to this class. Just inherit the class and override one method (C<L<save_record|/save_record>>). Voila! you have a parser. L<These examples|/EXAMPLES> illustrate how easy this can be.
+With C<Text::Parser>, developers can focus on specifying the grammar and simply use the C<read> method. Just inherit the class and override one method (C<L<save_record|/save_record>>). Voila! you have a parser. L<These examples|/EXAMPLES> illustrate how easy this can be.
 
 =head1 DESCRIPTION
 
@@ -359,9 +361,8 @@ sub read {
 sub _handle_read_inp {
     my $self = shift;
     return $self->filehandle if not @_;
-    my $inp = shift;
-    return if not ref($inp) and not $inp;
-    return $self->__save_file_handle($inp);
+    return if not ref( $_[0] ) and not $_[0];
+    return $self->__save_file_handle(@_);
 }
 
 sub __save_file_handle {
@@ -401,7 +402,7 @@ sub __parse_line {
 sub __try_to_parse {
     my ( $self, $line ) = @_;
     try { $self->save_record($line); }
-    finally {}
+    finally { }
 }
 
 =method filename
