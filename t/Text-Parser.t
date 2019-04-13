@@ -32,7 +32,7 @@ is( $pars->multiline_type('join_next'),
 throws_ok {
     $pars->multiline_type(undef);
 }
-'Text::Parser::Exception',
+'Text::Parser::Errors::CantUndoMultiline',
     'Correct error when trying to reset multiline_type';
 lives_ok {
     is( $pars->multiline_type('join_last'),

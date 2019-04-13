@@ -68,16 +68,6 @@ Future versions are expected to include progress-bar support, parsing text from 
 
 =cut
 
-use Exception::Class (
-    'Text::Parser::Exception',
-    'Text::Parser::Exception::MultilineCantBeUndone' => {
-        isa => 'Text::Parser::Exception',
-        description =>
-            'The parser was originally set as a multiline parser, and that cannot be undone now',
-        alias => 'throw_multiline',
-    },
-);
-
 use Moose;
 use MooseX::CoverableModifiers;
 use MooseX::StrictConstructor;
@@ -88,6 +78,7 @@ use feature ':5.14';
 use Moose::Util 'apply_all_roles', 'ensure_all_roles';
 use Moose::Util::TypeConstraints;
 use String::Util qw(trim ltrim rtrim);
+use Text::Parser::Errors;
 
 subtype 'Text::Parser::Types::FileReadable' => as Str =>
     where( \&_condition_FileReadable );
@@ -280,7 +271,7 @@ around multiline_type => sub {
 
 sub __newval_multi_line {
     my ( $orig, $self, $newval ) = ( shift, shift, shift );
-    throw_multiline error => 'Already multi-line' if not defined $newval;
+    die cant_undo_multiline() if not defined $newval;
     ensure_all_roles $self, 'Text::Parser::Multiline';
     $orig->( $self, $newval );
 }
