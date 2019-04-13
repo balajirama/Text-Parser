@@ -37,7 +37,8 @@ throws_ok {
 lives_ok {
     is( $pars->multiline_type('join_last'),
         'join_last', 'Make it another type of Multiline Parser' );
-} 'No errors on changing multiline_type';
+}
+'No errors on changing multiline_type';
 
 $pars = Text::Parser->new();
 
@@ -56,7 +57,7 @@ throws_ok { $pars->filename($fname) }
 'Moose::Exception::ValidationFailedForInlineTypeConstraint',
     'No file by this name';
 throws_ok { $pars->read( bless {}, 'Something' ); }
-'Text::Parser::Exception::BadReadInput',
+'Moose::Exception::ValidationFailedForInlineTypeConstraint',
     'filehandle() will take only a GLOB or FileHandle input';
 throws_ok { $pars->read($fname); }
 'Moose::Exception::ValidationFailedForInlineTypeConstraint',
@@ -118,7 +119,8 @@ lives_ok { $pars->filehandle( \*STDOUT ); }
 'Some systems can read from STDOUT. Your system is one of them.';
 lives_ok { $pars->filehandle( \*STDIN ); } 'No issues in reading from STDIN';
 
-throws_ok { $pars->read( { a => 'b' } ); } 'Text::Parser::Exception',
+throws_ok { $pars->read( { a => 'b' } ); }
+'Moose::Exception::ValidationFailedForInlineTypeConstraint',
     'Invalid type of argument for read() method';
 
 lives_ok { $pars->read( 't/' . $fname ); }
@@ -147,6 +149,6 @@ is( $pars->last_record,  $content, 'Now the last record is the one earlier' );
 is_deeply( [ $pars->get_records ],
     [$content], 'Got correct content after pop' );
 
-is($pars->line_auto_manip, undef, 'Returns nothing for empty call');
+is( $pars->line_auto_manip, undef, 'Returns nothing for empty call' );
 
 done_testing;

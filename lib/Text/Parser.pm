@@ -70,12 +70,6 @@ Future versions are expected to include progress-bar support, parsing text from 
 
 use Exception::Class (
     'Text::Parser::Exception',
-    'Text::Parser::Exception::BadReadInput' => {
-        isa => 'Text::Parser::Exception',
-        description =>
-            'The user called read() method with an unsupported type of input',
-        alias => 'throw_bad_input_to_read',
-    },
     'Text::Parser::Exception::MultilineCantBeUndone' => {
         isa => 'Text::Parser::Exception',
         description =>
@@ -362,16 +356,8 @@ sub _handle_read_inp {
     my $self = shift;
     return $self->filehandle if not @_;
     return if not ref( $_[0] ) and not $_[0];
-    return $self->__save_file_handle(@_);
-}
-
-sub __save_file_handle {
-    my ( $self, $inp ) = ( shift, shift );
-    return $self->filename($inp) if not ref($inp);
-    return $self->filehandle($inp)
-        if ref($inp) eq 'GLOB'
-        or ( defined blessed($inp) and blessed($inp) eq 'FileHandle' );
-    throw_bad_input_to_read error => "$inp is an unknown type of input";
+    return $self->filename(@_) if not ref($_[0]);
+    return $self->filehandle(@_);
 }
 
 sub __read_and_close_filehandle {
