@@ -116,7 +116,7 @@ Takes optional attributes in the form of a hash. See section L<ATTRIBUTES|/ATTRI
         auto_trim       => 'b',         # 'l' (left), 'r' (right), 'b' (both), 'n' (neither) (Default)
                                         #   - automatically trim leading and trailing whitespaces
         auto_split      => 1,           # Auto-splits lines into fields
-        field_separator => qr/\s+/,     # Used by auto_split feature above. Default: qr/\s+/
+        FS => qr/\s+/,     # Used by auto_split feature above. Default: qr/\s+/
     );
 
 This C<$parser> variable will be used in all examples below.
@@ -151,7 +151,7 @@ has auto_chomp => (
 
 =attr auto_split
 
-Read-only attribute that can be set only during object construction. This attribute indicates if the parser will automatically split every line into fields. If it is set to a true value, each line will be split into fields which can be accessed through special methods that become available. These methods are documented in L<Text::Parser::AutoSplit>. The field separator can be set using another attribute named C<'field_separator'>. Defaults to 0.
+Read-only attribute that can be set only during object construction. Defaults to 0. This attribute indicates if the parser will automatically split every line into fields. If it is set to a true value, each line will be split into fields which can be accessed through special methods that become available. These methods are documented in L<Text::Parser::AutoSplit>. The field separator can be set using another attribute named C<'FS'>.
 
 =cut
 
