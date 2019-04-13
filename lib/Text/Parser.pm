@@ -275,13 +275,15 @@ around multiline_type => sub {
     my ( $orig, $self ) = ( shift, shift );
     return $orig->($self) if not @_;
     return $orig->( $self, shift ) if not defined $orig->($self);
-    my $newval = shift;
-    throw_multiline error =>
-        'Cannot turn a multiline parser into a single-line parser'
-        if not defined $newval;
+    __newval_multi_line( $orig, $self, @_ );
+};
+
+sub __newval_multi_line {
+    my ( $orig, $self, $newval ) = ( shift, shift, shift );
+    throw_multiline error => 'Already multi-line' if not defined $newval;
     ensure_all_roles $self, 'Text::Parser::Multiline';
     $orig->( $self, $newval );
-};
+}
 
 =deprecated setting
 
@@ -356,7 +358,7 @@ sub _handle_read_inp {
     my $self = shift;
     return $self->filehandle if not @_;
     return if not ref( $_[0] ) and not $_[0];
-    return $self->filename(@_) if not ref($_[0]);
+    return $self->filename(@_) if not ref( $_[0] );
     return $self->filehandle(@_);
 }
 
