@@ -729,7 +729,7 @@ The above program reads the content of a given CSV file and prints the content o
 
 =head2 Example 2 : Error checking
 
-It is easy to add any error checks using exceptions. One of the easiest ways to do this is to C<use L<Exception::Class>>. We'll modify the CSV parser above to demonstrate that.
+It is easy to add any error checks using exceptions. Check out the documentation for C<L<Exceptions>>. Below is an implementation C<use>ing C<L<Exception::Class>>.
 
     package Text::Parser::CSV;
     use Exception::Class (
@@ -754,23 +754,28 @@ It is easy to add any error checks using exceptions. One of the easiest ways to 
         $self->SUPER::save_record(\@fields);
     }
 
-The C<Text::Parser> class will C<close> all filehandles automatically as soon as an exception is thrown from C<save_record>. You can catch the exception in C<main::> as you would normally, by C<use>ing C<L<Try::Tiny>> or other such class.
+The C<Text::Parser> class will C<close> all filehandles automatically as soon as an exception is thrown from C<save_record>. You can catch the exception in C<main::> as you would normally, by C<use>ing C<L<Keyword::Syntax::Try>>, or C<L<Try::Tiny>>, or another such class.
 
 =head2 Example 3 : Aborting without errors
 
 We can also abort parsing a text file without throwing an exception. This could be if we got the information we needed. For example:
 
-    package Text::Parser::SomeFile;
-    use parent 'Text::Parser';
+    package SomeParser;
+    use Moose;
+    extends 'Text::Parser';
+
+    sub BUILDARGS {
+        my $pkg = shift;
+        return {auto_split => 1};
+    }
 
     sub save_record {
         my ($self, $line) = @_;
-        my ($leading, $rest) = split /\s+/, $line, 2;
-        return $self->abort_reading() if $leading eq '**ABORT';
+        return $self->abort_reading() if $self->field(0) eq '**ABORT';
         return $self->SUPER::save_record($line);
     }
 
-In this derived class, we have a parser C<Text::Parser::SomeFile> that would save each line as a record, but would abort reading the rest of the file as soon as it reaches a line with C<**ABORT> as the first word. When this parser is given the following file as input:
+Above is shown a parser C<SomeParser> that would save each line as a record, but would abort reading the rest of the file as soon as it reaches a line with C<**ABORT> as the first word. When this parser is given the following file as input:
 
     somefile.txt:
 
@@ -784,9 +789,9 @@ In this derived class, we have a parser C<Text::Parser::SomeFile> that would sav
 
 You can now write a program as follows:
 
-    use Text::Parser::SomeFile;
+    use SomeParser;
 
-    my $par = Text::Parser::SomeFile->new();
+    my $par = SomeParser->new();
     $par->read('somefile.txt');
     print $par->get_records(), "\n";
 
