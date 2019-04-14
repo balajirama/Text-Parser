@@ -708,7 +708,9 @@ The above program reads the content of a given CSV file and prints the content o
 
 =head2 Example 2 : Error checking
 
-It is easy to add any error checks using exceptions. Check out the documentation for C<L<Exceptions>>. Below is an implementation C<use>ing C<L<Exception::Class>>.
+This class encourages the use of exceptions for error checking. Read the documentation for C<L<Exceptions>> to learn about creating, throwing, and catching exceptions in Perl. This class uses exceptions based on L<Throwable::SugarFactory>, but you could use any other class to make your exceptions. We recommend C<use>ing L<Keyword::Syntax::Try> to catch exceptions, and to build your handler using L<Dispatch::Class>, but you may use the other alternatives described in L<Exceptions>.
+
+You can throw exceptions from C<save_record>. This class will C<close> all filehandles automatically as soon as an exception is thrown from C<save_record>. The exception will pass through to C<::main> unless you intercept it in your derived class. Here is an example showing the use of an exception to detect a syntax error:
 
     package Text::Parser::CSV;
     use Exception::Class (
@@ -732,8 +734,6 @@ It is easy to add any error checks using exceptions. Check out the documentation
             if scalar(@fields) > scalar(@{$self->{__csv_header}});
         $self->SUPER::save_record(\@fields);
     }
-
-The C<Text::Parser> class will C<close> all filehandles automatically as soon as an exception is thrown from C<save_record>. You can catch the exception in C<main::> as you would normally, by C<use>ing C<L<Keyword::Syntax::Try>>, or C<L<Try::Tiny>>, or another such class.
 
 =head2 Example 3 : Aborting without errors
 
