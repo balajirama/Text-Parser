@@ -28,8 +28,8 @@ use MooseX::CoverableModifiers;
 
     sub save_record {
         my $self = shift;
-        return $self->abort_reading if $self->NS > 0 and $self->field(0) eq 'STOP_READING';
-        $self->SUPER::save_record(@_) if $self->NS > 0 and $self->field(0) !~ /^[#]/;
+        return $self->abort_reading if $self->NF > 0 and $self->field(0) eq 'STOP_READING';
+        $self->SUPER::save_record(@_) if $self->NF > 0 and $self->field(0) !~ /^[#]/;
     }
 
     package main;
@@ -57,7 +57,7 @@ has _fields => (
         'find_field'       => 'first',
         'find_field_index' => 'first_index',
         'splice_fields'    => 'splice',
-        'fields'      => 'elements',
+        'fields'           => 'elements',
     },
 );
 
