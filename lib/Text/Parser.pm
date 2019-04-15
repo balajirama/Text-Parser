@@ -408,7 +408,7 @@ But if you do a C<read> with a filehandle as argument, you'll see that the last 
 
 has filename => (
     is        => 'rw',
-    isa       => 'Text::Parser::Types::FileReadable|Undef',
+    isa       => 'Str|Undef',
     lazy      => 1,
     init_arg  => undef,
     default   => undef,
@@ -418,9 +418,19 @@ has filename => (
 );
 
 sub _set_filehandle {
-    my $self = shift;
-    my $fh   = FileHandle->new( $self->filename, 'r' );
-    return $self->_save_filehandle($fh);
+    my $self  = shift;
+    my $fname = $self->filename;
+    return $self->_save_filehandle( $self->__get_valid_fh($fname) )
+        if defined $fname;
+    $self->_clear_filename();
+}
+
+sub __get_valid_fh {
+    my ( $self, $fname ) = ( shift, shift );
+    return FileHandle->new( $fname, 'r' ) if -f $fname and -r $fname;
+    $self->_clear_filename();
+    die invalid_filename() if not -f $fname;
+    die file_not_readable();
 }
 
 =method filehandle
@@ -707,31 +717,26 @@ The above program reads the content of a given CSV file and prints the content o
 
 =head2 Example 2 : Error checking
 
-This class encourages the use of exceptions for error checking. Read the documentation for C<L<Exceptions>> to learn about creating, throwing, and catching exceptions in Perl. This class uses exceptions based on L<Throwable::SugarFactory>, but you could use any other class to make your exceptions. We recommend C<use>ing L<Keyword::Syntax::Try> to catch exceptions, and to build your handler using L<Dispatch::Class>, but you may use the other alternatives described in L<Exceptions>.
+This class encourages the use of exceptions for error checking. Read the documentation for C<L<Exceptions>> to learn about creating, throwing, and catching exceptions in Perl. This class uses exceptions based on L<Throwable::SugarFactory>, but you could use any of the other classes listed in L<Exceptions>. We recommend C<use>ing L<Keyword::Syntax::Try> to catch exceptions, but you may C<use> the other alternatives described in L<Exceptions>. Also, you could optionally build a handler for your exceptions using L<Dispatch::Class>.
 
-You can throw exceptions from C<save_record>. This class will C<close> all filehandles automatically as soon as an exception is thrown from C<save_record>. The exception will pass through to C<::main> unless you intercept it in your derived class. Here is an example showing the use of an exception to detect a syntax error:
+You I<can> throw exceptions from C<save_record>. This class will C<close> all filehandles automatically as soon as an exception is thrown from C<save_record>. The exception will pass through to C<::main> unless you intercept it in your derived class. To allow all exceptions to pass through, we use the L<Syntax::Keyword::Try> which implements the C<try-catch> as I would expect it. An earlier implementation of this class used L<Try::Tiny> and exceptions would not properly pass through.
 
-    package Text::Parser::CSV;
+Here is an example showing the use of an exception to detect a syntax error in a file:
+
+    package My::Text::Parser;
     use Exception::Class (
-        'Text::Parser::CSV::Error', 
-        'Text::Parser::CSV::TooManyFields' => {
-            isa => 'Text::Parser::CSV::Error',
+        'My::Text::Parser::SyntaxError' => {
+            description => 'syntax error',
+            alias => 'throw_syntax_error', 
         },
     );
     
     use parent 'Text::Parser';
-    use Text::CSV;
 
-    my $csv;
     sub save_record {
         my ($self, $line) = @_;
-        $csv //= Text::CSV->new({ binary => 1, auto_diag => 1});
-        $csv->parse($line);
-        my @fields = $csv->fields;
-        $self->{__csv_header} = \@fields if not scalar($self->get_records);
-        Text::Parser::CSV::TooManyFields->throw(error => "Too many fields on line #" . $self->lines_parsed)
-            if scalar(@fields) > scalar(@{$self->{__csv_header}});
-        $self->SUPER::save_record(\@fields);
+        throw_syntax_error(error => 'syntax error') if _syntax_error($line);
+        $self->SUPER::save_record($line);
     }
 
 =head2 Example 3 : Aborting without errors
@@ -894,6 +899,10 @@ Try this parser with a SPICE deck with continuation characters and see what you 
 =for :list
 * L<Text::Parser::Multiline>
 * L<FileHandle>
+* L<Exceptions>
+* L<Throwable::SugarFactory>
+* L<Syntax::Keyword::Try>
+* L<Try::Tiny>
 * L<Moose>
 * L<Text::CSV>
 

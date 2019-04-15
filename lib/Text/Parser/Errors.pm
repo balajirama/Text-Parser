@@ -41,6 +41,28 @@ exception
     )
     ],
     extends => GenericError();
+exception
+    InvalidFilename => 'file does not exist',
+    has           => [
+    name => (
+        is  => 'ro',
+        isa => sub {
+            die "$_[0] must be a string" if '' ne ref( $_[0] );
+        }
+    )
+    ],
+    extends => GenericError();
+exception
+    FileNotReadable => 'file does not exist',
+    has           => [
+    name => (
+        is  => 'ro',
+        isa => sub {
+            die "$_[0] must be a string" if '' ne ref( $_[0] );
+        }
+    )
+    ],
+    extends => GenericError();
 
 1;
 

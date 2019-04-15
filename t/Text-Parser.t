@@ -51,16 +51,16 @@ throws_ok { $pars->filename( { a => 'b' } ); }
 'Moose::Exception::ValidationFailedForInlineTypeConstraint',
     'filename() will take only string as input';
 throws_ok { $pars->filename('') }
-'Moose::Exception::ValidationFailedForInlineTypeConstraint',
+'Text::Parser::Errors::InvalidFilename',
     'Empty filename string';
 throws_ok { $pars->filename($fname) }
-'Moose::Exception::ValidationFailedForInlineTypeConstraint',
+'Text::Parser::Errors::InvalidFilename',
     'No file by this name';
 throws_ok { $pars->read( bless {}, 'Something' ); }
 'Moose::Exception::ValidationFailedForInlineTypeConstraint',
     'filehandle() will take only a GLOB or FileHandle input';
 throws_ok { $pars->read($fname); }
-'Moose::Exception::ValidationFailedForInlineTypeConstraint',
+'Text::Parser::Errors::InvalidFilename',
     'Throws exception for non-existent file';
 
 lives_ok { $pars->read(); } 'Returns doing nothing';
@@ -81,7 +81,7 @@ SKIP: {
     close OFILE;
     chmod 0200, 't/unreadable.txt';
     throws_ok { $pars->filename('t/unreadable.txt'); }
-    'Moose::Exception::ValidationFailedForInlineTypeConstraint',
+    'Text::Parser::Errors::FileNotReadable',
         'This file cannot be read';
     is( $pars->filename(), undef, 'Still no file has been read so far' );
     unlink 't/unreadable.txt';
