@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+0.915     2019-04-14 23:50:51-07:00 America/Los_Angeles
   - Remove exceptions based on Exception::Class and use Throwable::SugarFactory instead
   - Add Text::Parser::Errors. Use exceptions from here in Text::Parser code.
   - Make Dist::Zilla::Plugin::Test::TidyAll required only for the build phase of the distro - close issue #13 on Github
