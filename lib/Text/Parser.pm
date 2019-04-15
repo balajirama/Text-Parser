@@ -41,7 +41,9 @@ The above example shows how C<Text::Parser> could be easily extended to parse a 
 
 =head1 RATIONALE
 
-Text parsing is perhaps the single most common thing that almost every Perl program does. Yet we don't have a lean, flexible, text parsing utility. The developer need only specify the "grammar" of the text file she intends to parse. Everything else, like C<open>ing a file handle, C<close>ing the file handle, tracking line-count, joining continued lines into one, reporting any errors in line continuation, trimming white space, splitting each line into fields, etc., should be automatic. Unfortunately however, this is how most file parsing code looks:
+Text parsing is perhaps the single most common thing that almost every Perl program does. Yet we don't have a lean, flexible, text parsing utility. Ideally, the developer should only have to specify the "grammar" of the text file she intends to parse. Everything else, like C<open>ing a file handle, C<close>ing the file handle, tracking line-count, joining continued lines into one, reporting any errors in line continuation, trimming white space, splitting each line into fields, etc., should be automatic.
+
+Unfortunately however, how most file parsing code looks like this:
 
     open FH, "<$fname";
     my $line_count = 0;
@@ -54,9 +56,9 @@ Text parsing is perhaps the single most common thing that almost every Perl prog
     }
     close FH;
 
-Developers have to write a lot of redundant code. And if they have to read a second file with a different grammar, all that code needs to be repeated. And if the file needs to process line-continuation characters, it isn't easy to implement it well with the C<while> loop above.
+Note that a developer may have to repeat all of the above if she has to read another file with different content or format. And if the text has line-continuation characters, it isn't easy to implement it well with the C<while> loop above.
 
-With C<Text::Parser> on the contrary, developers don't have to bother with a lot of book-keeping. They can focus on specifying the grammar and leave the rest to this class. Just inherit the class and override one method (C<L<save_record|/save_record>>). Voila! you have a parser. L<These examples|/EXAMPLES> illustrate how easy this can be.
+With C<Text::Parser>, developers can focus on specifying the grammar and simply use the C<read> method. Just inherit the class and override one method (C<L<save_record|/save_record>>). Voila! you have a parser. L<These examples|/EXAMPLES> illustrate how easy this can be.
 
 =head1 DESCRIPTION
 
@@ -65,22 +67,6 @@ C<Text::Parser> is a format-agnostic text parsing utility class. Derived classes
 Future versions are expected to include progress-bar support, parsing text from sockets, UTF support, or parsing from a chunk of memory. All these software features are text-format independent and should be re-used. Derived classes of C<Text::Parser> will be able to take advantage of these features seamlessly, while the base class handles the "mundane" details.
 
 =cut
-
-use Exception::Class (
-    'Text::Parser::Exception',
-    'Text::Parser::Exception::BadReadInput' => {
-        isa => 'Text::Parser::Exception',
-        description =>
-            'The user called read() method with an unsupported type of input',
-        alias => 'throw_bad_input_to_read',
-    },
-    'Text::Parser::Exception::MultilineCantBeUndone' => {
-        isa => 'Text::Parser::Exception',
-        description =>
-            'The parser was originally set as a multiline parser, and that cannot be undone now',
-        alias => 'throw_multiline',
-    },
-);
 
 use Moose;
 use MooseX::CoverableModifiers;
@@ -92,11 +78,7 @@ use feature ':5.14';
 use Moose::Util 'apply_all_roles', 'ensure_all_roles';
 use Moose::Util::TypeConstraints;
 use String::Util qw(trim ltrim rtrim);
-
-subtype 'Text::Parser::Types::FileReadable' => as Str =>
-    where( \&_condition_FileReadable );
-
-sub _condition_FileReadable { $_ and -f $_ and -r $_; }
+use Text::Parser::Errors;
 
 enum 'Text::Parser::Types::MultilineType' => [qw(join_next join_last)];
 enum 'Text::Parser::Types::TrimType'      => [qw(l r b n)];
@@ -114,7 +96,7 @@ Takes optional attributes in the form of a hash. See section L<ATTRIBUTES|/ATTRI
         auto_trim       => 'b',         # 'l' (left), 'r' (right), 'b' (both), 'n' (neither) (Default)
                                         #   - automatically trim leading and trailing whitespaces
         auto_split      => 1,           # Auto-splits lines into fields
-        field_separator => qr/\s+/,     # Used by auto_split feature above. Default: qr/\s+/
+        FS => qr/\s+/,     # Used by auto_split feature above. Default: qr/\s+/
     );
 
 This C<$parser> variable will be used in all examples below.
@@ -149,7 +131,7 @@ has auto_chomp => (
 
 =attr auto_split
 
-Read-only attribute that can be set only during object construction. This attribute indicates if the parser will automatically split every line into fields. If it is set to a true value, each line will be split into fields which can be accessed through special methods that become available. These methods are documented in L<Text::Parser::AutoSplit>. The field separator can be set using another attribute named C<'field_separator'>. Defaults to 0.
+Read-only attribute that can be set only during object construction. Defaults to 0. This attribute indicates if the parser will automatically split every line into fields. If it is set to a true value, each line will be split into fields which can be accessed through special methods that become available. These methods are documented in L<Text::Parser::AutoSplit>. The field separator can be set using another attribute named C<'FS'>.
 
 =cut
 
@@ -279,13 +261,15 @@ around multiline_type => sub {
     my ( $orig, $self ) = ( shift, shift );
     return $orig->($self) if not @_;
     return $orig->( $self, shift ) if not defined $orig->($self);
-    my $newval = shift;
-    throw_multiline error =>
-        'Cannot turn a multiline parser into a single-line parser'
-        if not defined $newval;
+    __newval_multi_line( $orig, $self, @_ );
+};
+
+sub __newval_multi_line {
+    my ( $orig, $self, $newval ) = ( shift, shift, shift );
+    die cant_undo_multiline() if not defined $newval;
     ensure_all_roles $self, 'Text::Parser::Multiline';
     $orig->( $self, $newval );
-};
+}
 
 =deprecated setting
 
@@ -359,18 +343,9 @@ sub read {
 sub _handle_read_inp {
     my $self = shift;
     return $self->filehandle if not @_;
-    my $inp = shift;
-    return if not ref($inp) and not $inp;
-    return $self->__save_file_handle($inp);
-}
-
-sub __save_file_handle {
-    my ( $self, $inp ) = ( shift, shift );
-    return $self->filename($inp) if not ref($inp);
-    return $self->filehandle($inp)
-        if ref($inp) eq 'GLOB'
-        or ( defined blessed($inp) and blessed($inp) eq 'FileHandle' );
-    throw_bad_input_to_read error => "$inp is an unknown type of input";
+    return if not ref( $_[0] ) and not $_[0];
+    return $self->filename(@_) if not ref( $_[0] );
+    return $self->filehandle(@_);
 }
 
 sub __read_and_close_filehandle {
@@ -401,7 +376,7 @@ sub __parse_line {
 sub __try_to_parse {
     my ( $self, $line ) = @_;
     try { $self->save_record($line); }
-    finally {}
+    finally { }
 }
 
 =method filename
@@ -428,7 +403,7 @@ But if you do a C<read> with a filehandle as argument, you'll see that the last 
 
 has filename => (
     is        => 'rw',
-    isa       => 'Text::Parser::Types::FileReadable|Undef',
+    isa       => 'Str|Undef',
     lazy      => 1,
     init_arg  => undef,
     default   => undef,
@@ -438,9 +413,19 @@ has filename => (
 );
 
 sub _set_filehandle {
-    my $self = shift;
-    my $fh   = FileHandle->new( $self->filename, 'r' );
-    return $self->_save_filehandle($fh);
+    my $self  = shift;
+    my $fname = $self->filename;
+    return $self->_save_filehandle( $self->__get_valid_fh($fname) )
+        if defined $fname;
+    $self->_clear_filename();
+}
+
+sub __get_valid_fh {
+    my ( $self, $fname ) = ( shift, shift );
+    return FileHandle->new( $fname, 'r' ) if -f $fname and -r $fname;
+    $self->_clear_filename();
+    die invalid_filename( name => $fname ) if not -f $fname;
+    die file_not_readable( name => $fname );
 }
 
 =method filehandle
@@ -477,8 +462,7 @@ sub filehandle {
     return if not @_ and not $self->_has_filehandle;
     $self->_save_filehandle(@_) if @_;
     $self->_clear_filename if @_;
-    my $fh = $self->_get_filehandle;
-    return $fh;
+    return $self->_get_filehandle;
 }
 
 =method lines_parsed
@@ -728,48 +712,56 @@ The above program reads the content of a given CSV file and prints the content o
 
 =head2 Example 2 : Error checking
 
-It is easy to add any error checks using exceptions. One of the easiest ways to do this is to C<use L<Exception::Class>>. We'll modify the CSV parser above to demonstrate that.
+This class encourages the use of exceptions for error checking. Read the documentation for C<L<Exceptions>> to learn about creating, throwing, and catching exceptions in Perl. This class uses exceptions based on L<Throwable::SugarFactory>, but you could use any of the other classes listed in L<Exceptions>. We recommend C<use>ing L<Keyword::Syntax::Try> to catch exceptions, but you may C<use> the other alternatives described in L<Exceptions>.
 
-    package Text::Parser::CSV;
+=head3 Detecting syntax errors
+
+You I<can> throw exceptions from C<save_record> when you detect a syntax error. This class will C<close> all filehandles automatically as soon as an exception is thrown from C<save_record>. The exception will pass through to C<::main> unless you intercept it in your derived class. To allow all exceptions to pass through, we use the L<Syntax::Keyword::Try> which implements the C<try-catch> as I would expect it. An earlier implementation of this class used L<Try::Tiny> and exceptions would not properly pass through.
+
+Here is an example showing the use of an exception to detect a syntax error in a file:
+
+    package My::Text::Parser;
     use Exception::Class (
-        'Text::Parser::CSV::Error', 
-        'Text::Parser::CSV::TooManyFields' => {
-            isa => 'Text::Parser::CSV::Error',
+        'My::Text::Parser::SyntaxError' => {
+            description => 'syntax error',
+            alias => 'throw_syntax_error', 
         },
     );
     
     use parent 'Text::Parser';
-    use Text::CSV;
 
-    my $csv;
     sub save_record {
         my ($self, $line) = @_;
-        $csv //= Text::CSV->new({ binary => 1, auto_diag => 1});
-        $csv->parse($line);
-        my @fields = $csv->fields;
-        $self->{__csv_header} = \@fields if not scalar($self->get_records);
-        Text::Parser::CSV::TooManyFields->throw(error => "Too many fields on line #" . $self->lines_parsed)
-            if scalar(@fields) > scalar(@{$self->{__csv_header}});
-        $self->SUPER::save_record(\@fields);
+        throw_syntax_error(error => 'syntax error') if _syntax_error($line);
+        $self->SUPER::save_record($line);
     }
 
-The C<Text::Parser> class will C<close> all filehandles automatically as soon as an exception is thrown from C<save_record>. You can catch the exception in C<main::> as you would normally, by C<use>ing C<L<Try::Tiny>> or other such class.
+=head3 Exceptions thrown by C<Text::Parser>
+
+C<Text::Parser> throws a number of different types of exceptions that are described in L<Text::Parser::Errors>. The base class for all these exceptions is C<Text::Parser::Errors::GenericError>.
+
+You can optionally build a handler using L<Dispatch::Class>, to handle exceptions of various types.
 
 =head2 Example 3 : Aborting without errors
 
 We can also abort parsing a text file without throwing an exception. This could be if we got the information we needed. For example:
 
-    package Text::Parser::SomeFile;
-    use parent 'Text::Parser';
+    package SomeParser;
+    use Moose;
+    extends 'Text::Parser';
+
+    sub BUILDARGS {
+        my $pkg = shift;
+        return {auto_split => 1};
+    }
 
     sub save_record {
         my ($self, $line) = @_;
-        my ($leading, $rest) = split /\s+/, $line, 2;
-        return $self->abort_reading() if $leading eq '**ABORT';
+        return $self->abort_reading() if $self->field(0) eq '**ABORT';
         return $self->SUPER::save_record($line);
     }
 
-In this derived class, we have a parser C<Text::Parser::SomeFile> that would save each line as a record, but would abort reading the rest of the file as soon as it reaches a line with C<**ABORT> as the first word. When this parser is given the following file as input:
+Above is shown a parser C<SomeParser> that would save each line as a record, but would abort reading the rest of the file as soon as it reaches a line with C<**ABORT> as the first word. When this parser is given the following file as input:
 
     somefile.txt:
 
@@ -783,9 +775,9 @@ In this derived class, we have a parser C<Text::Parser::SomeFile> that would sav
 
 You can now write a program as follows:
 
-    use Text::Parser::SomeFile;
+    use SomeParser;
 
-    my $par = Text::Parser::SomeFile->new();
+    my $par = SomeParser->new();
     $par->read('somefile.txt');
     print $par->get_records(), "\n";
 
@@ -910,6 +902,11 @@ Try this parser with a SPICE deck with continuation characters and see what you 
 =for :list
 * L<Text::Parser::Multiline>
 * L<FileHandle>
+* L<Exceptions>
+* L<Throwable::SugarFactory>
+* L<Syntax::Keyword::Try>
+* L<Try::Tiny>
+* L<Dispatch::Class>
 * L<Moose>
 * L<Text::CSV>
 
