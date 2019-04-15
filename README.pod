@@ -44,7 +44,7 @@ The above example shows how C<Text::Parser> could be easily extended to parse a 
 
 Text parsing is perhaps the single most common thing that almost every Perl program does. Yet we don't have a lean, flexible, text parsing utility. Ideally, the developer should only have to specify the "grammar" of the text file she intends to parse. Everything else, like C<open>ing a file handle, C<close>ing the file handle, tracking line-count, joining continued lines into one, reporting any errors in line continuation, trimming white space, splitting each line into fields, etc., should be automatic.
 
-Unfortunately however, how most file parsing code looks like this:
+Unfortunately however, most file parsing code looks like this:
 
     open FH, "<$fname";
     my $line_count = 0;
