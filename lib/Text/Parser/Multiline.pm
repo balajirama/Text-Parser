@@ -136,7 +136,7 @@ sub __after_at_eof {
     my $last = $self->__pop_last_line();
     return if not defined $last;
     my $lnum = $self->lines_parsed();
-    die unexpected_eof( remaining => $last, line_num => $lnum );
+    die unexpected_eof( discontd => $last, line_num => $lnum );
 }
 
 sub __join_next_proc {

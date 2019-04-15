@@ -80,11 +80,6 @@ use Moose::Util::TypeConstraints;
 use String::Util qw(trim ltrim rtrim);
 use Text::Parser::Errors;
 
-subtype 'Text::Parser::Types::FileReadable' => as Str =>
-    where( \&_condition_FileReadable );
-
-sub _condition_FileReadable { $_ and -f $_ and -r $_; }
-
 enum 'Text::Parser::Types::MultilineType' => [qw(join_next join_last)];
 enum 'Text::Parser::Types::TrimType'      => [qw(l r b n)];
 
@@ -429,8 +424,8 @@ sub __get_valid_fh {
     my ( $self, $fname ) = ( shift, shift );
     return FileHandle->new( $fname, 'r' ) if -f $fname and -r $fname;
     $self->_clear_filename();
-    die invalid_filename() if not -f $fname;
-    die file_not_readable();
+    die invalid_filename( name => $fname ) if not -f $fname;
+    die file_not_readable( name => $fname );
 }
 
 =method filehandle
@@ -717,9 +712,11 @@ The above program reads the content of a given CSV file and prints the content o
 
 =head2 Example 2 : Error checking
 
-This class encourages the use of exceptions for error checking. Read the documentation for C<L<Exceptions>> to learn about creating, throwing, and catching exceptions in Perl. This class uses exceptions based on L<Throwable::SugarFactory>, but you could use any of the other classes listed in L<Exceptions>. We recommend C<use>ing L<Keyword::Syntax::Try> to catch exceptions, but you may C<use> the other alternatives described in L<Exceptions>. Also, you could optionally build a handler for your exceptions using L<Dispatch::Class>.
+This class encourages the use of exceptions for error checking. Read the documentation for C<L<Exceptions>> to learn about creating, throwing, and catching exceptions in Perl. This class uses exceptions based on L<Throwable::SugarFactory>, but you could use any of the other classes listed in L<Exceptions>. We recommend C<use>ing L<Keyword::Syntax::Try> to catch exceptions, but you may C<use> the other alternatives described in L<Exceptions>.
 
-You I<can> throw exceptions from C<save_record>. This class will C<close> all filehandles automatically as soon as an exception is thrown from C<save_record>. The exception will pass through to C<::main> unless you intercept it in your derived class. To allow all exceptions to pass through, we use the L<Syntax::Keyword::Try> which implements the C<try-catch> as I would expect it. An earlier implementation of this class used L<Try::Tiny> and exceptions would not properly pass through.
+=head3 Detecting syntax errors
+
+You I<can> throw exceptions from C<save_record> when you detect a syntax error. This class will C<close> all filehandles automatically as soon as an exception is thrown from C<save_record>. The exception will pass through to C<::main> unless you intercept it in your derived class. To allow all exceptions to pass through, we use the L<Syntax::Keyword::Try> which implements the C<try-catch> as I would expect it. An earlier implementation of this class used L<Try::Tiny> and exceptions would not properly pass through.
 
 Here is an example showing the use of an exception to detect a syntax error in a file:
 
@@ -738,6 +735,12 @@ Here is an example showing the use of an exception to detect a syntax error in a
         throw_syntax_error(error => 'syntax error') if _syntax_error($line);
         $self->SUPER::save_record($line);
     }
+
+=head3 Exceptions thrown by C<Text::Parser>
+
+C<Text::Parser> throws a number of different types of exceptions that are described in L<Text::Parser::Errors>. The base class for all these exceptions is C<Text::Parser::Errors::GenericError>.
+
+You can optionally build a handler using L<Dispatch::Class>, to handle exceptions of various types.
 
 =head2 Example 3 : Aborting without errors
 
@@ -903,6 +906,7 @@ Try this parser with a SPICE deck with continuation characters and see what you 
 * L<Throwable::SugarFactory>
 * L<Syntax::Keyword::Try>
 * L<Try::Tiny>
+* L<Dispatch::Class>
 * L<Moose>
 * L<Text::CSV>
 
