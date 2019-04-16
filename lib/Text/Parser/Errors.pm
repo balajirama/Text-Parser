@@ -94,7 +94,7 @@ The line at which the unexpected EOF is encountered.
 =cut
     
 exception
-    UnexpectedEof => 'continuation character in last line, unexpected EoF',
+    UnexpectedEof => 'join_next cont. character in last line, unexpected EoF',
     has           => [
     discontd => (
         is  => 'ro',
