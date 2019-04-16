@@ -8,7 +8,7 @@ Text::Parser - Simplifies text parsing. Easily extensible to parse any text form
 
 =head1 VERSION
 
-version 0.916
+version 0.917
 
 =head1 SYNOPSIS
 
@@ -680,10 +680,20 @@ This software is copyright (c) 2018-2019 by Balaji Ramasubramanian.
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.
 
-=head1 CONTRIBUTOR
+=head1 CONTRIBUTORS
 
-=for stopwords H.Merijn Brand - Tux
+=for stopwords H.Merijn Brand - Tux Mohammad S Anwar
+
+=over 4
+
+=item *
 
 H.Merijn Brand - Tux <h.m.brand@xs4all.nl>
+
+=item *
+
+Mohammad S Anwar <mohammad.anwar@yahoo.com>
+
+=back
 
 =cut

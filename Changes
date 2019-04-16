@@ -1,6 +1,9 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+  - Fixed broken link in pod as reported by CPANTS. #15 (by M Anwar)
+  - Fixed a similar broken link in pod as reported in CPANTS for save_record from Autoplit.pm
+  - Added a new test to check that when both auto_split and auto_trim are on, auto_trim works first
 
 0.916     2019-04-15 20:12:03-07:00 America/Los_Angeles
   - Minor patches to ensure class doesn't fail due to Syntax::Keyword::Try

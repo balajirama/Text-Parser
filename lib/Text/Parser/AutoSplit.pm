@@ -71,7 +71,7 @@ around save_record => sub {
 
 =head1 METHODS AVAILABLE ON AUTO-SPLIT
 
-These methods become available when C<auto_split> attribute is true. You'll get a runtime error if you try to use them otherwise. They would be most likely used inside your own implementation of C<L<save_record|/save_record>> since the splits are done for each line.
+These methods become available when C<auto_split> attribute is true. You'll get a runtime error if you try to use them otherwise. They would be most likely used inside your own implementation of C<L<save_record|Text::Parser/save_record>> since the splits are done for each line.
 
 =auto_split_meth NF
 
