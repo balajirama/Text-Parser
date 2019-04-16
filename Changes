@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+0.917     2019-04-15 22:56:49-07:00 America/Los_Angeles
   - Fixed broken link in pod as reported by CPANTS. #15 (by M Anwar)
   - Fixed a similar broken link in pod as reported in CPANTS for save_record from Autoplit.pm
   - Added a new test to check that when both auto_split and auto_trim are on, auto_trim works first
