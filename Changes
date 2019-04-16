@@ -1,6 +1,10 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+  - Minor patches to ensure class doesn't fail due to Syntax::Keyword::Try
+  - Added test for one POD example
+  - Made exceptions prominent on main POD page
+  - Cleaned up CONTRIBUTING.md
 
 0.915     2019-04-14 23:50:51-07:00 America/Los_Angeles
   - Remove exceptions based on Exception::Class and use Throwable::SugarFactory instead
