@@ -8,7 +8,7 @@ Text::Parser - Simplifies text parsing. Easily extensible to parse any text form
 
 =head1 VERSION
 
-version 0.917
+version 0.918
 
 =head1 SYNOPSIS
 
@@ -66,6 +66,14 @@ With C<Text::Parser>, developers can focus on specifying the grammar and simply 
 C<Text::Parser> is a format-agnostic text parsing utility class. Derived classes can specify the format-specific syntax they intend to parse. Usually just methods needs to be overridden to do this. But of course derived classes can create any additional attributes or methods needed to interpret the fomart and extract records.
 
 Future versions are expected to include progress-bar support, parsing text from sockets, UTF support, or parsing from a chunk of memory. All these software features are text-format independent and should be re-used. Derived classes of C<Text::Parser> will be able to take advantage of these features seamlessly, while the base class handles the "mundane" details.
+
+=head1 ERRORS AND EXCEPTIONS
+
+This class adopts the principle that errors should be indicated with exceptions, and not a special return code or an error code. Several exceptions described in L<Text::Parser::Errors> could be thrown when using C<Text::Parser>. All these are derived from C<Text::Parser::Errors::GenericError>. Since this is a L<Moose> class, exceptions derived from C<L<Moose::Exception>> will be thrown when methods of this class are used improperly.
+
+In addition to these two types of exceptions, the developer can make her own exceptions. L<This example|/"Example 2 : Error checking"> shows how she could create her own exceptions. We recommend L<Syntax::Keyword::Try> (or L<Try::Tiny> if you can't use that) to catch exceptions.
+
+Since the handling of exceptions depends on their type, one could optionally build a handler routine using L<Dispatch::Class>.
 
 =head1 CONSTRUCTOR
 
@@ -609,14 +617,6 @@ Some text formats allow a line to indicate that it is continuing from a previous
     }
 
 Try this parser with a SPICE deck with continuation characters and see what you get. Try having errors in the file. You may now write a more elaborate method for C<save_record> above and that could be used to parse a full SPICE file.
-
-=head1 ERRORS AND EXCEPTIONS
-
-This class adopts the principle that errors should be indicated with exceptions, and not a special return code or an error code. Several exceptions described in L<Text::Parser::Errors> could be thrown when using C<Text::Parser>. All these are derived from C<Text::Parser::Errors::GenericError>. Since this is a L<Moose> class, exceptions derived from C<L<Moose::Exception>> will be thrown when methods of this class are used improperly.
-
-In addition to these two types of exceptions, the developer can make her own exceptions. L<This example|/"Example 2 : Error checking"> shows how she could create her own exceptions. We recommend L<Syntax::Keyword::Try> (or L<Try::Tiny> if you can't use that) to catch exceptions.
-
-Since the handling of exceptions depends on their type, one could optionally build a handler routine using L<Dispatch::Class>.
 
 =head1 SEE ALSO
 
