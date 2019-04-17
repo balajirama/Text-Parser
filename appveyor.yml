@@ -4,6 +4,7 @@ init:
 - cmd: cpan -T App::cpanminus
 environment:
   HARNESS_PERL_SWITCHES: -MDevel::Cover=-db,cover_db,-coverage,statement,time,branch,condition,subroutine,pod-also_private-BUILD
+  APPVEYOR_SAVE_CACHE_ON_ERROR: true
 install:
 - cmd: >-
     cpanm -q --notest Dist::Zilla Devel::Cover::Report::Codecov Pod::Weaver::Section::Contributors Pod::Elemental::Transformer::List Dist::Zilla Dist::Zilla::App::Command::cover Dist::Zilla::App::Command::kwalitee Perl::Tidy
