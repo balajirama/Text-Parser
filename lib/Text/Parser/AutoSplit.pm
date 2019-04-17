@@ -91,12 +91,18 @@ The name of this method comes from the C<NF> variable in the popular L<GNU Awk p
 
 =auto_split_meth field
 
-Takes an integer argument and returns the field whose index is passed as argument. You can specify negative elements to start counting from the end. For example index C<-1> is the last element, C<-2> is the penultimate one, etc.
+Takes an integer argument and returns the field whose index is passed as argument.
 
     sub save_record {
         my $self = shift;
         $self->abort if $self->field(0) eq 'END';
     }
+
+You can specify negative elements to start counting from the end. For example index C<-1> is the last element, C<-2> is the penultimate one, etc. Let's say the following is the text on a line in a file:
+
+    THIS           IS          SOME           TEXT
+    field(0)      field(1)    field(2)      field(3)
+    field(-4)    field(-3)   field(-2)     field(-1)
 
 =auto_split_meth find_field
 

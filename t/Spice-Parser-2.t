@@ -25,8 +25,7 @@ sub is_line_continued {
 
 sub join_last_line {
     my ( $self, $last, $line ) = ( shift, shift, shift );
-    is $line, $self->this_line,
-        "join_last_line: $line matches";
+    is $line, $self->this_line, "join_last_line: $line matches";
     return $last if not defined $line;
     $line =~ s/^[+]\s*/ /;
     return $line if not defined $last;
@@ -82,6 +81,11 @@ sub _call_spice_command {
 
 sub _add_instance {
     my $self = shift;
+    for my $i ( 0 .. ( $self->NF - 1 ) ) {
+        my $ln = $self->lines_parsed();
+        is $self->field( $i - $self->NF ), $self->field($i),
+            "Field # $i matched on line # $ln";
+    }
     $self->SUPER::save_record(@_);
 }
 
@@ -129,8 +133,7 @@ is( scalar( $sp->get_records() ), 2, '2 records saved' );
 is( $sp->lines_parsed(),          4, '4 lines parsed' );
 
 throws_ok { $sp->read('t/bad-spice.sp'); }
-'Text::Parser::Errors::UnexpectedCont',
-    'Dies as expected';
+'Text::Parser::Errors::UnexpectedCont', 'Dies as expected';
 
 lives_ok { $sp->read('t/example-5.sp'); }
 'Reads spice with include statement';
