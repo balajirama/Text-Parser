@@ -124,13 +124,13 @@ sub __around_is_line_part_of_last {
 
 sub __after__read_file_handle {
     my $self = shift;
-    return $self->__after_at_eof()
+    return $self->__test_safe_eof()
         if $self->multiline_type eq 'join_next';
     my $last_line = $self->__pop_last_line();
     $orig_save_record->( $self, $last_line ) if defined $last_line;
 }
 
-sub __after_at_eof {
+sub __test_safe_eof {
     my $self = shift;
     my $last = $self->__pop_last_line();
     return if not defined $last;
@@ -148,10 +148,15 @@ sub __join_next_proc {
 
 sub __join_last_proc {
     my ( $orig, $self ) = ( shift, shift );
-    return $self->__append_last_stash(@_) if $self->is_line_continued(@_);
-    my $last_line = $self->__pop_last_line();
-    $orig->( $self, $last_line ) if defined $last_line;
+    return $self->__append_last_stash(@_) if $self->__more_may_join_last(@_);
+    $self->_set_this_line( $self->__pop_last_line );
+    $orig->( $self, $self->this_line );
     $self->__append_last_stash(@_);
+}
+
+sub __more_may_join_last {
+    my $self = shift;
+    $self->is_line_continued(@_) or not defined $self->_joined_line;
 }
 
 has _joined_line => (
