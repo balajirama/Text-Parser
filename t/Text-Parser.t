@@ -22,9 +22,10 @@ lives_ok { $pars = Text::Parser->new( multiline_type => undef ); }
 'Improve coverage';
 $pars = Text::Parser->new();
 isa_ok( $pars, 'Text::Parser' );
-is( $pars->setting(),         undef, 'When no setting is called' );
-is( $pars->setting('balaji'), undef, 'balaji is not a setting at all' );
-is( $pars->filename(),        undef, 'No filename specified so far' );
+is( $pars->setting(),             undef, 'When no setting is called' );
+is( $pars->setting('balaji'),     undef, 'balaji is not a setting at all' );
+is( $pars->setting('auto_chomp'), 0,     'auto_chomp is not a set' );
+is( $pars->filename(),            undef, 'No filename specified so far' );
 
 is( $pars->multiline_type, undef, 'Not a multi-line parser' );
 is( $pars->multiline_type('join_next'),
@@ -51,11 +52,9 @@ throws_ok { $pars->filename( { a => 'b' } ); }
 'Moose::Exception::ValidationFailedForInlineTypeConstraint',
     'filename() will take only string as input';
 throws_ok { $pars->filename('') }
-'Text::Parser::Errors::InvalidFilename',
-    'Empty filename string';
+'Text::Parser::Errors::InvalidFilename', 'Empty filename string';
 throws_ok { $pars->filename($fname) }
-'Text::Parser::Errors::InvalidFilename',
-    'No file by this name';
+'Text::Parser::Errors::InvalidFilename', 'No file by this name';
 throws_ok { $pars->read( bless {}, 'Something' ); }
 'Moose::Exception::ValidationFailedForInlineTypeConstraint',
     'filehandle() will take only a GLOB or FileHandle input';
@@ -81,8 +80,7 @@ SKIP: {
     close OFILE;
     chmod 0200, 't/unreadable.txt';
     throws_ok { $pars->filename('t/unreadable.txt'); }
-    'Text::Parser::Errors::FileNotReadable',
-        'This file cannot be read';
+    'Text::Parser::Errors::FileNotReadable', 'This file cannot be read';
     is( $pars->filename(), undef, 'Still no file has been read so far' );
     unlink 't/unreadable.txt';
 }
