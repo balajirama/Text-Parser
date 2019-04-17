@@ -94,13 +94,11 @@ Since the handling of exceptions depends on their type, a dispatch handler routi
 Takes optional attributes in the form of a hash. See section L<ATTRIBUTES|/ATTRIBUTES> for a list of the attributes and their description. Throws an exception if you use wrong inputs to create an object.
 
     my $parser = Text::Parser->new(
-        auto_chomp      => 0,           # 0 (Default) or 1
-                                        #   - automatically chomp lines
-        multiline_type  => 'join_last', # 'join_last'|'join_next'|undef ; Default: undef
-        auto_trim       => 'b',         # 'l' (left), 'r' (right), 'b' (both), 'n' (neither) (Default)
-                                        #   - automatically trim leading and trailing whitespaces
-        auto_split      => 1,           # Auto-splits lines into fields
-        FS => qr/\s+/,     # Used by auto_split feature above. Default: qr/\s+/
+        auto_chomp      => 0,
+        multiline_type  => 'join_last',
+        auto_trim       => 'b',
+        auto_split      => 1,
+        FS              => qr/\s+/,
     );
 
 This C<$parser> variable will be used in all examples below.
@@ -111,13 +109,13 @@ The attributes below can be used as options to the C<new> constructor. Each attr
 
 =head2 auto_chomp
 
-Read-write attribute. Takes a boolean value as parameter. Defaults to 0.
+Read-write attribute. Takes a boolean value as parameter. Defaults to C<0>.
 
     print "Parser will chomp lines automatically\n" if $parser->auto_chomp;
 
 =head2 auto_split
 
-Read-only attribute that can be set only during object construction. Defaults to 0. This attribute indicates if the parser will automatically split every line into fields.
+A set-once-only attribute that can be set only during object construction. Defaults to C<0>. This attribute indicates if the parser will automatically split every line into fields.
 
 If it is set to a true value, each line will be split into fields. Six L<limited access methods|/"LIMITED ACCESS METHODS AVAILABLE IN SUBCLASSES"> (like C<L<field|Text::Parser::AutoSplit/field>>, C<L<find_field|Text::Parser::AutoSplit/find_field>>, etc.) become accessible from within the C<L<save_record|/save_record>> method implemented in the derived class. These methods are documented in L<Text::Parser::AutoSplit>.
 
@@ -135,71 +133,21 @@ The name for this attribute comes from the built-in C<FS> variable in the popula
 
     $parser->FS( qr/\s+\(*|\s*\)/ );
 
-You I<can> change the field separator in the course of parsing a file. But the changes would take effect only on the next line. For example:
-
-    package MyParser;
-
-    use Moose;
-    extends 'Text::Parser';
-
-    sub BUILDARGS {
-        return {
-            auto_split => 1,
-            auto_chomp => 1,
-            auto_trim => 'b'
-        };
-    }
-
-    sub save_record {
-        my $self = shift;
-        $self->FS(qr/[,]/) if $self->field(0) eq 'CSV_BELOW';
-        $self->SUPER::save_record([$self->fields]);
-    }
-
-    package main;
-
-    use Data::Dumper 'Dumper';
-
-    my $parser = MyParser->new();
-    $parser->read('input.txt');
-    print Dumper([$parser->get_records]), "\n";
-
-Now, let us say you have a file F<input.txt> with the following content:
-
-    Some information in this file
-    CSV_BELOW
-    col1,col2,col3
-    data1,1,1
-    data2,2,4
-    data3,3,9
-
-Then the output will be:
-
-    $VAR1 = [
-        [ 'Some', 'information', 'in', 'this', 'file' ],
-        [ 'CSV_BELOW' ], 
-        [ 'col1', 'col2', 'col3' ], 
-        [ 'data1', '1', '1' ], 
-        [ 'data2', '2', '4' ], 
-        [ 'data3', '3', '9' ]
-    ]; 
+You I<can> change the field separator in the course of parsing a file. But the changes would take effect only on the next line.
 
 =head2 multiline_type
 
-Read-write attribute. Takes a value that is either C<undef> or one of strings C<'join_next'> or C<'join_last'>.
+Takes a value that is either C<undef> or one of strings C<'join_next'> or C<'join_last'>. C<undef> is the default value. If it is one of the last two values, it cannot be set back to C<undef> again.
+
+    $parser->multiline_type(undef);
+    $parser->multiline_type('join_next');
 
     my $mult = $parser->multiline_type;
     print "Parser is a multi-line parser of type: $mult" if defined $mult;
 
-    $parser->multiline_type(undef);
-                        # setting this to undef will throw an exception if it was previously set to a real value like
-                        # 'join_next' or 'join_last'. In this case, since $parser was of 'join_last' type, there will
-                        # be an exception
-    $parser->multiline_type('join_next');
-                        # Changes the parser to a multiline parser of type 'join_next'
-                        # This is okay.
+If your text format allows users to break up what should be on a single line into another line using a continuation character, you need to use the C<multiline_type> option.
 
-If your text format allows users to break up what should be on a single line into another line using a continuation character, you need to use the C<multiline_type> option. The option tells the parser to join lines back into a single line, so that your C<save_record> method doesn't have to bother about joining the continued lines, stripping any continuation characters, line-feeds etc.
+The option tells the parser to join lines back into a single line, so that your C<save_record> method doesn't have to bother about joining the continued lines, stripping any continuation characters, line-feeds etc.
 
 =over 4
 
