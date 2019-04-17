@@ -580,15 +580,7 @@ This method should be re-defined by the derived class and is used only for multi
 
 =multiline_method is_line_continued
 
-This method should be re-defined in the derived class. Takes a string argument and returns a boolean indicating if the line is continued or not. An example implementation would look like this:
-
-    sub is_line_continued {
-        my ($self, $line) = @_;
-        chomp $line;
-        $line =~ /\\\s*$/;
-    }
-
-The above example method checks if a line is being continued by using a back-slash character (C<\>).
+This method should be re-defined in the derived class. Takes a string argument and returns a boolean indicating if the line is continued or not. See L<Text::Parser::Multiline> for more on this.
 
 The default method provided in this class will return as follows:
 
@@ -611,14 +603,7 @@ sub is_line_continued {
 
 =multiline_method join_last_line
 
-This method should be redefined in a subclass. The method is expected to take two string arguments and joins them while removing any continuation characters. The default implementation just concatenates two strings and returns the result without removing anything.
-
-    sub join_last_line {
-        my $self = shift;
-        my ($last, $line) = (shift, shift);
-        $last =~ s/\\\s*$//g;
-        return "$last $line";
-    }
+This method should be re-defined in a subclass. The method is expected to take two string arguments and joins them while removing any continuation characters. The default implementation just concatenates two strings and returns the result without removing anything. See L<Text::Parser::Multiline> for more on this.
 
 =cut
 

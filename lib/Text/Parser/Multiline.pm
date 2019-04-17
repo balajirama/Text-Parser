@@ -49,16 +49,33 @@ These methods must be implemented by the developer. There are default implementa
 
 =head2 C<< $parser->is_line_continued($line) >>
 
-Takes a string argument as input. Should returns a boolean that indicates if the current line is continued from the previous line, or is continued on the next line (depending on the type of multi-line text format). If parser is a C<'join_next'> parser, then a true value from this routine means that some data is expected to be in the I<next> line which is expected to be joined with this line. If instead the parser is C<'join_last'>, then a true value from this method would mean that the current line is a continuation from the I<previous> line, and the current line should be appended to the content of the previous line.
+Takes a string argument as input. Should return a boolean that indicates if the current line is continued. If parser is a C<'join_next'> parser, then a true value from this routine means that some data is expected to be in the I<next> line which is expected to be joined with this line. If instead the parser is C<'join_last'>, then a true value from this method would mean that the current line is a continuation from the I<previous> line, and the current line should be appended to the content of the previous line. An example implementation for a subclass would look like this:
+
+    sub is_line_continued {
+        my ($self, $line) = @_;
+        chomp $line;
+        $line =~ /\\\s*$/;
+    }
+
+The above example method checks if a line is being continued by using a back-slash character (C<\>).
 
 =head2 C<< $parser->join_last_line($last_line, $current_line) >>
 
 Takes two string arguments. The first is the line previously read which is expected to be continued on this line. You can be certain that the two strings will not be C<undef>. Your method should return a string that has stripped any continuation characters, and joined the current line with the previous line.
 
+Here is an example implementation that joins the previous line terminated by a back-slash (C<\>) with the present line:
+
+    sub join_last_line {
+        my $self = shift;
+        my ($last, $line) = (shift, shift);
+        $last =~ s/\\\s*$//g;
+        return "$last $line";
+    }
+
 =cut
 
 requires(
-    qw(save_record multiline_type lines_parsed has_aborted __read_file_handle),
+    qw(save_record multiline_type lines_parsed __read_file_handle),
     qw(join_last_line is_line_continued _set_this_line)
 );
 
@@ -125,16 +142,16 @@ sub __join_next_proc {
     my ( $orig, $self ) = ( shift, shift );
     $self->__append_last_stash(@_);
     return if $self->is_line_continued(@_);
-    $orig->( $self, $self->__pop_last_line() );
+    $self->_set_this_line( $self->__pop_last_line() );
+    $orig->( $self, $self->this_line() );
 }
 
 sub __join_last_proc {
     my ( $orig, $self ) = ( shift, shift );
-    return $self->__append_last_stash(@_)
-        if $self->is_line_continued(@_);
+    return $self->__append_last_stash(@_) if $self->is_line_continued(@_);
     my $last_line = $self->__pop_last_line();
     $orig->( $self, $last_line ) if defined $last_line;
-    $self->__save_this_line( $orig, @_ );
+    $self->__append_last_stash(@_);
 }
 
 has _joined_line => (
@@ -144,23 +161,11 @@ has _joined_line => (
     clearer => '_delete_joined_line',
 );
 
-sub __save_this_line {
-    my ( $self, $orig ) = ( shift, shift );
-    return $self->__append_last_stash(@_)
-        if not $self->has_aborted;
-}
-
 sub __append_last_stash {
     my ( $self, $line ) = @_;
-    my $last_line = $self->__pop_last_line();
-    $last_line = $self->__strip_append_line( $line, $last_line );
-    $self->_joined_line($last_line);
-}
-
-sub __strip_append_line {
-    my ( $self, $line, $last ) = ( shift, shift, shift );
-    return $line if not defined $last;
-    return $self->join_last_line( $last, $line );
+    return $self->_joined_line($line) if not defined $self->_joined_line;
+    my $joined_line = $self->join_last_line( $self->__pop_last_line, $line );
+    $self->_joined_line($joined_line);
 }
 
 sub __pop_last_line {
