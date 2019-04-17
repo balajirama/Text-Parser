@@ -131,7 +131,11 @@ has auto_chomp => (
 
 =attr auto_split
 
-Read-only attribute that can be set only during object construction. Defaults to 0. This attribute indicates if the parser will automatically split every line into fields. If it is set to a true value, each line will be split into fields which can be accessed through special methods that become available. These methods are documented in L<Text::Parser::AutoSplit>. The field separator can be set using another attribute named C<'FS'>.
+Read-only attribute that can be set only during object construction. Defaults to 0. This attribute indicates if the parser will automatically split every line into fields.
+
+If it is set to a true value, each line will be split into fields which can be accessed through special methods (like C<L<field|Text::Parser::AutoSplit/field>>, C<L<find_field|Text::Parser::AutoSplit/find_field>>, etc.). The developer may call these methods only from the C<L<save_record|/save_record>> method of their derived class. These methods are documented in L<Text::Parser::AutoSplit>.
+
+The field separator can be set using another attribute named C<'FS'>.
 
 =cut
 
@@ -375,6 +379,7 @@ sub __parse_line {
 
 sub __try_to_parse {
     my ( $self, $line ) = @_;
+    $self->_set_this_line($line);
     try { $self->save_record($line); }
     catch { die $_; };
 }
@@ -490,11 +495,15 @@ has lines_parsed => (
     }
 );
 
+=head1 OVERRIDE IN SUBCLASS
+
+These methods are not expected to be called. Instead they are meant to be overridden in a subclass.
+
 =inherit save_record
 
 Takes exactly one argument and that is saved as a record. Additional arguments are ignored. If no arguments are passed, then C<undef> is stored as a record.
 
-In an application that uses a text parser, you will most-likely never call this method directly. It is automatically called within C<L<read|/read>> for each line. In this base class C<Text::Parser>, C<save_record> is simply called with a string containing the raw line of text ; i.e. the line of text will not be C<chomp>ed or modified in any way (unless of course the C<auto_chomp> attribute is turned on). L<Here|/"Example 1 : A simple CSV Parser"> is a basic example.
+It is automatically called within C<L<read|/read>> for each line. In this base class C<Text::Parser>, C<save_record> is simply called with a string containing the raw line of text ; i.e. the line of text will not be C<chomp>ed or modified in any way (unless of course the C<auto_chomp> attribute is turned on). L<Here|/"Example 1 : A simple CSV Parser"> is a basic example.
 
 Derived classes can decide to store records in a different form. A derived class could, for example, store the records in the form of hash references (so that when you use C<L<get_records|/get_records>>, you'd get an array of hashes), or maybe even another array reference (so when you use C<get_records> you'd get an array of arrays). The L<CSV parser example|/"Example 1 : A simple CSV Parser"> does the latter.
 
@@ -504,6 +513,15 @@ sub save_record {
     my ( $self, $record ) = ( shift, shift );
     $self->push_records($record);
 }
+
+has _current_line => (
+    is       => 'ro',
+    isa      => 'Str|Undef',
+    init_arg => undef,
+    writer   => '_set_this_line',
+    reader   => 'this_line',
+    default  => undef,
+);
 
 =inherit line_auto_manip
 
@@ -651,6 +669,22 @@ sub is_line_continued {
         and $self->lines_parsed() == 1;
     return 1;
 }
+
+=inherit ADDITIONAL METHODS AVAILABLE
+
+While these methods are being overridden, the developer can expect to be able to use some additional methods.
+
+=head3 this_line
+
+This is a read-only method and returns a string containing the current line being parsed.
+
+    if ($self->this_line() =~ /pattern/) {
+        ## ...
+    }
+
+=head3 Methods available on auto-split
+
+A set of methods become available when the C<auto_split> attribute is set. These methods are described in greater detail in L<Text::Parser::AutoSplit>.
 
 =multiline_method join_last_line
 

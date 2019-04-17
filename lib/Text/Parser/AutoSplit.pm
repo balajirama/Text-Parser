@@ -10,6 +10,7 @@ our (@EXPORT_OK) = ();
 our (@EXPORT)    = ();
 use Moose::Role;
 use MooseX::CoverableModifiers;
+use String::Util qw(trim);
 
 =head1 SYNOPSIS
 
@@ -45,12 +46,13 @@ C<Text::Parser::AutoSplit> is a role that gets automatically composed into an ob
 =cut
 
 has _fields => (
-    is       => 'rw',
+    is       => 'ro',
     isa      => 'ArrayRef[Str]',
     lazy     => 1,
     init_arg => undef,
     default  => sub { [] },
     traits   => ['Array'],
+    writer   => '_set_fields',
     handles  => {
         'NF'               => 'count',
         'field'            => 'get',
@@ -61,12 +63,17 @@ has _fields => (
     },
 );
 
-requires 'save_record', 'FS';
+requires 'save_record', 'FS', '__try_to_parse';
 
 around save_record => sub {
-    my ( $orig, $self, $line ) = ( shift, shift, shift );
-    $self->_fields( [ split $self->FS, $line ] );
-    $orig->( $self, $line );
+    my ( $orig, $self ) = ( shift, shift );
+    $self->_set_fields( [ split $self->FS, trim( $_[0] ) ] );
+    $orig->( $self, @_ );
+};
+
+after __try_to_parse => sub {
+    my $self = shift;
+    $self->_set_fields( [] );
 };
 
 =head1 METHODS AVAILABLE ON AUTO-SPLIT

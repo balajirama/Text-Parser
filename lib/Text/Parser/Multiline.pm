@@ -57,7 +57,7 @@ Takes two string arguments. The first is the line previously read which is expec
 
 =cut
 
-requires( qw(save_record setting lines_parsed has_aborted __read_file_handle),
+requires( qw(save_record multiline_type lines_parsed has_aborted __read_file_handle),
     qw(join_last_line is_line_continued) );
 
 use Exception::Class (
@@ -85,13 +85,13 @@ my %save_record_proc = (
 sub __around_save_record {
     my ( $orig, $self ) = ( shift, shift );
     $orig_save_record = $orig;
-    my $type = $self->setting('multiline_type');
+    my $type = $self->multiline_type;
     $save_record_proc{$type}->( $orig, $self, @_ );
 }
 
 sub __around_is_line_continued {
     my ( $orig, $self ) = ( shift, shift );
-    my $type = $self->setting('multiline_type');
+    my $type = $self->multiline_type;
     return $orig->( $self, @_ ) if $type eq 'join_next';
     __around_is_line_part_of_last( $orig, $self, @_ );
 }
@@ -106,7 +106,7 @@ sub __around_is_line_part_of_last {
 sub __after__read_file_handle {
     my $self = shift;
     return $self->__after_at_eof()
-        if $self->setting('multiline_type') eq 'join_next';
+        if $self->multiline_type eq 'join_next';
     my $last_line = $self->__pop_last_line();
     $orig_save_record->( $self, $last_line ) if defined $last_line;
 }
