@@ -109,25 +109,19 @@ sub __around_save_record {
 }
 
 sub __around_is_line_continued {
-    my ( $orig, $self ) = ( shift, shift );
-    my $type = $self->multiline_type;
-    return $orig->( $self, @_ ) if $type eq 'join_next';
-    __around_is_line_part_of_last( $orig, $self, @_ );
-}
-
-sub __around_is_line_part_of_last {
-    my ( $orig, $self ) = ( shift, shift );
-    return 0 if not $orig->( $self, @_ );
+    my ( $orig, $self, $line ) = ( shift, shift, shift );
+    return $orig->( $self, $line ) if $self->multiline_type eq 'join_next';
+    return 0 if not $orig->( $self, $line );
     return 1 if $self->lines_parsed() > 1;
-    die unexpected_cont( line => $_[0] );
+    die unexpected_cont( line => $line );
 }
 
 sub __after__read_file_handle {
     my $self = shift;
     return $self->__test_safe_eof()
         if $self->multiline_type eq 'join_next';
-    my $last_line = $self->__pop_last_line();
-    $orig_save_record->( $self, $last_line ) if defined $last_line;
+    $self->_set_this_line( $self->__pop_last_line );
+    $orig_save_record->( $self, $self->this_line );
 }
 
 sub __test_safe_eof {
