@@ -133,9 +133,7 @@ has auto_chomp => (
 
 Read-only attribute that can be set only during object construction. Defaults to 0. This attribute indicates if the parser will automatically split every line into fields.
 
-If it is set to a true value, each line will be split into fields which can be accessed through special methods (like C<L<field|Text::Parser::AutoSplit/field>>, C<L<find_field|Text::Parser::AutoSplit/find_field>>, etc.). The developer may call these methods only from the C<L<save_record|/save_record>> method of their derived class. These methods are documented in L<Text::Parser::AutoSplit>.
-
-The field separator can be set using another attribute named C<'FS'>.
+If it is set to a true value, each line will be split into fields. Six L<limited access methods|/"LIMITED ACCESS METHODS AVAILABLE IN SUBCLASSES"> (like C<L<field|Text::Parser::AutoSplit/field>>, C<L<find_field|Text::Parser::AutoSplit/find_field>>, etc.) become accessible from within the C<L<save_record|/save_record>> method implemented in the derived class. These methods are documented in L<Text::Parser::AutoSplit>.
 
 =cut
 
@@ -493,7 +491,7 @@ has lines_parsed => (
 
 =head1 OVERRIDE IN SUBCLASS
 
-These methods are not expected to be called. Instead they are meant to be overridden in a subclass. While these methods are being overridden in a subclass, the developer can expect to be able to use some additional methods, called C<LIMITED ACCESS METHODS|/"LIMITED ACCESS METHODS AVAILABLE IN SUBCLASSES">.
+These methods are not expected to be called. Instead they are meant to be overridden in a subclass. While these methods are being overridden in a subclass, the developer can expect to be able to use some additional methods, called L<limited access methods|/"LIMITED ACCESS METHODS AVAILABLE IN SUBCLASSES">.
 
 =head2 LIMITED ACCESS METHODS AVAILABLE IN SUBCLASSES
 
@@ -641,7 +639,7 @@ sub last_record {
 
 =dont_touch_method push_records
 
-Don't override this method unless you know what you're doing. This method is useful if you have to copy the records from another parser. It is a general-purpose method for storing records that have been prepared before-hand. It is not supposed to be used to modify the arguments and make records (like C<L<save_record|/save_record>> does).
+This method is useful if you have to copy the records from another parser.
 
     $parser->push_records(
         $another_parser->get_records
@@ -649,11 +647,11 @@ Don't override this method unless you know what you're doing. This method is use
 
 =inherit is_line_continued
 
-This method is to be defined by the derived class and is used only for multi-line parsers. Look under L<FOR MULTI-LINE TEXT PARSING|/"FOR MULTI-LINE TEXT PARSING"> for details.
+This method should be re-defined by the derived class and is used only for multi-line parsers. Look under L<FOR MULTI-LINE TEXT PARSING|/"FOR MULTI-LINE TEXT PARSING"> for details.
 
 =multiline_method is_line_continued
 
-Takes a string argument and returns a boolean indicating of the line is continued or not. If the user defines a new text format with multi-line support, they should implement this method. An example implementation would look like this:
+This method should be re-defined in the derived class. Takes a string argument and returns a boolean indicating if the line is continued or not. An example implementation would look like this:
 
     sub is_line_continued {
         my ($self, $line) = @_;
@@ -663,9 +661,13 @@ Takes a string argument and returns a boolean indicating of the line is continue
 
 The above example method checks if a line is being continued by using a back-slash character (C<\>).
 
-The default method provided in this class will return C<0> if the parser is not a multi-line parser. If it is a multi-line parser, return value depends on the type of multiline parser. If it is of type C<'join_last'>, then it returns C<1> for all lines except the first line. This means all lines continue from the previous line (except the first line, because there is no line before that). But if it is of type C<'join_next'>, then it returns C<1> for all lines unconditionally. B<Note:> This means the parser will expect further lines, even when the last line in the text input has been read. Thus you need to have a way to indicate that there is no further continuation. This is why if you are building a trivial line-joiner, you should use the C<'join_last'> type. See L<this example|/"Trivial line-joiner">
+The default method provided in this class will return as follows:
 
-Most users would never need to use this method in their own programs, but if one is writing a parser for a specific format that supports multi-line extension, mostly they'd have to implement it.
+    multiline_type    |    Return value
+    ------------------+---------------------------------
+    undef             |         0
+    join_last         |    0 for first line, 1 otherwise
+    join_next         |         1
 
 =cut
 
@@ -680,7 +682,7 @@ sub is_line_continued {
 
 =multiline_method join_last_line
 
-This method can be overridden in multi-line text parsing. The method takes two string arguments and joins them in a way that removes the continuation character. The default implementation just concatenates two strings and returns the result without removing anything. You should redefine this method to strip any continuation characters and join the strings with any required spaces. Below is an example of a method which strips the ending back-slash continuation characters, that were detected in the C<L<is_line_continued|/is_line_continued>> method above.
+This method should be redefined in a subclass. The method is expected to take two string arguments and joins them while removing any continuation characters. The default implementation just concatenates two strings and returns the result without removing anything.
 
     sub join_last_line {
         my $self = shift;
@@ -710,14 +712,6 @@ In addition, developers can make their own exceptions. L<This example|/"Example 
 Since the handling of exceptions depends on their type, a dispatch handler routine using L<Dispatch::Class> may be used.
 
 =head1 EXAMPLES
-
-=head2 Basic principle
-
-Derived classes simply need to override one method : C<L<save_record|/save_record>>. With the help of that any arbitrary file format can be read. C<save_record> should interpret the format of the text and store it in some form by calling C<SUPER::save_record>. The C<main::> program will then use the records and create an appropriate data structure with it.
-
-Notice that the creation of a data structure is not the objective of a parser. It is simply concerned with collecting data and arranging it in a form that can be used. That's all. Data structures can be created by a different part of your program using the data collected by your parser.
-
-B<Note:> There is support for L<Moose>. So you could use C<extends 'Text::Parser'> instead of the C<use parent> pragma in these examples. The examples in this documentation will show non-L<Moose> classic Perl OO derived classes for ease of understanding. Those who know how to C<use> class automators like L<Moo>/L<Moose> should be able to follow.
 
 =head2 Example 1 : A simple CSV Parser
 
@@ -750,9 +744,9 @@ The above program reads the content of a given CSV file and prints the content o
 
 =head2 Example 2 : Error checking
 
-This class encourages the use of exceptions for error checking. Read the documentation for C<L<Exceptions>> to learn about creating, throwing, and catching exceptions in Perl 5. All of the methods of creating, throwing, and catching exceptions described in L<Exceptions> are supported.
+I<Note:> Read the documentation for C<L<Exceptions>> to learn about creating, throwing, and catching exceptions in Perl 5. All of the methods of creating, throwing, and catching exceptions described in L<Exceptions> are supported.
 
-You I<can> throw exceptions from C<save_record>, for example, when you detect a syntax error. The C<read> method will C<close> all filehandles automatically as soon as an exception is thrown. The exception will pass through to C<::main> unless you catch and handle it in your derived class.
+You I<can> throw exceptions from C<save_record> in your subclass, for example, when you detect a syntax error. The C<read> method will C<close> all filehandles automatically as soon as an exception is thrown. The exception will pass through to C<::main> unless you catch and handle it in your derived class.
 
 Here is an example showing the use of an exception to detect a syntax error in a file:
 
