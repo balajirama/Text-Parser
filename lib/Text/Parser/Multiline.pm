@@ -57,8 +57,10 @@ Takes two string arguments. The first is the line previously read which is expec
 
 =cut
 
-requires( qw(save_record multiline_type lines_parsed has_aborted __read_file_handle),
-    qw(join_last_line is_line_continued) );
+requires(
+    qw(save_record multiline_type lines_parsed has_aborted __read_file_handle),
+    qw(join_last_line is_line_continued _set_this_line)
+);
 
 use Exception::Class (
     'Text::Parser::Multiline::Error',
@@ -135,6 +137,13 @@ sub __join_last_proc {
     $self->__save_this_line( $orig, @_ );
 }
 
+has _joined_line => (
+    is      => 'rw',
+    isa     => 'Str|Undef',
+    default => undef,
+    clearer => '_delete_joined_line',
+);
+
 sub __save_this_line {
     my ( $self, $orig ) = ( shift, shift );
     return $self->__append_last_stash(@_)
@@ -145,7 +154,7 @@ sub __append_last_stash {
     my ( $self, $line ) = @_;
     my $last_line = $self->__pop_last_line();
     $last_line = $self->__strip_append_line( $line, $last_line );
-    $self->__stash_line($last_line);
+    $self->_joined_line($last_line);
 }
 
 sub __strip_append_line {
@@ -154,16 +163,10 @@ sub __strip_append_line {
     return $self->join_last_line( $last, $line );
 }
 
-sub __stash_line {
-    my $self = shift;
-    $self->{__temp_joined_line} = shift;
-}
-
 sub __pop_last_line {
-    my $self = shift;
-    return if not exists $self->{__temp_joined_line};
-    my $last_line = $self->{__temp_joined_line};
-    delete $self->{__temp_joined_line};
+    my $self      = shift;
+    my $last_line = $self->_joined_line();
+    $self->_delete_joined_line;
     return $last_line;
 }
 

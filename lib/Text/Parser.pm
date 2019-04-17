@@ -63,7 +63,7 @@ With C<Text::Parser>, developers can focus on specifying the grammar and simply 
 
 =head1 DESCRIPTION
 
-C<Text::Parser> is a format-agnostic text parsing utility class. Derived classes can specify the format-specific syntax they intend to parse.
+C<Text::Parser> is a format-agnostic text parsing base class. Derived classes can specify the format-specific syntax they intend to parse.
 
 Future versions are expected to include progress-bar support, parsing text from sockets, UTF support, or parsing from a chunk of memory.
 
