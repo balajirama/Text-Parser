@@ -63,7 +63,7 @@ has _fields => (
     },
 );
 
-requires 'save_record', 'FS', '__try_to_parse';
+requires 'save_record', 'FS', '__read_file_handle';
 
 around save_record => sub {
     my ( $orig, $self ) = ( shift, shift );
@@ -71,7 +71,7 @@ around save_record => sub {
     $orig->( $self, @_ );
 };
 
-after __try_to_parse => sub {
+after __read_file_handle => sub {
     my $self = shift;
     $self->_set_fields( [] );
 };
