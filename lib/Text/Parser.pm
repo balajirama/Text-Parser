@@ -430,19 +430,11 @@ has lines_parsed => (
 
 =head1 OVERRIDE IN SUBCLASS
 
-These methods are not expected to be called. Instead they are meant to be overridden in a subclass. While these methods are being overridden in a subclass, the developer can expect to be able to use some additional methods, called L<limited access methods|/"LIMITED ACCESS METHODS AVAILABLE IN SUBCLASSES">.
+These methods are not expected to be called. Instead they are meant to be overridden in a subclass.
 
-=head2 LIMITED ACCESS METHODS AVAILABLE IN SUBCLASSES
+=head2 Method C<this_line>
 
-B<Note:> Do NOT override these limited access methods!
-
-=head3 this_line
-
-Takes no arguments. Returns the current line being parsed.
-
-=head3 Six methods available on auto-split
-
-A set of six methods become available when the C<auto_split> attribute is set. These methods are described in greater detail in L<Text::Parser::AutoSplit>.
+While these methods are being overridden in a subclass, the developer can expect to be able to use the method C<this_line>. This method takes no arguments and returns the current line being parsed. It has a valid value only for the duration of the C<L<read|/read>> method call, and can be called in any of the methods described under L<this section|/"OVERRIDE IN SUBCLASS">.
 
 =cut
 
@@ -450,7 +442,9 @@ A set of six methods become available when the C<auto_split> attribute is set. T
 
 This method should be re-defined in the subclass. It takes exactly one argument as a record and saves it. All additional arguments are ignored. If no arguments are passed, then C<undef> is stored as a record. It is automatically called within C<L<read|/read>> for each line.
 
-Derived classes can decide to store records in a different form. A derived class could, for example, store each record as a hash reference (so that when you use C<L<get_records|/get_records>>, you'd get an array of hashes). See this L<CSV parser example|/"Example 1 : A simple CSV Parser">.
+To a developer re-defining this method six additional methods become available if the C<auto_split> attribute is set. These methods are described in greater detail in L<Text::Parser::AutoSplit>.
+
+The developer may store records as anything - string, array reference, hash reference, object of another class - whatever the developer chooses. Since the program that reads these records using C<L<get_records|/get_records>> has to interpret the records, derived classes should document the structure of their records.
 
 =cut
 
