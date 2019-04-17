@@ -295,29 +295,11 @@ The default implementation C<chomp>s lines (if C<auto_chomp> is true) and trims 
 
 If you override this method, remember that it takes a string as input and returns a string.
 
-=head2 is_line_continued
+=head2 FOR MULTI-LINE TEXT PARSING
 
 This method should be re-defined by the derived class and is used only for multi-line parsers. Look under L<FOR MULTI-LINE TEXT PARSING|/"FOR MULTI-LINE TEXT PARSING"> for details.
 
-=head1 DON'T OVERRIDE IN SUBCLASS
-
-=head2 push_records
-
-This method is useful if you have to copy the records from another parser.
-
-    $parser->push_records(
-        $another_parser->get_records
-    );
-
-=head1 FOR USE IN SUBCLASS
-
-=head2 abort_reading
-
-Takes no arguments. Returns C<1>. Never to be called in the main program. To be used only in the derived class. See L<this example|/"Example 3 : Aborting without errors">.
-
-=head1 FOR MULTI-LINE TEXT PARSING
-
-=head2 is_line_continued
+=head3 is_line_continued
 
 This method should be re-defined in the derived class. Takes a string argument and returns a boolean indicating if the line is continued or not. See L<Text::Parser::Multiline> for more on this.
 
@@ -329,9 +311,25 @@ The default method provided in this class will return as follows:
     join_last         |    0 for first line, 1 otherwise
     join_next         |         1
 
-=head2 join_last_line
+=head3 join_last_line
 
 This method should be re-defined in a subclass. The method is expected to take two string arguments and joins them while removing any continuation characters. The default implementation just concatenates two strings and returns the result without removing anything. See L<Text::Parser::Multiline> for more on this.
+
+=head1 FOR USE IN SUBCLASS
+
+=head2 abort_reading
+
+Takes no arguments. Returns C<1>. Never to be called in the main program. To be used only in the derived class. See L<this example|/"Example 3 : Aborting without errors">.
+
+=head1 DON'T OVERRIDE IN SUBCLASS
+
+=head2 push_records
+
+This method is useful if you have to copy the records from another parser.
+
+    $parser->push_records(
+        $another_parser->get_records
+    );
 
 =head1 DEPRECATED
 

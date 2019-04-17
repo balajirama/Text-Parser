@@ -574,11 +574,11 @@ This method is useful if you have to copy the records from another parser.
         $another_parser->get_records
     );
 
-=inherit is_line_continued
+=inherit FOR MULTI-LINE TEXT PARSING
 
 This method should be re-defined by the derived class and is used only for multi-line parsers. Look under L<FOR MULTI-LINE TEXT PARSING|/"FOR MULTI-LINE TEXT PARSING"> for details.
 
-=multiline_method is_line_continued
+=head3 is_line_continued
 
 This method should be re-defined in the derived class. Takes a string argument and returns a boolean indicating if the line is continued or not. See L<Text::Parser::Multiline> for more on this.
 
@@ -601,7 +601,7 @@ sub is_line_continued {
     return 1;
 }
 
-=multiline_method join_last_line
+=head3 join_last_line
 
 This method should be re-defined in a subclass. The method is expected to take two string arguments and joins them while removing any continuation characters. The default implementation just concatenates two strings and returns the result without removing anything. See L<Text::Parser::Multiline> for more on this.
 
