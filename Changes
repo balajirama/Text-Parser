@@ -1,6 +1,9 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+  - Add a test to ensure that auto_split works correctly even without auto_trim (Issue: #18)
+  - Add a new method named this_line
+  - Remove usage of setting method from Multiline.pm
 
 0.917     2019-04-15 22:56:49-07:00 America/Los_Angeles
   - Fixed broken link in pod as reported by CPANTS. #15 (by M Anwar)

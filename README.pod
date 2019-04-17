@@ -63,17 +63,29 @@ With C<Text::Parser>, developers can focus on specifying the grammar and simply 
 
 =head1 DESCRIPTION
 
-C<Text::Parser> is a format-agnostic text parsing utility class. Derived classes can specify the format-specific syntax they intend to parse. Usually just methods needs to be overridden to do this. But of course derived classes can create any additional attributes or methods needed to interpret the fomart and extract records.
+C<Text::Parser> is a format-agnostic text parsing utility class. Derived classes can specify the format-specific syntax they intend to parse.
 
-Future versions are expected to include progress-bar support, parsing text from sockets, UTF support, or parsing from a chunk of memory. All these software features are text-format independent and should be re-used. Derived classes of C<Text::Parser> will be able to take advantage of these features seamlessly, while the base class handles the "mundane" details.
+Future versions are expected to include progress-bar support, parsing text from sockets, UTF support, or parsing from a chunk of memory.
 
 =head1 ERRORS AND EXCEPTIONS
 
-This class adopts the principle that errors should be indicated with exceptions, and not a special return code or an error code. Several exceptions described in L<Text::Parser::Errors> could be thrown when using C<Text::Parser>. All these are derived from C<Text::Parser::Errors::GenericError>. Since this is a L<Moose> class, exceptions derived from C<L<Moose::Exception>> will be thrown when methods of this class are used improperly.
+Several exceptions described in L<Text::Parser::Errors> could be thrown when using C<Text::Parser>. These fall into two broad categories:
 
-In addition to these two types of exceptions, the developer can make her own exceptions. L<This example|/"Example 2 : Error checking"> shows how she could create her own exceptions. We recommend L<Syntax::Keyword::Try> (or L<Try::Tiny> if you can't use that) to catch exceptions.
+=over 4
 
-Since the handling of exceptions depends on their type, one could optionally build a handler routine using L<Dispatch::Class>.
+=item *
+
+Exceptions thrown by C<Text::Parser> itself. All these are derived from C<Text::Parser::Errors::GenericError>.
+
+=item *
+
+Exceptions derived from C<L<Moose::Exception>> thrown when methods of this class are used improperly.
+
+=back
+
+In addition, developers can make their own exceptions. L<This example|/"Example 2 : Error checking"> shows this.
+
+Since the handling of exceptions depends on their type, a dispatch handler routine using L<Dispatch::Class> may be used.
 
 =head1 CONSTRUCTOR
 
@@ -247,10 +259,6 @@ When you do read a new file name or file handle with this method, you will lose 
 
 B<Note:> To extend the class to other file formats, override C<L<save_record|/save_record>> instead of this one.
 
-=head3 Future Enhancement
-
-I<At present the C<read> method takes only two possible inputs argument types, either a file name, or a file handle. In future this may be enhanced to read from sockets, subroutines, or even just a block of memory (a string reference). Suggestions for other forms of input are welcome.>
-
 =head2 filename
 
 Takes zero or one string argument containing the name of a file. Returns the name of the file that was last opened if any. Returns C<undef> if no file has been opened.
@@ -327,7 +335,17 @@ Takes no arguments and returns the last saved record. Leaves the saved records u
 
 =head1 OVERRIDE IN SUBCLASS
 
-These methods are not expected to be called. Instead they are meant to be overridden in a subclass.
+These methods are not expected to be called. Instead they are meant to be overridden in a subclass. While these methods are being overridden in a subclass, the developer can expect to be able to use some additional methods, called C<LIMITED ACCESS METHODS|/"LIMITED ACCESS METHODS AVAILABLE IN SUBCLASSES">.
+
+=head2 LIMITED ACCESS METHODS AVAILABLE IN SUBCLASSES
+
+=head3 this_line
+
+Takes no arguments. Returns the current line being parsed.
+
+=head3 Six methods available on auto-split
+
+A set of six methods become available when the C<auto_split> attribute is set. These methods are described in greater detail in L<Text::Parser::AutoSplit>.
 
 =head2 save_record
 
@@ -348,22 +366,6 @@ If you override this method, remember that it takes a string as input and return
 =head2 is_line_continued
 
 This method is to be defined by the derived class and is used only for multi-line parsers. Look under L<FOR MULTI-LINE TEXT PARSING|/"FOR MULTI-LINE TEXT PARSING"> for details.
-
-=head2 ADDITIONAL METHODS AVAILABLE
-
-While these methods are being overridden, the developer can expect to be able to use some additional methods.
-
-=head3 this_line
-
-This is a read-only method and returns a string containing the current line being parsed.
-
-    if ($self->this_line() =~ /pattern/) {
-        ## ...
-    }
-
-=head3 Methods available on auto-split
-
-A set of methods become available when the C<auto_split> attribute is set. These methods are described in greater detail in L<Text::Parser::AutoSplit>.
 
 =head1 DON'T OVERRIDE IN SUBCLASS
 
