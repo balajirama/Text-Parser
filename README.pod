@@ -199,9 +199,7 @@ Read-write attribute. Takes a value that is either C<undef> or one of strings C<
                         # Changes the parser to a multiline parser of type 'join_next'
                         # This is okay.
 
-=head3 What value should I choose?
-
-If your text format allows users to break up what should be on a single line into another line using a continuation character, you need to use the C<multiline_type> option. The option tells the parser to join lines back into a single line, so that your C<save_record> method doesn't have to bother about joining the continued lines, stripping any continuation characters, line-feeds etc. There are two variations in this:
+If your text format allows users to break up what should be on a single line into another line using a continuation character, you need to use the C<multiline_type> option. The option tells the parser to join lines back into a single line, so that your C<save_record> method doesn't have to bother about joining the continued lines, stripping any continuation characters, line-feeds etc.
 
 =over 4
 
@@ -211,19 +209,19 @@ If your format allows something like a trailing back-slash or some other charact
 
 =item *
 
-If your format allows some character to indicate that text on the current line is part of the I<B<last>> line, then choose C<join_last>. See L<this simple SPICE line-joiner|/"Simple SPICE line joiner"> as an example. B<Note:> If you have no continuation character, but you want to just join all the lines into one single line and then call C<save_record> only once for the whole text block, then use C<join_last>. See L<this trivial line-joiner|/"Trivial line-joiner">.
+If your format allows some character to indicate that text on the current line is part of the I<B<last>> line, then choose C<join_last>. See L<this simple SPICE line-joiner|/"Simple SPICE line joiner"> as an example. B<Note:> If you have no continuation character, but you want to just join all the lines into one single line, then use C<join_last>. See L<this trivial line-joiner|/"Trivial line-joiner">.
+
+=item *
+
+If you want to "slurp" a file into a single large string, without any continuation characters, you must use the C<join_last> multi-line type.
 
 =back
-
-Remember that C<join_next> multi-line parsers will blindly look for input to be continued on the next line, even if C<EOF> has been reached. This means, if you want to "slurp" a file into a single large string, without any continuation characters, you must use the C<join_last> multi-line type.
 
 =head1 METHODS
 
 =head2 read
 
-Takes zero or one argument which could be a string containing the name of the file, or a filehandle reference (a C<GLOB>) like C<\*STDIN> or an object of the C<L<FileHandle>> class. Throws an exception if filename/C<GLOB> provided is either non-existent or cannot be read for any reason.
-
-B<Note:> Normally if you provide the C<GLOB> of a file opened for write, some Operating Systems allow reading from it too, and some don't. Read the documentation for C<L<filehandle|/filehandle>> for more on this.
+Takes an optional argument, either a string containing the name of the file, or a filehandle reference (a C<GLOB>) like C<\*STDIN> or an object of the C<L<FileHandle>> class.
 
     $parser->read($filename);
 
@@ -235,7 +233,7 @@ B<Note:> Normally if you provide the C<GLOB> of a file opened for write, some Op
     $parser->filehandle(\*STDIN);
     $parser->read();
 
-Returns once all records have been read or if an exception is thrown for any parsing errors, or if reading has been aborted with the C<L<abort_reading|/abort_reading>> method.
+Returns once all records have been read or if an exception is thrown, or if reading has been aborted with the C<L<abort_reading|/abort_reading>> method.
 
 If you provide a filename as input, the function will handle all C<open> and C<close> operations on files even if any exception is thrown, or if the reading has been aborted. But if you pass a file handle C<GLOB> or C<FileHandle> object instead, then the file handle won't be closed and it will be the responsibility of the calling program to close the filehandle.
 
@@ -247,23 +245,15 @@ If you provide a filename as input, the function will handle all C<open> and C<c
     # Will not close MYFH and it is the respo
     close MYFH;
 
-When you do read a new file name or file handle with this method, you will lose all the records stored from the previous read operation. So this means that if you want to read a different file with the same parser object, (unless you don't care about the records from the last file you read) you should use the C<L<get_records|/get_records>> method to retrieve all the read records before parsing a new file. So all those calls to C<read> in the example above were parsing three different files, and each successive call overwrote the records from the previous call.
-
-    $parser->read($file1);
-    my (@records) = $parser->get_records();
-
-    $parser->read(\*STDIN);
-    my (@stdin) = $parser->get_records();
-
-B<Note:> To extend the class to other file formats, override C<L<save_record|/save_record>> instead of this one.
+B<Note:> To extend the class to other file formats, override C<L<save_record|/save_record>>.
 
 =head2 filename
 
-Takes zero or one string argument containing the name of a file. Returns the name of the file that was last opened if any. Returns C<undef> if no file has been opened.
+Takes an optional string argument containing the name of a file. Returns the name of the file that was last opened if any. Returns C<undef> if no file has been opened.
 
     print "Last read ", $parser->filename, "\n";
 
-The file name is "persistent" in the object. Meaning, even after you have called C<L<read|/read>> once, it still remembers the file name. So you can do this:
+The file name is "persistent" in the object. Meaning, that the C<filename> method remembers the last file that was C<L<read|/read>>.
 
     $parser->read(shift @ARGV);
     print $parser->filename(), ":\n",
@@ -272,18 +262,18 @@ The file name is "persistent" in the object. Meaning, even after you have called
           $parser->get_records(),
           "\n";
 
-But if you do a C<read> with a filehandle as argument, you'll see that the last filename is lost - which makes sense.
+A C<read> call with a filehandle, will reset last file name.
 
     $parser->read(\*MYFH);
     print "Last file name is lost\n" if not defined $parser->filename();
 
 =head2 filehandle
 
-Takes zero or one argument that must be either a filehandle C<GLOB> (such as C<\*STDIN>) or an object of the C<FileHandle> class. The method saves it for future a C<L<read|/read>> call. Returns the filehandle last saved, or C<undef> if none was saved. Remember that after a successful C<read> call, filehandles are lost.
+Takes an optional argument, that is a filehandle C<GLOB> (such as C<\*STDIN>) or an object of the C<FileHandle> class. Returns the filehandle last saved, or C<undef> if none was saved.
 
     my $fh = $parser->filehandle();
 
-Like in the case of C<L<filename|/filename>> method, if after you C<read> with a filehandle, you call C<read> again, this time with a file name, the last filehandle is lost.
+Like in the case of C<L<filename|/filename>> method, C<filehandle> is also "persistent" and remembers previous state even after C<read>.
 
     my $lastfh = $parser->filehandle();
     ## Will return STDOUT
@@ -294,13 +284,11 @@ Like in the case of C<L<filename|/filename>> method, if after you C<read> with a
 
 =head2 lines_parsed
 
-Takes no arguments. Returns the number of lines last parsed. A line is reckoned when the C<\n> character is encountered.
+Takes no arguments. Returns the number of lines last parsed.
 
     print $parser->lines_parsed, " lines were parsed\n";
 
-The value is auto-updated during the execution of C<L<read|/read>>. See L<this example|/"Example 2 : Error checking"> of how this can be used in derived classes.
-
-Again the information in this is "persistent". But you can also be assured that every time you call C<read>, the value be auto-reset before parsing.
+Every call of C<read>, causes the value to be auto-reset before parsing a new file.
 
 =head2 get_records
 
@@ -347,11 +335,9 @@ A set of six methods become available when the C<auto_split> attribute is set. T
 
 =head2 save_record
 
-Takes exactly one argument and that is saved as a record. Additional arguments are ignored. If no arguments are passed, then C<undef> is stored as a record.
+This method should be re-defined in the subclass. It takes exactly one argument as a record and saves it. All additional arguments are ignored. If no arguments are passed, then C<undef> is stored as a record. It is automatically called within C<L<read|/read>> for each line.
 
-It is automatically called within C<L<read|/read>> for each line. In this base class C<Text::Parser>, C<save_record> is simply called with a string containing the raw line of text ; i.e. the line of text will not be C<chomp>ed or modified in any way (unless of course the C<auto_chomp> attribute is turned on). L<Here|/"Example 1 : A simple CSV Parser"> is a basic example.
-
-Derived classes can decide to store records in a different form. A derived class could, for example, store the records in the form of hash references (so that when you use C<L<get_records|/get_records>>, you'd get an array of hashes), or maybe even another array reference (so when you use C<get_records> you'd get an array of arrays). The L<CSV parser example|/"Example 1 : A simple CSV Parser"> does the latter.
+Derived classes can decide to store records in a different form. A derived class could, for example, store each record as a hash reference (so that when you use C<L<get_records|/get_records>>, you'd get an array of hashes). See this L<CSV parser example|/"Example 1 : A simple CSV Parser">.
 
 =head2 line_auto_manip
 
@@ -379,9 +365,7 @@ This method is useful if you have to copy the records from another parser.
 
 =head2 abort_reading
 
-Takes no arguments. Returns C<1>. You will probably never call this method in your main program.
-
-This method is usually used only in the derived class. See L<this example|/"Example 3 : Aborting without errors">.
+Takes no arguments. Returns C<1>. Never to be called in the main program. To be used only in the derived class. See L<this example|/"Example 3 : Aborting without errors">.
 
 =head1 FOR MULTI-LINE TEXT PARSING
 
