@@ -78,11 +78,11 @@ after __try_to_parse => sub {
 
 =head1 METHODS AVAILABLE ON AUTO-SPLIT
 
-These methods become available when C<auto_split> attribute is true. You'll get a runtime error if you try to use them otherwise. They would be most likely used inside your own implementation of C<L<save_record|Text::Parser/save_record>> since the splits are done for each line.
+These methods become available when C<auto_split> attribute is true. A runtime error will be thrown if they are called without C<auto_split> being set. They can used inside the subclass implementation of C<L<save_record|Text::Parser/save_record>>.
 
 =auto_split_meth NF
 
-The name of this method comes from the C<NF> variable in the popular GNU Awk program. It stands for number of fields. Takes no arguments, and returns the number of fields.
+The name of this method comes from the C<NF> variable in the popular L<GNU Awk program|https://www.gnu.org/software/gawk/gawk.html>. Takes no arguments, and returns the number of fields.
 
     sub save_record {
         my $self = shift;
@@ -145,6 +145,7 @@ Takes no argument and returns all the fields as an array.
 =for :list
 * L<List::Util>
 * L<List::SomeUtils>
+* L<GNU Awk program|https://www.gnu.org/software/gawk/gawk.html>
 
 =cut
 
