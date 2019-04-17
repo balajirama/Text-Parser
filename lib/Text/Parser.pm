@@ -283,11 +283,17 @@ sub _handle_read_inp {
 
 sub __read_and_close_filehandle {
     my $self = shift;
+    $self->_prep_to_read_file;
+    $self->__read_file_handle;
+    $self->_clear_this_line;
+    $self->_close_filehandles if $self->_has_filename;
+}
+
+sub _prep_to_read_file {
+    my $self = shift;
     $self->_reset_line_count;
     $self->_empty_records;
     $self->_clear_abort;
-    $self->__read_file_handle;
-    $self->_close_filehandles if $self->_has_filename;
 }
 
 sub __read_file_handle {
@@ -428,6 +434,8 @@ These methods are not expected to be called. Instead they are meant to be overri
 
 =head2 LIMITED ACCESS METHODS AVAILABLE IN SUBCLASSES
 
+B<Note:> Do NOT override these limited access methods!
+
 =head3 this_line
 
 Takes no arguments. Returns the current line being parsed.
@@ -457,6 +465,7 @@ has _current_line => (
     init_arg => undef,
     writer   => '_set_this_line',
     reader   => 'this_line',
+    clearer  => '_clear_this_line',
     default  => undef,
 );
 
