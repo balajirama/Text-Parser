@@ -11,6 +11,7 @@ install:
     dzil authordeps --missing | cpanm -q --notest
 
     dzil listdeps --author --missing | grep -v -E "^\[checked|tidied\]" | cpanm -q --notest
+cache: C:\Perl
 build: off
 test_script:
 - cmd: >-
@@ -20,6 +21,6 @@ test_script:
 
     perl Makefile.PL
 
-    make test
+    dmake test
 
     cover
