@@ -142,15 +142,20 @@ sub __join_next_proc {
     my ( $orig, $self ) = ( shift, shift );
     $self->__append_last_stash(@_);
     return if $self->is_line_continued(@_);
-    $self->_set_this_line( $self->__pop_last_line() );
-    $orig->( $self, $self->this_line() );
+    $self->__call_orig_save_rec($orig);
+}
+
+sub __call_orig_save_rec {
+    my $self = shift;
+    my $orig = shift;
+    $self->_set_this_line( $self->__pop_last_line );
+    $orig->( $self, $self->this_line );
 }
 
 sub __join_last_proc {
     my ( $orig, $self ) = ( shift, shift );
     return $self->__append_last_stash(@_) if $self->__more_may_join_last(@_);
-    $self->_set_this_line( $self->__pop_last_line );
-    $orig->( $self, $self->this_line );
+    $self->__call_orig_save_rec($orig);
     $self->__append_last_stash(@_);
 }
 
