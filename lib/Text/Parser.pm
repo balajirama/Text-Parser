@@ -291,7 +291,6 @@ sub __parse_line {
 
 sub _def_line_manip {
     my ( $self, $line ) = ( shift, shift );
-    return if not defined $line;
     chomp $line if $self->auto_chomp;
     return $self->_trim_line($line);
 }

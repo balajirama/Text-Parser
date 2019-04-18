@@ -39,7 +39,7 @@ This role may be composed into an object of the L<Text::Parser> class. To use th
 It should also look for the following error conditions (see L<Text::Parser::Errors>):
 
 =for :list
-* If the end of file is reached, and the line is expected to be still continued, an exception of C<L<Text::Parser::Errors::UnexpectedEof|Text::Parser::Errors::UnexpectedEof>> is thrown.
+* If the end of file is reached, and the line is expected to be still continued, an exception of C<L<Text::Parser::Errors::UnexpectedEof|Text::Parser::Errors/"Text::Parser::Errors::UnexpectedEof">> is thrown.
 * It is impossible for the first line in a text input to be wrapped from a previous line. So if this condition occurs, an exception of C<L<Text::Parser::Errors::UnexpectedCont|Text::Parser::Errors/"Text::Parser::Errors::UnexpectedCont">> is thrown.
 
 =head1 METHODS TO BE IMPLEMENTED
@@ -60,7 +60,7 @@ The above example method checks if a line is being continued by using a back-sla
 
 =head2 C<< $parser->join_last_line($last_line, $current_line) >>
 
-Takes two string arguments. The first is the previously read line which is continued in the next line (the second argument). The second argument should be identical to the return value of C<L<this_line|"The this_line method">>. Neither argument will be C<undef>. Your implementation should return a string that joins the two strings while stripping any continuation characters, and returns them.
+Takes two string arguments. The first is the previously read line which is continued in the next line (the second argument). The second argument should be identical to the return value of C<L<this_line|Text::Parser/"The this_line method">>. Neither argument will be C<undef>. Your implementation should return a string that joins the two strings while stripping any continuation characters, and returns them.
 
 Here is an example implementation that joins the previous line terminated by a back-slash (C<\>) with the present line:
 
