@@ -60,7 +60,7 @@ The above example method checks if a line is being continued by using a back-sla
 
 =head2 C<< $parser->join_last_line($last_line, $current_line) >>
 
-Takes two string arguments. The first is the previously read line which is continued in the next line (the second argument). The second argument should be identical to the return value of C<L<this_line|Text::Parser/"The this_line method">>. Neither argument will be C<undef>. Your implementation should return a string that joins the two strings while stripping any continuation characters, and returns them.
+Takes two string arguments. The first is the previously read line which is wrapped in the next line (the second argument). The second argument should be identical to the return value of C<L<this_line|Text::Parser/"The this_line method">>. Neither argument will be C<undef>. Your implementation should join the two strings stripping any continuation character(s), and return the resultant string.
 
 Here is an example implementation that joins the previous line terminated by a back-slash (C<\>) with the present line:
 
@@ -179,5 +179,13 @@ sub __pop_last_line {
 }
 
 no Moose::Role;
+
+=head1 SEE ALSO
+
+=for :list
+* L<Text::Parser>
+* L<Text::Parser::Errors>
+
+=cut
 
 1;
