@@ -22,34 +22,33 @@ use Moose::Role;
 
 =head1 RATIONALE
 
-Some text formats allow users to split a single line into multiple lines, with a continuation character in the beginning or in the end, usually to improve human readability.
+Some text formats allow line-wrapping with a continuation character, usually to improve human readability. To handle these types of text formats with the native L<Text::Parser> class, the derived class would need to have a C<save_record> method that would:
 
-This extension allows users to use the familiar C<save_record> interface to save records, as if all the multi-line text inputs were joined.
+=for :list
+* Detect if the line is wrapped or is part of a wrapped line. To do this the developer has to implement a function named C<L<is_line_continued|Text::Parser/is_line_continued>>.
+* Join any wrapped lines to form a single line. For this, the developer has to implement a function named C<L<join_last_line|Text::Parser/join_last_line>>.
+
+With these two things, the developer can implement their C<L<save_record|Text::Parser/save_record>> assuming that the line is already unwrapped.
 
 =head1 OVERVIEW
 
-To handle these types of text formats with the native L<Text::Parser> class, the derived class would need to have a C<save_record> method that would:
+This role may be composed into an object of the L<Text::Parser> class. To use this role, just set the C<L<multiline_type|Text::Parser/multiline_type>> attribute. A derived class may set this in their constructor (or C<BUILDARGS> if you use L<Moose>). If this option is set, the developer should re-define the C<is_line_continued> and C<join_last_line> methods.
 
-=for :list
-* Detect if the line is continued, and if it is, save it in a temporary location. To detect this, the developer has to implement a function named C<L<is_line_continued|Text::Parser/is_line_continued>>.
-* Keep appending (or joining) any continued lines to this temporary location. For this, the developer has to implement a function named C<L<join_last_line|Text::Parser/join_last_line>>.
-* Once the line continuation has stopped, create and save a data record. The developer needs to write this the same way as earlier, assuming that the text is already joined properly.
+=head1 ERRORS AND EXCEPTIONS
 
 It should also look for the following error conditions (see L<Text::Parser::Errors>):
 
 =for :list
-* If the end of file is reached, and the line is expected to be still continued.
-* If the first line in a text input happens to be a continuation of a previous line, that is impossible, since it is the first line
-
-To create a multi-line text parser you need to L<determine|Text::Parser/multiline_type> if your parser is a C<'join_next'> type or a C<'join_last'> type.
+* If the end of file is reached, and the line is expected to be still continued, an exception of C<L<Text::Parser::Errors::UnexpectedEof|Text::Parser::Errors::UnexpectedEof>> is thrown.
+* It is impossible for the first line in a text input to be wrapped from a previous line. So if this condition occurs, an exception of C<L<Text::Parser::Errors::UnexpectedCont|Text::Parser::Errors/"Text::Parser::Errors::UnexpectedCont">> is thrown.
 
 =head1 METHODS TO BE IMPLEMENTED
 
-These methods must be implemented by the developer. There are default implementations provided in L<Text::Parser> but they do nothing.
+These methods must be implemented by the developer in the derived class. There are default implementations provided in L<Text::Parser> but they may not handle your target text format.
 
 =head2 C<< $parser->is_line_continued($line) >>
 
-Takes a string argument as input. Should return a boolean that indicates if the current line is continued. If parser is a C<'join_next'> parser, then a true value from this routine means that some data is expected to be in the I<next> line which is expected to be joined with this line. If instead the parser is C<'join_last'>, then a true value from this method would mean that the current line is a continuation from the I<previous> line, and the current line should be appended to the content of the previous line. An example implementation for a subclass would look like this:
+Takes a string argument containing the current line (also available through the C<this_line> method) as input. Your implementation should return a boolean that indicates if the current line is wrapped.
 
     sub is_line_continued {
         my ($self, $line) = @_;
@@ -61,7 +60,7 @@ The above example method checks if a line is being continued by using a back-sla
 
 =head2 C<< $parser->join_last_line($last_line, $current_line) >>
 
-Takes two string arguments. The first is the line previously read which is expected to be continued on this line. You can be certain that the two strings will not be C<undef>. Your method should return a string that has stripped any continuation characters, and joined the current line with the previous line.
+Takes two string arguments. The first is the previously read line which is continued in the next line (the second argument). The second argument should be identical to the return value of C<L<this_line|"The this_line method">>. Neither argument will be C<undef>. Your implementation should return a string that joins the two strings while stripping any continuation characters, and returns them.
 
 Here is an example implementation that joins the previous line terminated by a back-slash (C<\>) with the present line:
 
