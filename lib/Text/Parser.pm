@@ -61,7 +61,7 @@ Note that a developer may have to repeat all of the above if she has to read ano
 
 With C<Text::Parser>, developers can focus on specifying the grammar and simply use the C<read> method. Just extend (inherit) this class and override one method (C<L<save_record|/save_record>>). Voila! you have a parser. L<These examples|/EXAMPLES> illustrate how easy this can be.
 
-=head1 DESCRIPTION
+=head1 OVERVIEW
 
 C<Text::Parser> is a format-agnostic text parsing base class. Derived classes can specify the format-specific syntax they intend to parse.
 
