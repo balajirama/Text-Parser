@@ -7,7 +7,7 @@ package Text::Parser::AutoSplit;
 
 use Exporter 'import';
 our (@EXPORT_OK) = ();
-our (@EXPORT)    = ();
+our (@EXPORT)    = (@EXPORT_OK);
 use Moose::Role;
 use MooseX::CoverableModifiers;
 use String::Util qw(trim);
