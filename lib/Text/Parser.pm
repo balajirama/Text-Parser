@@ -503,7 +503,7 @@ has abort => (
 
 =sub_use_method push_records
 
-This is useful if one needs to implement the parsing of an C<include>-like command in the parsed text format. The example below illustrates this.
+This is useful if one needs to implement an C<include>-like command in some text format. The example below illustrates this.
 
     package OneParser;
     use parent 'Text::Parser';
