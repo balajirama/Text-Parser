@@ -10,6 +10,7 @@ our (@EXPORT_OK) = ();
 our (@EXPORT)    = ();
 use Moose::Role;
 use MooseX::CoverableModifiers;
+use String::Util qw(trim);
 
 =head1 SYNOPSIS
 
@@ -45,12 +46,13 @@ C<Text::Parser::AutoSplit> is a role that gets automatically composed into an ob
 =cut
 
 has _fields => (
-    is       => 'rw',
+    is       => 'ro',
     isa      => 'ArrayRef[Str]',
     lazy     => 1,
     init_arg => undef,
     default  => sub { [] },
     traits   => ['Array'],
+    writer   => '_set_fields',
     handles  => {
         'NF'               => 'count',
         'field'            => 'get',
@@ -61,21 +63,26 @@ has _fields => (
     },
 );
 
-requires 'save_record', 'FS';
+requires 'save_record', 'FS', '__read_file_handle';
 
 around save_record => sub {
-    my ( $orig, $self, $line ) = ( shift, shift, shift );
-    $self->_fields( [ split $self->FS, $line ] );
-    $orig->( $self, $line );
+    my ( $orig, $self ) = ( shift, shift );
+    $self->_set_fields( [ split $self->FS, trim( $_[0] ) ] );
+    $orig->( $self, @_ );
+};
+
+after __read_file_handle => sub {
+    my $self = shift;
+    $self->_set_fields( [] );
 };
 
 =head1 METHODS AVAILABLE ON AUTO-SPLIT
 
-These methods become available when C<auto_split> attribute is true. You'll get a runtime error if you try to use them otherwise. They would be most likely used inside your own implementation of C<L<save_record|Text::Parser/save_record>> since the splits are done for each line.
+These methods become available when C<auto_split> attribute is true. A runtime error will be thrown if they are called without C<auto_split> being set. They can used inside the subclass implementation of C<L<save_record|Text::Parser/save_record>>.
 
 =auto_split_meth NF
 
-The name of this method comes from the C<NF> variable in the popular GNU Awk program. It stands for number of fields. Takes no arguments, and returns the number of fields.
+The name of this method comes from the C<NF> variable in the popular L<GNU Awk program|https://www.gnu.org/software/gawk/gawk.html>. Takes no arguments, and returns the number of fields.
 
     sub save_record {
         my $self = shift;
@@ -84,12 +91,18 @@ The name of this method comes from the C<NF> variable in the popular GNU Awk pro
 
 =auto_split_meth field
 
-Takes an integer argument and returns the field whose index is passed as argument. You can specify negative elements to start counting from the end. For example index C<-1> is the last element, C<-2> is the penultimate one, etc.
+Takes an integer argument and returns the field whose index is passed as argument.
 
     sub save_record {
         my $self = shift;
         $self->abort if $self->field(0) eq 'END';
     }
+
+You can specify negative elements to start counting from the end. For example index C<-1> is the last element, C<-2> is the penultimate one, etc. Let's say the following is the text on a line in a file:
+
+    THIS           IS          SOME           TEXT
+    field(0)      field(1)    field(2)      field(3)
+    field(-4)    field(-3)   field(-2)     field(-1)
 
 =auto_split_meth find_field
 
@@ -138,6 +151,7 @@ Takes no argument and returns all the fields as an array.
 =for :list
 * L<List::Util>
 * L<List::SomeUtils>
+* L<GNU Awk program|https://www.gnu.org/software/gawk/gawk.html>
 
 =cut
 
