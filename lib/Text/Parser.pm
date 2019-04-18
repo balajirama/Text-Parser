@@ -214,6 +214,10 @@ sub __newval_multi_line {
     $orig->( $self, $newval );
 }
 
+=head1 METHODS
+
+These are meant to be called from the C<::main> program or within subclasses. In general, don't override them - just use them.
+
 =method read
 
 Takes an optional argument, either a string containing the name of the file, or a filehandle reference (a C<GLOB>) like C<\*STDIN> or an object of the C<L<FileHandle>> class.
@@ -423,16 +427,32 @@ has lines_parsed => (
 
 The following methods should never be called in the C<::main> program. They are meant to be overridden (or re-defined) in a subclass.
 
-=head2 The C<this_line> method
+=inherit save_record
 
-The C<this_line> method becomes available to developer for use in the derived class. It has a valid value only within the methods described under L<this section|/"OVERRIDE IN SUBCLASS">. It takes no arguments, and returns the current line being parsed. For example:
+This method should be re-defined in a subclass to parse the target text format. To save a record, the re-defined implementation in the derived class must call C<SUPER::save_record> (or C<super> if you're using L<Moose>) with exactly one argument as a record. If no arguments are passed, C<undef> is stored as a record.
+
+For a developer re-defining C<save_record>, in addition to C<L<this_line|/"this_line">>, six additional methods become available if the C<auto_split> attribute is set. These methods are described in greater detail in L<Text::Parser::AutoSplit>, and they are accessible only within C<save_record>.
+
+B<Note:> Developers may store records in any form - string, array reference, hash reference, complex data structure, or an object of some class. The program that reads these records using C<L<get_records|/get_records>> has to interpret them. So developers should document the records created by their own implementation of C<save_record>.
+
+=cut
+
+sub save_record {
+    my ( $self, $record ) = ( shift, shift );
+    $self->push_records($record);
+}
+
+=head1 FOR USE IN SUBCLASS ONLY
+
+Do NOT override these methods. They are valid only within a subclass, inside the user-implementation of methods described under L<OVERRIDE IN SUBCLASS|/"OVERRIDE IN SUBCLASS">. 
+
+=sub_use_method this_line
+
+Takes no arguments, and returns the current line being parsed. For example:
 
     sub save_record {
-        my $self = shift;
         # ...
-        if ($self->this_line eq 'SOME_STRING') {
-            # ...
-        }
+        do_something($self->this_line);
         # ...
     }
 
@@ -448,35 +468,15 @@ has _current_line => (
     default  => undef,
 );
 
-=inherit save_record
-
-This method should be re-defined in a subclass to parse the target text format. To save a record, the re-defined implementation in the derived class must call C<SUPER::save_record> (or C<super> if you're using L<Moose>) with exactly one argument as a record. If no arguments are passed, C<undef> is stored as a record.
-
-For a developer re-defining C<save_record>, in addition to C<L<this_line|/"The this_line method">>, six additional methods become available if the C<auto_split> attribute is set. These methods are described in greater detail in L<Text::Parser::AutoSplit>, and they are accessible only within C<save_record>.
-
-B<Note:> Developers may store records in any form - string, array reference, hash reference, complex data structure, or an object of some class. The program that reads these records using C<L<get_records|/get_records>> has to interpret them. So developers should document the records created by their own implementation of C<save_record>.
-
-=cut
-
-sub save_record {
-    my ( $self, $record ) = ( shift, shift );
-    $self->push_records($record);
-}
-
-=method get_records
-
-Takes no arguments. Returns an array containing all the records saved by the parser.
-
-    foreach my $record ( $parser->get_records ) {
-        $i++;
-        print "Record: $i: ", $record, "\n";
-    }
-
-=cut
-
 =sub_use_method abort_reading
 
-Takes no arguments. Returns C<1>. Never to be called in the main program. To be used only in the derived class. See L<this example|/"Example 3 : Aborting without errors">.
+Takes no arguments. Returns C<1>. To be used only in the derived class to abort C<read> in the middle. See L<this example|/"Example 3 : Aborting without errors">.
+
+    sub save_record {
+        # ...
+        $self->abort_reading if some_condition($self->this_line);
+        # ...
+    }
 
 =cut
 
@@ -500,6 +500,31 @@ has abort => (
         _clear_abort  => 'unset'
     },
 );
+
+=sub_use_method push_records
+
+This is useful if one needs to implement the parsing of an C<include>-like command in the parsed text format. The example below illustrates this.
+
+    package OneParser;
+    use parent 'Text::Parser';
+
+    my save_record {
+        # ...
+        # Under some condition:
+        my $parser = AnotherParser->new();
+        $parser->read($some_file)
+        $parser->push_records($parser->get_records);
+        # ...
+    }
+
+=method get_records
+
+Takes no arguments. Returns an array containing all the records saved by the parser.
+
+    foreach my $record ( $parser->get_records ) {
+        $i++;
+        print "Record: $i: ", $record, "\n";
+    }
 
 =method pop_record
 
@@ -544,17 +569,9 @@ sub last_record {
     return $self->_access_record( $count - 1 );
 }
 
-=dont_touch_method push_records
-
-This method is useful if you have to copy the records from another parser.
-
-    $parser->push_records(
-        $another_parser->get_records
-    );
-
 =inherit FOR MULTI-LINE TEXT PARSING
 
-These methods need to be re-defined by only multiline derived classes, i.e., if the target text format allows wrapping the content of one line into multiple lines. In most cases, you should re-define both methods. As usual, the C<L<this_line|/"The this_line method">> method may be used while re-defining them.
+These methods need to be re-defined by only multiline derived classes, i.e., if the target text format allows wrapping the content of one line into multiple lines. In most cases, you should re-define both methods. As usual, the C<L<this_line|/"this_line">> method may be used while re-defining them.
 
 =head3 is_line_continued
 
