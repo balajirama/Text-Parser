@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+0.918     2019-04-18 00:28:58-07:00 America/Los_Angeles
   - Add a test to ensure that auto_split works correctly even without auto_trim (Issue: #18)
   - Add a new method named this_line which works in all subclasses (Issue: #20)
   - Don't use setting method in Text::Parser::Multiline
