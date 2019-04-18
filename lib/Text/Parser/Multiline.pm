@@ -75,7 +75,7 @@ Here is an example implementation that joins the previous line terminated by a b
 
 requires(
     qw(save_record multiline_type lines_parsed __read_file_handle),
-    qw(join_last_line is_line_continued _set_this_line)
+    qw(join_last_line is_line_continued _set_this_line this_line)
 );
 
 use Exception::Class (
