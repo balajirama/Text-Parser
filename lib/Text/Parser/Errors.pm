@@ -24,14 +24,12 @@ sub _Str {
 sub _Num {
     die "Not a number $_[0]"
         if not defined $_[0]
-        or ref( $_[0] ) ne ''
         or not looks_like_number( $_[0] );
 }
 
 sub _Bool {
     die "$_[0] must be a boolean"
         if ( not defined $_[0]
-        or ref( $_[0] ) ne ''
         or not looks_like_number( $_[0] ) )
         or ( $_[0] != 0 and $_[0] != 1 );
 }
@@ -78,34 +76,6 @@ exception
     name => (
         is  => 'ro',
         isa => \&_Str,
-    ),
-    ],
-    extends => GenericError();
-
-=head2 Errors from methods related to C<auto_split>
-
-=head3 C<Text::Parser::Errors::BadFieldRange>
-
-=cut
-
-exception
-    BadFieldRange => 'index range out of bounds or not correct order',
-    has           => [
-    index => (
-        is  => 'ro',
-        isa => \&_Num,
-    ),
-    ],
-    has => [
-    nf => (
-        is  => 'ro',
-        isa => \&_Num,
-    ),
-    ],
-    has => [
-    bad_order => (
-        is  => 'ro',
-        isa => \&_Bool,
     ),
     ],
     extends => GenericError();

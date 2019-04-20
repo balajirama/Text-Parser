@@ -4,6 +4,7 @@ use warnings;
 
 package MyTestParser;
 use Test::More;    # last test to print
+use Test::Exception;
 use Moose;
 extends 'Text::Parser';
 
@@ -11,7 +12,20 @@ sub save_record {
     my $self = shift;
     return if $self->NF == 0;
     my $old = $self->field(0);
-    my $nf  = $self->NF;
+    throws_ok {
+        my (@arr) = $self->field_range('some text');
+    }
+    'Moose::Exception::InvalidArgumentToMethod',
+        'String argument to field_range is not right';
+    lives_ok {
+        is_deeply(
+            [ $self->field_range( -1, 0 ) ],
+            [ reverse( $self->fields ) ],
+            'Reverse order of fields'
+        );
+    }
+    'Does not die on searching backwards';
+    my $nf = $self->NF;
     my (@last) = $self->field_range( -2, -1 ) if $self->NF >= 2;
     is $nf, $self->NF, 'NF is still intact';
     is( $last[0],
@@ -33,8 +47,12 @@ sub BUILDARGS {
 package main;
 
 use Test::More;    # last test to print
+use Test::Exception;
 
 my $p = MyTestParser->new();
-$p->read('t/example-split.txt');
+lives_ok {
+    $p->read('t/example-split.txt');
+}
+'No exceptions';
 
 done_testing;

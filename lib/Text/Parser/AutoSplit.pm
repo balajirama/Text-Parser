@@ -133,31 +133,25 @@ If C<$j> argument is omitted or set to C<undef>, it will be treated as C<-1> and
     $self->field_range();          # same as fields()
     $self->field_range(undef, -2); # Returns all elements omitting the last
 
-The function will throw an exception of class C<Text::Parser::Errors::BadFieldRange> if the fields are not in range, or if C<$j> represents an earlier element than C<$i>.
-
 =cut
 
 sub field_range {
     my $self = shift;
-    my (@range) = _validate_range( $self->NF, @_ );
-    die bad_field_range( bad_order => 1 ) if $range[1] < $range[0];
+    my (@range) = $self->__validate_index_range(@_);
     $self->_sub_field_range(@range);
 }
 
-sub _validate_range {
-    my ( $nf, $i, $j ) = ( shift, shift, shift );
-    $i = 0  if not defined $i;
-    $j = -1 if not defined $j;
-    _check_range_indices( $i, $j, $nf );
-    return ( _pos_index( $i, $nf ), _pos_index( $j, $nf ) );
+sub __validate_index_range {
+    my $self = shift;
+    $self->field($_) for (@_);
+    map { _pos_index( $_, $self->NF ) } __set_defaults(@_);
 }
 
-sub _check_range_indices {
-    my ( $i, $j, $nf ) = ( shift, shift, shift );
-    die bad_field_range( index => $i, nf => $nf ) if $i >= $nf;
-    die bad_field_range( index => $j, nf => $nf ) if $j >= $nf;
-    die bad_field_range( index => $i, nf => $nf ) if $i < 0 and $i + $nf < 0;
-    die bad_field_range( index => $j, nf => $nf ) if $j < 0 and $j + $nf < 0;
+sub __set_defaults {
+    my ( $i, $j ) = @_;
+    $i = 0  if not defined $i;
+    $j = -1 if not defined $j;
+    return ( $i, $j );
 }
 
 sub _pos_index {
@@ -167,7 +161,9 @@ sub _pos_index {
 
 sub _sub_field_range {
     my ( $self, $start, $end ) = ( shift, shift, shift );
-    map { $self->field($_) } ( $start .. $end );
+    my (@range)
+        = ( $start <= $end ) ? ( $start .. $end ) : reverse( $end .. $start );
+    map { $self->field($_) } @range;
 }
 
 =auto_split_meth find_field
