@@ -91,6 +91,7 @@ my @parser;
 $parser[0] = MyTestParser->new();
 isa_ok $parser[0], 'Text::Parser';
 lives_ok {
+    $parser[0]->multiline_type(undef);
     $parser[0]->auto_split(1);
     $parser[0]->multiline_type('join_next');
     $parser[0]->read('t/example-wrapped.txt');
@@ -101,6 +102,7 @@ lives_ok {
 $parser[1] = MyTestParser->new();
 isa_ok $parser[1], 'Text::Parser';
 lives_ok {
+    $parser[1]->multiline_type(undef);
     $parser[1]->multiline_type('join_next');
     $parser[1]->auto_split(1);
     $parser[1]->read('t/example-wrapped.txt');
