@@ -149,6 +149,7 @@ around auto_split => sub {
 sub __newval_auto_split {
     my ( $orig, $self, $newval ) = ( shift, shift, shift );
     return if not defined $newval;
+    $self->_clear_all_fields if not $newval and $orig->($self);
     $orig->( $self, $newval );
     ensure_all_roles $self, 'Text::Parser::AutoSplit' if $newval;
 }

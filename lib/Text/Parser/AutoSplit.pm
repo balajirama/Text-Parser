@@ -68,6 +68,7 @@ requires '_set_this_line', 'FS', '_clear_this_line', 'this_line';
 
 after _set_this_line => sub {
     my $self = shift;
+    return if not $self->auto_split;
     $self->_set_fields( [ split $self->FS, trim( $self->this_line ) ] );
 };
 
