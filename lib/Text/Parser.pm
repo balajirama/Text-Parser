@@ -127,9 +127,9 @@ has auto_chomp => (
 
 =attr auto_split
 
-A set-once-only attribute that can be set only during object construction. Defaults to C<0>. This attribute indicates if the parser will automatically split every line into fields.
+Read-write boolean attribute. Defaults to C<0> (false). Indicates if the parser will automatically split every line into fields.
 
-If it is set to a true value, each line will be split into fields, and six methods (like C<L<field|Text::Parser::AutoSplit/field>>, C<L<find_field|Text::Parser::AutoSplit/find_field>>, etc.) become accessible within the C<L<save_record|/save_record>> method. These methods are documented in L<Text::Parser::AutoSplit>.
+If it is set to a true value, each line will be split into fields, and a set of methods (a quick list L<here|/"Other methods available on auto_split">) become accessible within the C<L<save_record|/save_record>> method. These methods are documented in L<Text::Parser::AutoSplit>.
 
 =cut
 
@@ -531,6 +531,19 @@ This is useful if one needs to implement an C<include>-like command in some text
         $parser->push_records($parser->get_records);
         # ...
     }
+
+=sub_use_method Other methods available on C<auto_split>
+
+When the C<L<auto_split|/auto_split>> attribute is on, (or if it is turned on later), the following additional methods become available:
+
+=for :list
+* L<NF|Text::Parser::AutoSplit/NF>
+* L<fields|Text::Parser::AutoSplit/fields>
+* L<field|Text::Parser::AutoSplit/field>
+* L<field_range|Text::Parser::AutoSplit/field_range>
+* L<find_field|Text::Parser::AutoSplit/find_field>
+* L<find_field_index|Text::Parser::AutoSplit/find_field_index>
+* L<splice_fields|Text::Parser::AutoSplit/splice_fields>
 
 =method get_records
 
