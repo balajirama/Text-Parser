@@ -17,59 +17,104 @@ All exceptions are derived from C<Text::Parser::Errors::GenericError>. They are 
 
 =cut
 
+sub _Str {
+    die "$_[0] must be a string" if not defined $_[0] or ref( $_[0] ) ne '';
+}
+
+sub _Num {
+    die "Not a number $_[0]"
+        if not defined $_[0]
+        or ref( $_[0] ) ne ''
+        or not looks_like_number( $_[0] );
+}
+
+sub _Bool {
+    die "$_[0] must be a boolean"
+        if ( not defined $_[0]
+        or ref( $_[0] ) ne ''
+        or not looks_like_number( $_[0] ) )
+        or ( $_[0] != 0 and $_[0] != 1 );
+}
+
 exception 'GenericError' => 'a generic error';
 
-=head2 C<Text::Parser::Errors::InvalidFilename>
+=head2 Input file related errors
+
+=head3 C<Text::Parser::Errors::InvalidFilename>
 
 Thrown when file name specified to C<L<read|Text::Parser/read>> or C<L<filename|Text::Parser/filename>> is invalid.
 
-=head3 Attributes
+=head4 Attributes
 
-=head4 name
-
-A string with the anticipated file name.
+=for :list
+* B<name> - a string with the anticipated file name.
 
 =cut
 
 exception
     InvalidFilename => 'file does not exist',
-    has           => [
+    has             => [
     name => (
         is  => 'ro',
-        isa => sub {
-            die "$_[0] must be a string" if '' ne ref( $_[0] );
-        }
-    )
+        isa => \&_Str,
+    ),
     ],
     extends => GenericError();
 
-=head2 C<Text::Parser::Errors::InvalidFilename>
+=head3 C<Text::Parser::Errors::FileNotReadable>
 
 Thrown when file name specified to C<L<read|Text::Parser/read>> or C<L<filename|Text::Parser/filename>> has no read permissions or is unreadable for any other reason.
 
-=head3 Attributes
+=head4 Attributes
 
-=head4 name
-
-A string with the name of the file that could not be read
+=for :list
+* B<name> - a string with the name of the file that could not be read
 
 =cut
 
 exception
     FileNotReadable => 'file does not exist',
-    has           => [
+    has             => [
     name => (
         is  => 'ro',
-        isa => sub {
-            die "$_[0] must be a string" if '' ne ref( $_[0] );
-        }
-    )
+        isa => \&_Str,
+    ),
     ],
     extends => GenericError();
 
-=head2 C<Text::Parser::Errors::CantUndoMultiline>
+=head2 Errors from methods related to C<auto_split>
 
-Thrown when a multi-line parser is turned back to a non-multiline one.
+=head3 C<Text::Parser::Errors::BadFieldRange>
+
+=cut
+
+exception
+    BadFieldRange => 'index range out of bounds or not correct order',
+    has           => [
+    index => (
+        is  => 'ro',
+        isa => \&_Num,
+    ),
+    ],
+    has => [
+    nf => (
+        is  => 'ro',
+        isa => \&_Num,
+    ),
+    ],
+    has => [
+    bad_order => (
+        is  => 'ro',
+        isa => \&_Bool,
+    ),
+    ],
+    extends => GenericError();
+
+=head2 Errors in C<multiline_type> parsers
+
+=head3 C<Text::Parser::Errors::CantUndoMultiline>
+
+Thrown when C<multiline_type> is being set to C<undef> back from another valid value.
 
 =cut
 
@@ -77,53 +122,42 @@ exception
     'CantUndoMultiline' => 'already multiline parser, cannot be undone',
     extends             => GenericError();
 
-=head2 C<Text::Parser::Errors::UnexpectedEof>
+=head3 C<Text::Parser::Errors::UnexpectedEof>
 
-Thrown when a line continuation character is at the end of a file, indicating that the line is continued on the next line. Since there is no further line, the line continuation is left unterminated and is an error condition. This exception is thrown only for C<join_next> type of multiline parsers.
+Thrown only for C<join_next> multiline parsers (supporting line-wrap), when a line continuation character indicates that the last line in the file is wrapped on to the next line.
 
-=head3 Attributes
+=head4 Attributes
 
-=head4 discontd
-
-This is a string containing the line which got discontinued by the unexpected EOF.
-
-=head4 line_num
-
-The line at which the unexpected EOF is encountered.
+=for :list
+* B<discontd> - a string containing the line with the continuation character.
+* B<line_num> - line number at which the unexpected EOF is encountered.
 
 =cut
-    
+
 exception
     UnexpectedEof => 'join_next cont. character in last line, unexpected EoF',
     has           => [
     discontd => (
         is  => 'ro',
-        isa => sub {
-            die "$_[0] must be a string" if '' ne ref( $_[0] );
-        }
-    )
+        isa => \&_Str,
+    ),
     ],
     has => [
     line_num => (
         is  => 'ro',
-        isa => sub {
-            die "$_[0] must be a number"
-                if ref( $_[0] ) ne ''
-                or not looks_like_number( $_[0] );
-        }
-    )
+        isa => \&_Num,
+    ),
     ],
     extends => GenericError();
 
-=head2 C<Text::Parser::Errors::UnexpectedCont>
+=head3 C<Text::Parser::Errors::UnexpectedCont>
 
-Thrown when a line continuation character is at the beginning of a file, indicating that the previous line should be joined. Since there is no line before the first line, this is an error condition. This is thrown only in C<join_last> type of multiline parsers.
+Thrown only for C<join_last> multiline parsers (supporting line-wrap), when a line continuation character at the beginning of a file, indicates that it is a continuation of the previous line (there is no line before the first line).
 
-=head3 Attributes
+=head4 Attributes
 
-=head4 line
-
-This is a string containing the content of the line with the unexpected continuation character. Given the description, it is obvious that the line number is C<1>.
+=for :list
+* B<line> - a string containing the content of the line with the unexpected continuation character.
 
 =cut
 
@@ -132,13 +166,10 @@ exception
     has            => [
     line => (
         is  => 'ro',
-        isa => sub {
-            die "$_[0] must be a string" if '' ne ref( $_[0] );
-        },
-    )
+        isa => \&_Str,
+    ),
     ],
     extends => GenericError();
-
 
 =head1 SEE ALSO
 
