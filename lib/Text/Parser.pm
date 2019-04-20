@@ -75,7 +75,7 @@ use MooseX::StrictConstructor;
 use namespace::autoclean;
 use Moose::Util 'apply_all_roles', 'ensure_all_roles';
 use Moose::Util::TypeConstraints;
-use String::Util qw(trim ltrim rtrim);
+use String::Util qw(trim ltrim rtrim eqq);
 use Text::Parser::Errors;
 
 enum 'Text::Parser::Types::MultilineType' => [qw(join_next join_last)];
@@ -134,11 +134,24 @@ If it is set to a true value, each line will be split into fields, and six metho
 =cut
 
 has auto_split => (
-    is      => 'ro',
+    is      => 'rw',
     isa     => 'Bool',
     lazy    => 1,
     default => 0,
 );
+
+around auto_split => sub {
+    my ( $orig, $self ) = ( shift, shift );
+    __newval_auto_split( $orig, $self, @_ );
+    return $orig->($self);
+};
+
+sub __newval_auto_split {
+    my ( $orig, $self, $newval ) = ( shift, shift, shift );
+    return if not defined $newval;
+    $orig->( $self, $newval );
+    ensure_all_roles $self, 'Text::Parser::AutoSplit' if $newval;
+}
 
 =attr auto_trim
 
@@ -202,16 +215,17 @@ has multiline_type => (
 
 around multiline_type => sub {
     my ( $orig, $self ) = ( shift, shift );
-    return $orig->($self) if not @_;
-    return $orig->( $self, shift ) if not defined $orig->($self);
+    my $oldval = $orig->($self);
+    return $oldval if not @_ or eqq( $_[0], $oldval );
     __newval_multi_line( $orig, $self, @_ );
+    return $orig->($self);
 };
 
 sub __newval_multi_line {
     my ( $orig, $self, $newval ) = ( shift, shift, shift );
     die cant_undo_multiline() if not defined $newval;
-    ensure_all_roles $self, 'Text::Parser::Multiline';
     $orig->( $self, $newval );
+    ensure_all_roles $self, 'Text::Parser::Multiline';
 }
 
 =head1 METHODS

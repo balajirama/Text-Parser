@@ -53,6 +53,7 @@ has _fields => (
     default  => sub { [] },
     traits   => ['Array'],
     writer   => '_set_fields',
+    clearer  => '_clear_all_fields',
     handles  => {
         'NF'               => 'count',
         'field'            => 'get',
@@ -63,17 +64,16 @@ has _fields => (
     },
 );
 
-requires 'save_record', 'FS', '__read_file_handle';
+requires '_set_this_line', 'FS', '_clear_this_line', 'this_line';
 
-around save_record => sub {
-    my ( $orig, $self ) = ( shift, shift );
-    $self->_set_fields( [ split $self->FS, trim( $_[0] ) ] );
-    $orig->( $self, @_ );
+after _set_this_line => sub {
+    my $self = shift;
+    $self->_set_fields( [ split $self->FS, trim( $self->this_line ) ] );
 };
 
-after __read_file_handle => sub {
+after _clear_this_line => sub {
     my $self = shift;
-    $self->_set_fields( [] );
+    $self->_clear_all_fields;
 };
 
 =head1 METHODS AVAILABLE ON AUTO-SPLIT
