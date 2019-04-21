@@ -22,8 +22,10 @@ The above code reads the first command-line argument as a string, and assuming i
 
     package MyParser;
 
-    use parent 'Text::Parser';
-    ## or use Moose; extends 'Text::Parser';
+    use Moose;
+    extends 'Text::Parser';
+    # use parent 'Text::Parser'; 
+    # This will also work, but the Moose based class may be easier to implement
 
     sub save_record {
         my $self = shift;
@@ -59,7 +61,7 @@ Unfortunately however, most file parsing code looks like this:
 
 Note that a developer may have to repeat all of the above if she has to read another file with different content or format. And if the target text format allows line-wrapping with a continuation character, it isn't easy to implement it well with this C<while> loop.
 
-With C<Text::Parser>, developers can focus on specifying the grammar and simply use the C<read> method. Just extend (inherit) this class and override one method (C<L<save_record|/save_record>>). Voila! you have a parser. L<These examples|/EXAMPLES> illustrate how easy this can be.
+With C<Text::Parser>, developers can focus on specifying the grammar and simply use the C<read> method. Just extend this class with C<extends> (or inherit using C<parent> pragma), and override one method (C<L<save_record|/save_record>>). Voila! you have a parser. L<These examples|/EXAMPLES> illustrate how easy this can be.
 
 =head1 OVERVIEW
 
@@ -521,7 +523,8 @@ has abort => (
 This is useful if one needs to implement an C<include>-like command in some text format. The example below illustrates this.
 
     package OneParser;
-    use parent 'Text::Parser';
+    use Moose;
+    extends 'Text::Parser';
 
     my save_record {
         # ...
@@ -643,7 +646,8 @@ sub join_last_line {
 We will write a parser for a simple CSV file that reads each line and stores the records as array references. This example is oversimplified, and does B<not> handle embedded newlines.
 
     package Text::Parser::CSV;
-    use parent 'Text::Parser';
+    use Moose;
+    extends 'Text::Parser';
     use Text::CSV;
 
     my $csv;
@@ -683,7 +687,8 @@ Here is an example showing the use of an exception to detect a syntax error in a
         },
     );
     
-    use parent 'Text::Parser';
+    use Moose;
+    extends 'Text::Parser';
 
     sub save_record {
         my ($self, $line) = @_;
@@ -760,7 +765,8 @@ Another trivial example is L<here|Text::Parser::Multiline/SYNOPSIS>.
 In the above example, all lines are joined (indiscriminately). But most often text formats have a continuation character that specifies that the line continues to the next line, or that the line is a continuation of the I<previous> line. Here's an example parser that treats the back-slash (C<\>) character as a line-continuation character:
 
     package MyMultilineParser;
-    use parent 'Text::Parser';
+    use Moose;
+    extends 'Text::Parser';
     use strict;
     use warnings;
 
@@ -812,7 +818,8 @@ When you run the above code with this file, you should get:
 Some text formats allow a line to indicate that it is continuing from a previous line. For example L<SPICE|https://bwrcs.eecs.berkeley.edu/Classes/IcBook/SPICE/> has a continuation character (C<+>) on the next line, indicating that the text on that line should be joined with the I<previous> line. Let's show how to build a simple SPICE line-joiner. To build a full-fledged parser you will have to specify the rich and complex grammar for SPICE circuit description.
 
     use TrivialSpiceJoin;
-    use parent 'Text::Parser';
+    use Moose;
+    extends 'Text::Parser';
 
     use constant {
         SPICE_LINE_CONTD => qr/^[+]\s*/,

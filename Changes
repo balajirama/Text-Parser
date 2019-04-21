@@ -1,10 +1,10 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
-  - More documentation of return values of splice_fields etc.
-  - Need a section of "Other methods available on auto_split" under "FOR USE IN SUBCLASS ONLY" and list the methods
-  - Make auto_split a rw attribute.
+  - Make auto_split a read-write attribute.
   - Add a new function called field_range that will return the elements in a given range.
+  - Pod section "Other methods available on auto_split" under "FOR USE IN SUBCLASS ONLY"
+  - Pod update return values of splice_fields in Text::Parser::AutoSplit
 
 0.918     2019-04-18 00:28:58-07:00 America/Los_Angeles
   - Add a test to ensure that auto_split works correctly even without auto_trim (Issue: #18)
