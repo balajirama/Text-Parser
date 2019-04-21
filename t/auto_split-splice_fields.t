@@ -25,15 +25,20 @@ sub save_record {
         );
     }
     'Does not die on searching backwards';
+    is_deeply(
+        [ $self->field_range ],
+        [ $self->fields ],
+        'If all arguments are skipped ; passes'
+    );
     my $nf = $self->NF;
-    my (@last) = $self->field_range( -2, -1 ) if $self->NF >= 2;
+    my (@last) = $self->field_range(-2) if $self->NF >= 2;
     is $nf, $self->NF, 'NF is still intact';
     is( $last[0],
         $self->field( $self->NF - 2 ),
         "$last[0] is the penultimate"
     );
     is( $last[1], $self->field( $self->NF - 1 ), "$last[1] is the last" );
-    my (@flds) = $self->splice_fields( 1, $self->NF - 1 );
+    my (@flds) = $self->splice_fields(1);
     is $self->NF, 1, 'Only one field left now';
     is $old, $self->field(0),
         'The field function still returns the same string';

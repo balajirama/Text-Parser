@@ -18,20 +18,15 @@ All exceptions are derived from C<Text::Parser::Errors::GenericError>. They are 
 =cut
 
 sub _Str {
-    die "$_[0] must be a string" if not defined $_[0] or ref( $_[0] ) ne '';
+    die "attribute must be a string"
+        if not defined $_[0]
+        or ref( $_[0] ) ne '';
 }
 
 sub _Num {
-    die "Not a number $_[0]"
+    die "attribute must be a number"
         if not defined $_[0]
         or not looks_like_number( $_[0] );
-}
-
-sub _Bool {
-    die "$_[0] must be a boolean"
-        if ( not defined $_[0]
-        or not looks_like_number( $_[0] ) )
-        or ( $_[0] != 0 and $_[0] != 1 );
 }
 
 exception 'GenericError' => 'a generic error';
