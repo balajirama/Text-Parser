@@ -103,13 +103,16 @@ my %save_record_proc = (
 sub __around_save_record {
     my ( $orig, $self ) = ( shift, shift );
     $orig_save_record = $orig;
+    $orig->( $self, @_ ) if not defined $self->multiline_type;
     my $type = $self->multiline_type;
     $save_record_proc{$type}->( $orig, $self, @_ );
 }
 
 sub __around_is_line_continued {
     my ( $orig, $self, $line ) = ( shift, shift, shift );
-    return $orig->( $self, $line ) if $self->multiline_type eq 'join_next';
+    return $orig->( $self, $line )
+        if not defined $self->multiline_type
+        or $self->multiline_type eq 'join_next';
     return 0 if not $orig->( $self, $line );
     return 1 if $self->lines_parsed() > 1;
     die unexpected_cont( line => $line );
@@ -117,6 +120,7 @@ sub __around_is_line_continued {
 
 sub __after__read_file_handle {
     my $self = shift;
+    return if not defined $self->multiline_type;
     return $self->__test_safe_eof()
         if $self->multiline_type eq 'join_next';
     $self->_set_this_line( $self->__pop_last_line );

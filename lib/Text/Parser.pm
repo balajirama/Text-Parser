@@ -220,15 +220,13 @@ around multiline_type => sub {
     my ( $orig, $self ) = ( shift, shift );
     my $oldval = $orig->($self);
     return $oldval if not @_ or eqq( $_[0], $oldval );
-    __newval_multi_line( $orig, $self, @_ );
-    return $orig->($self);
+    return __newval_multi_line( $orig, $self, @_ );
 };
 
 sub __newval_multi_line {
     my ( $orig, $self, $newval ) = ( shift, shift, shift );
-    die cant_undo_multiline() if not defined $newval;
-    $orig->( $self, $newval );
-    ensure_all_roles $self, 'Text::Parser::Multiline';
+    ensure_all_roles $self, 'Text::Parser::Multiline' if defined $newval;
+    return $orig->( $self, $newval );
 }
 
 =head1 METHODS

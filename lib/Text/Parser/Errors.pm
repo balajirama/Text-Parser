@@ -77,19 +77,9 @@ exception
 
 =head2 Errors in C<multiline_type> parsers
 
-=head3 C<Text::Parser::Errors::CantUndoMultiline>
-
-Thrown when C<multiline_type> is being set to C<undef> back from another valid value.
-
-=cut
-
-exception
-    'CantUndoMultiline' => 'already multiline parser, cannot be undone',
-    extends             => GenericError();
-
 =head3 C<Text::Parser::Errors::UnexpectedEof>
 
-Thrown only for C<join_next> multiline parsers (supporting line-wrap), when a line continuation character indicates that the last line in the file is wrapped on to the next line.
+Thrown when a line continuation character indicates that the last line in the file is wrapped on to the next line.
 
 =head4 Attributes
 
@@ -117,7 +107,7 @@ exception
 
 =head3 C<Text::Parser::Errors::UnexpectedCont>
 
-Thrown only for C<join_last> multiline parsers (supporting line-wrap), when a line continuation character at the beginning of a file, indicates that it is a continuation of the previous line (there is no line before the first line).
+Thrown when a line continuation character on the first line indicates that it is a continuation of a previous line.
 
 =head4 Attributes
 

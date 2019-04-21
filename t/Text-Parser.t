@@ -27,11 +27,10 @@ is( $pars->filename(),            undef, 'No filename specified so far' );
 is( $pars->multiline_type, undef, 'Not a multi-line parser' );
 is( $pars->multiline_type('join_next'),
     'join_next', 'I can set this to join_next if need be' );
-throws_ok {
+lives_ok {
     $pars->multiline_type(undef);
 }
-'Text::Parser::Errors::CantUndoMultiline',
-    'Correct error when trying to reset multiline_type';
+    'No error when trying to reset multiline_type';
 lives_ok {
     is( $pars->multiline_type('join_last'),
         'join_last', 'Make it another type of Multiline Parser' );
