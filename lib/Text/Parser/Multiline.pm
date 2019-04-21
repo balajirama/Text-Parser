@@ -5,9 +5,6 @@ package Text::Parser::Multiline;
 
 # ABSTRACT: Adds multi-line support to the Text::Parser object.
 
-use Exporter 'import';
-our (@EXPORT_OK) = ();
-our (@EXPORT)    = ();
 use Moose::Role;
 
 =head1 SYNOPSIS
@@ -78,13 +75,6 @@ requires(
     qw(join_last_line is_line_continued _set_this_line this_line)
 );
 
-use Exception::Class (
-    'Text::Parser::Multiline::Error',
-    'Text::Parser::Multiline::Error::UnexpectedContinuation' => {
-        isa   => 'Text::Parser::Multiline::Error',
-        alias => 'throw_unexpected_continuation',
-    }
-);
 use Text::Parser::Errors;
 
 around save_record       => \&__around_save_record;
@@ -103,7 +93,7 @@ my %save_record_proc = (
 sub __around_save_record {
     my ( $orig, $self ) = ( shift, shift );
     $orig_save_record = $orig;
-    $orig->( $self, @_ ) if not defined $self->multiline_type;
+    return $orig->( $self, @_ ) if not defined $self->multiline_type;
     my $type = $self->multiline_type;
     $save_record_proc{$type}->( $orig, $self, @_ );
 }

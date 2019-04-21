@@ -5,9 +5,6 @@ package Text::Parser::AutoSplit;
 
 # ABSTRACT: A role that adds the ability to auto-split a line into fields
 
-use Exporter 'import';
-our (@EXPORT_OK) = ();
-our (@EXPORT)    = (@EXPORT_OK);
 use Moose::Role;
 use MooseX::CoverableModifiers;
 use String::Util qw(trim);

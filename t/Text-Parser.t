@@ -22,7 +22,7 @@ lives_ok { $pars = Text::Parser->new( multiline_type => undef ); }
 'Improve coverage';
 $pars = Text::Parser->new();
 isa_ok( $pars, 'Text::Parser' );
-is( $pars->filename(),            undef, 'No filename specified so far' );
+is( $pars->filename(), undef, 'No filename specified so far' );
 
 is( $pars->multiline_type, undef, 'Not a multi-line parser' );
 is( $pars->multiline_type('join_next'),
@@ -30,12 +30,30 @@ is( $pars->multiline_type('join_next'),
 lives_ok {
     $pars->multiline_type(undef);
 }
-    'No error when trying to reset multiline_type';
+'No error when trying to reset multiline_type';
+
+lives_ok {
+    $pars->read('t/example-split.txt');
+    is( scalar $pars->get_records, 5, '5 lines' );
+    $pars->read('t/example-wrapped.txt');
+    is( scalar $pars->get_records, 21, '21 lines' );
+}
+'No errors on reading with this';
+
+throws_ok {
+    is( $pars->multiline_type('join_next'),
+        'join_next', 'Make it another type of Multiline Parser' );
+    $pars->read('t/example-wrapped.txt');
+} 'Text::Parser::Errors::UnexpectedEof', 
+'No errors on changing multiline_type, but error in reading';
+
 lives_ok {
     is( $pars->multiline_type('join_last'),
-        'join_last', 'Make it another type of Multiline Parser' );
+        'join_last', 'Change back type of Multiline Parser' );
+    $pars->read('t/example-wrapped.txt');
+    is( scalar $pars->get_records, 1, '1 line' );
 }
-'No errors on changing multiline_type';
+'No errors on reading these lines';
 
 $pars = Text::Parser->new();
 

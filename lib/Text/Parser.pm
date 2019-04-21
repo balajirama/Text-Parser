@@ -6,10 +6,6 @@ package Text::Parser;
 
 # ABSTRACT: Simplifies text parsing. Easily extensible to parse any text format.
 
-use Exporter 'import';
-our (@EXPORT_OK) = ();
-our (@EXPORT)    = (@EXPORT_OK);
-
 =head1 SYNOPSIS
 
     use Text::Parser;
@@ -194,7 +190,7 @@ has FS => (
 
 If the target text format allows line-wrapping with a continuation character, the C<multiline_type> option tells the parser to join them into a single line. When setting this attribute, one must re-define L<two more methods|/"FOR MULTI-LINE TEXT PARSING">. See L<these examples|/"Example 4 : Multi-line parsing">.
 
-By default, the C<multiline_type> attribute has a value of C<undef>, i.e., the target text format will not have wrapped lines. It can be set to either C<'join_next'> or C<'join_last'>. Once set, it cannot be set back to C<undef> again.
+By default, the read-write C<multiline_type> attribute has a value of C<undef>, i.e., the target text format will not have wrapped lines. It can be set to either C<'join_next'> or C<'join_last'>.
 
     $parser->multiline_type(undef);
     $parser->multiline_type('join_next');
@@ -225,7 +221,8 @@ around multiline_type => sub {
 
 sub __newval_multi_line {
     my ( $orig, $self, $newval ) = ( shift, shift, shift );
-    ensure_all_roles $self, 'Text::Parser::Multiline' if defined $newval;
+    ensure_all_roles( $self, 'Text::Parser::Multiline' )
+        if defined $newval;
     return $orig->( $self, $newval );
 }
 
