@@ -5,12 +5,10 @@ package Text::Parser::AutoSplit;
 
 # ABSTRACT: A role that adds the ability to auto-split a line into fields
 
-use Exporter 'import';
-our (@EXPORT_OK) = ();
-our (@EXPORT)    = ();
 use Moose::Role;
 use MooseX::CoverableModifiers;
 use String::Util qw(trim);
+use Text::Parser::Errors;
 
 =head1 SYNOPSIS
 
@@ -53,27 +51,29 @@ has _fields => (
     default  => sub { [] },
     traits   => ['Array'],
     writer   => '_set_fields',
+    clearer  => '_clear_all_fields',
     handles  => {
         'NF'               => 'count',
+        'fields'           => 'elements',
         'field'            => 'get',
         'find_field'       => 'first',
         'find_field_index' => 'first_index',
         'splice_fields'    => 'splice',
-        'fields'           => 'elements',
     },
 );
 
-requires 'save_record', 'FS', '__read_file_handle';
+requires '_set_this_line', 'FS', '_clear_this_line', 'this_line',
+    'auto_split';
 
-around save_record => sub {
-    my ( $orig, $self ) = ( shift, shift );
-    $self->_set_fields( [ split $self->FS, trim( $_[0] ) ] );
-    $orig->( $self, @_ );
+after _set_this_line => sub {
+    my $self = shift;
+    return if not $self->auto_split;
+    $self->_set_fields( [ split $self->FS, trim( $self->this_line ) ] );
 };
 
-after __read_file_handle => sub {
+after _clear_this_line => sub {
     my $self = shift;
-    $self->_set_fields( [] );
+    $self->_clear_all_fields;
 };
 
 =head1 METHODS AVAILABLE ON AUTO-SPLIT
@@ -87,6 +87,15 @@ The name of this method comes from the C<NF> variable in the popular L<GNU Awk p
     sub save_record {
         my $self = shift;
         $self->save_record(@_) if $self->NF > 0;
+    }
+
+=auto_split_meth fields
+
+Takes no argument and returns all the fields as an array.
+
+    ## Inside your own save_record method ...
+    foreach my $fld ($self->fields) {
+        # do something ...
     }
 
 =auto_split_meth field
@@ -103,6 +112,56 @@ You can specify negative elements to start counting from the end. For example in
     THIS           IS          SOME           TEXT
     field(0)      field(1)    field(2)      field(3)
     field(-4)    field(-3)   field(-2)     field(-1)
+
+=auto_split_meth field_range
+
+Takes two optional integers C<$i> and C<$j> as arguments and returns an array, where the first element is C<field($i)>, the second C<field($i+1)>, and so on, till C<field($j)>.
+
+    ## returns 4 elements starting with field(3) upto field(6)
+    my (@flds) = $self->field_range(3, 6);  
+
+Both C<$i> and C<$j> can be negative, as is allowed by the C<field()> method. So, for example:
+
+    $self->field_range(-2, -1);    # Returns the last two elements
+    
+If C<$j> argument is omitted or set to C<undef>, it will be treated as C<-1> and if C<$i> is omitted, it is treated as C<0>. For example:
+
+    $self->field_range(1);         # Returns all elements omitting the first
+    $self->field_range();          # same as fields()
+    $self->field_range(undef, -2); # Returns all elements omitting the last
+
+=cut
+
+sub field_range {
+    my $self = shift;
+    my (@range) = $self->__validate_index_range(@_);
+    $self->_sub_field_range(@range);
+}
+
+sub __validate_index_range {
+    my $self = shift;
+    $self->field($_) for (@_);
+    map { _pos_index( $_, $self->NF ) } __set_defaults(@_);
+}
+
+sub __set_defaults {
+    my ( $i, $j ) = @_;
+    $i = 0  if not defined $i;
+    $j = -1 if not defined $j;
+    return ( $i, $j );
+}
+
+sub _pos_index {
+    my ( $ind, $nf ) = ( shift, shift );
+    ( $ind < 0 ) ? $ind + $nf : $ind;
+}
+
+sub _sub_field_range {
+    my ( $self, $start, $end ) = ( shift, shift, shift );
+    my (@range)
+        = ( $start <= $end ) ? ( $start .. $end ) : reverse( $end .. $start );
+    map { $self->field($_) } @range;
+}
 
 =auto_split_meth find_field
 
@@ -131,20 +190,13 @@ This is similar to the C<L<find_field|/find_field>> method above, except that it
 Just like Perl's built-in C<splice> function.
 
     ## Inside your own save_record method ...
-    $self->splice_fields($offset, $length, @values);
-    $self->splice_fields($offset, $length);
-    $self->splice_fields($offset);
+    my (@removed1) = $self->splice_fields($offset, $length, @values);
+    my (@removed2) = $self->splice_fields($offset, $length);
+    my (@removed3) = $self->splice_fields($offset);
 
-The offset above is a required argument. It can be negative.
+The offset above is a required argument and can be negative.
 
-=auto_split_meth fields
-
-Takes no argument and returns all the fields as an array.
-
-    ## Inside your own save_record method ...
-    foreach my $fld ($self->fields) {
-        # do something ...
-    }
+B<WARNING:> This is a destructive function. It I<will> remove elements just like Perl's built-in C<splice> does, and the removed will be returned. If you only want to get the elements in a specific range of indices, try the C<L<field_range|/field_range>> method instead.
 
 =head1 SEE ALSO
 
