@@ -63,7 +63,17 @@ With C<Text::Parser>, developers can focus on specifying the grammar and simply 
 
 C<Text::Parser> is a format-agnostic text parsing base class. Derived classes can specify the format-specific syntax they intend to parse.
 
-Future versions are expected to include progress-bar support, parsing text from sockets, UTF support, or parsing from a chunk of memory.
+=head1 THINGS TO BE DONE
+
+Future versions are expected to include:
+
+=for :list
+* progress-bar support
+* parsing from a buffer
+* automatically uncompress input
+* I<suggestions welcome ...>
+
+Interested contributors welcome.
 
 =cut
 
@@ -232,31 +242,30 @@ These are meant to be called from the C<::main> program or within subclasses. In
 
 =method read
 
-Takes an optional argument, either a string containing the name of the file, or a filehandle reference (a C<GLOB>) like C<\*STDIN> or an object of the C<L<FileHandle>> class.
+Takes a single optional argument that can be either a string containing the name of the file, or a filehandle reference (a C<GLOB>) like C<\*STDIN> or an object of the C<L<FileHandle>> class.
 
-    $parser->read($filename);
+    $parser->read($filename);         # Read the file
+    $parser->read(\*STDIN);           # Read the filehandle
 
-    # The above is equivalent to the following
+The above could also be done in two steps if the developer so chooses.
+
     $parser->filename($filename);
-    $parser->read();
+    $parser->read();                  # equiv: $parser->read($filename)
 
-    # You can also read from a previously opened file handle directly
     $parser->filehandle(\*STDIN);
-    $parser->read();
+    $parser->read();                  # equiv: $parser->read(\*STDIN)
 
-Returns once all records have been read or if an exception is thrown, or if reading has been aborted with the C<L<abort_reading|/abort_reading>> method.
+The method returns once all records have been read, or if an exception is thrown, or if reading has been aborted with the C<L<abort_reading|/abort_reading>> method.
 
-If you provide a filename as input, the function will handle all C<open> and C<close> operations on files even if any exception is thrown, or if the reading has been aborted. But if you pass a file handle C<GLOB> or C<FileHandle> object instead, then the file handle won't be closed and it will be the responsibility of the calling program to close the filehandle.
+Any C<close> operation will be handled (even if any exception is thrown), as long as C<read> is called with a file name parameter - not if you call with a file handle or C<GLOB> parameter.
 
-    $parser->read('myfile.txt');
-    # Will handle open, parsing, and closing of file automatically.
+    $parser->read('myfile.txt');      # Will close file automatically
 
     open MYFH, "<myfile.txt" or die "Can't open file myfile.txt at ";
-    $parser->read(\*MYFH);
-    # Will not close MYFH and it is the respo
+    $parser->read(\*MYFH);            # Will not close MYFH
     close MYFH;
 
-B<Note:> To extend the class to other file formats, override C<L<save_record|/save_record>>.
+B<Note:> To extend the class to other text formats, override C<L<save_record|/save_record>>.
 
 =cut
 
@@ -332,7 +341,7 @@ Takes an optional string argument containing the name of a file. Returns the nam
 
     print "Last read ", $parser->filename, "\n";
 
-The file name is "persistent" in the object. Meaning, that the C<filename> method remembers the last file that was C<L<read|/read>>.
+The value stored is "persistent" - meaning that the method remembers the last file that was C<L<read|/read>>.
 
     $parser->read(shift @ARGV);
     print $parser->filename(), ":\n",
@@ -341,7 +350,7 @@ The file name is "persistent" in the object. Meaning, that the C<filename> metho
           $parser->get_records(),
           "\n";
 
-A C<read> call with a filehandle, will reset last file name.
+A C<read> call with a filehandle, will clear the last file name.
 
     $parser->read(\*MYFH);
     print "Last file name is lost\n" if not defined $parser->filename();
@@ -396,15 +405,11 @@ Takes an optional argument, that is a filehandle C<GLOB> (such as C<\*STDIN>) or
 
     my $fh = $parser->filehandle();
 
-Like in the case of C<L<filename|/filename>> method, C<filehandle> is also "persistent" and remembers previous state even after C<read>.
+Like C<L<filename|/filename>>, C<filehandle> is also "persistent". Its old value is lost when either C<filename> is set, or C<read> is called with a filename.
 
-    my $lastfh = $parser->filehandle();
-    ## Will return STDOUT
+    $parser->read(\*STDOUT);
+    my $lastfh = $parser->filehandle();          # Will return glob of STDOUT
     
-    $parser->read('another.txt');
-    print "No filehandle saved any more\n" if
-                        not defined $parser->filehandle();
-
 =cut
 
 has filehandle => (
@@ -429,11 +434,9 @@ sub filehandle {
 
 =method lines_parsed
 
-Takes no arguments. Returns the number of lines last parsed.
+Takes no arguments. Returns the number of lines last parsed. Every call to C<read>, causes the value to be auto-reset.
 
     print $parser->lines_parsed, " lines were parsed\n";
-
-Every call of C<read>, causes the value to be auto-reset before parsing a new file.
 
 =cut
 

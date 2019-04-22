@@ -2,7 +2,8 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
   - Change auto_split and multiline_type into read-write attributes: multiline_type can be changed back to undef
-  - Add a new function called field_range that will return the elements in a given range.
+  - Add a new function called field_range that will return the elements in a given range
+  - Check that file is a plain text file with -T, make code ready for future Text::Parser::AutoUncompress
   - Elaborated Pod for functions in Text::Parser::AutoSplit and mentioned them in Text::Parser Pod
 
 0.918     2019-04-18 00:28:58-07:00 America/Los_Angeles
