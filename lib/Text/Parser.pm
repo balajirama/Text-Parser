@@ -360,19 +360,34 @@ has filename => (
 );
 
 sub _set_filehandle {
-    my $self  = shift;
-    my $fname = $self->filename;
-    return $self->_save_filehandle( $self->__get_valid_fh($fname) )
-        if defined $fname;
-    $self->_clear_filename();
+    my $self = shift;
+    return $self->_clear_filename if not defined $self->filename;
+    $self->_save_filehandle( $self->__get_valid_fh );
 }
 
 sub __get_valid_fh {
+    my $self  = shift;
+    my $fname = $self->_get_valid_text_filename;
+    return FileHandle->new( $fname, 'r' ) if defined $fname;
+    $fname = $self->filename;
+    $self->_clear_filename;
+    $self->_throw_invalid_file_exception($fname);
+}
+
+# Don't touch: Override this in Text::Parser::AutoUncompress
+sub _get_valid_text_filename {
+    my $self  = shift;
+    my $fname = $self->filename;
+    return $fname if -f $fname and -r $fname and -T $fname;
+    return;
+}
+
+# Don't touch: Override this is Text::Parser::AutoUncompress
+sub _throw_invalid_file_exception {
     my ( $self, $fname ) = ( shift, shift );
-    return FileHandle->new( $fname, 'r' ) if -f $fname and -r $fname;
-    $self->_clear_filename();
     die invalid_filename( name => $fname ) if not -f $fname;
-    die file_not_readable( name => $fname );
+    die file_not_readable( name => $fname ) if not -r $fname;
+    die file_not_plain_text( name => $fname );
 }
 
 =method filehandle

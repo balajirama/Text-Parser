@@ -44,8 +44,9 @@ throws_ok {
     is( $pars->multiline_type('join_next'),
         'join_next', 'Make it another type of Multiline Parser' );
     $pars->read('t/example-wrapped.txt');
-} 'Text::Parser::Errors::UnexpectedEof', 
-'No errors on changing multiline_type, but error in reading';
+}
+'Text::Parser::Errors::UnexpectedEof',
+    'No errors on changing multiline_type, but error in reading';
 
 lives_ok {
     is( $pars->multiline_type('join_last'),
@@ -98,6 +99,10 @@ SKIP: {
     is( $pars->filename(), undef, 'Still no file has been read so far' );
     unlink 't/unreadable.txt';
 }
+
+throws_ok { $pars->filename('t/example.gzip.txt.gz'); }
+'Text::Parser::Errors::FileNotPlainText', 'This file is binary';
+is( $pars->filename(), undef, 'Still no file has been read so far' );
 
 my $content = "This is a file with one line\n";
 lives_ok { $pars->filename( 't/' . $fname ); } 'Now I can open the file';

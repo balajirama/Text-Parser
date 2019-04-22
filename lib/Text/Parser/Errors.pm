@@ -75,6 +75,34 @@ exception
     ],
     extends => GenericError();
 
+=head3 C<Text::Parser::Errors::FileNotPlainText>
+
+Thrown when file name specified to C<L<read|Text::Parser/read>> or C<L<filename|Text::Parser/filename>> is not a plain text file.
+
+=head4 Attributes
+
+=for :list
+* B<name> - a string with the name of the non-text input file
+* B<mime_type> - C<undef> for now. This is reserved for future.
+
+=cut
+
+exception
+    FileNotPlainText => 'file does not exist',
+    has              => [
+    name => (
+        is  => 'ro',
+        isa => \&_Str,
+    ),
+    ],
+    has => [
+    mime_type => (
+        is      => 'ro',
+        default => undef,
+    ),
+    ],
+    extends => GenericError();
+
 =head2 Errors in C<multiline_type> parsers
 
 =head3 C<Text::Parser::Errors::UnexpectedEof>
