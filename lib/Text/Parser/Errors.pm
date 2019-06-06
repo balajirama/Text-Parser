@@ -66,7 +66,7 @@ Thrown when file name specified to C<L<read|Text::Parser/read>> or C<L<filename|
 =cut
 
 exception
-    FileNotReadable => 'file does not exist',
+    FileNotReadable => 'file is not readable',
     has             => [
     name => (
         is  => 'ro',
@@ -88,7 +88,7 @@ Thrown when file name specified to C<L<read|Text::Parser/read>> or C<L<filename|
 =cut
 
 exception
-    FileNotPlainText => 'file does not exist',
+    FileNotPlainText => 'file is not a plain text file',
     has              => [
     name => (
         is  => 'ro',
@@ -148,6 +148,34 @@ exception
     UnexpectedCont => 'join_last cont. character on first line',
     has            => [
     line => (
+        is  => 'ro',
+        isa => \&_Str,
+    ),
+    ],
+    extends => GenericError();
+
+=head2 AWK-style rule syntax related
+
+=head3 C<Text::Parser::Errors::BadRuleSyntax>
+
+=cut
+
+exception
+    BadRuleSyntax => 'Compilation error in reading syntax',
+    has           => [
+    code => (
+        is  => 'ro',
+        isa => \&_Str,
+    ),
+    ],
+    has => [
+    msg => (
+        is  => 'ro',
+        isa => \&_Str,
+    ),
+    ],
+    has => [
+    subroutine => (
         is  => 'ro',
         isa => \&_Str,
     ),
