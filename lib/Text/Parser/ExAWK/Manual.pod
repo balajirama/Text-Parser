@@ -1,5 +1,7 @@
 
-# PODNAME: Text::Parser::ExAWK::Manual - manual for ExAWK (extended AWK) syntax
+# PODNAME: Text::Parser::ExAWK::Manual
+
+# ABSTRACT: A manual for ExAWK (extended AWK) syntax
 
 =head1 SYNOPSIS
 

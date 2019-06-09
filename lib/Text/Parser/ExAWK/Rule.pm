@@ -7,6 +7,7 @@ package Text::Parser::ExAWK::Rule;
 
 use Moose;
 use Text::Parser::Errors;
+use Scalar::Util 'blessed';
 
 =head1 SYNOPSIS
 
@@ -21,7 +22,7 @@ Users should not use this class directly to create and run rules. See L<Text::Pa
         do => 'my (@fld) = $this->field_range(1, -1); return "@fld";', 
     );
 
-    # auto_split must be true
+    # auto_split must be true to get any rules to work
     my $parser = Text::Parser->new(auto_split => 1);
 
     my @records = ();
@@ -65,7 +66,7 @@ sub _get_min_req_fields {
 my $SUB_BEGIN = 'sub {
     my $this = shift;
     local $_ = $this->this_line;
-    return if not defined $_;
+    return if not defined $this->this_line;
     ';
 
 my $SUB_END = '
@@ -317,7 +318,7 @@ sub test {
     my $self = shift;
     return 0 if not _check_parser_arg(@_);
     my $parser = shift;
-    return 0 if $parser->NF < $self->min_nf;
+    return 0 if not $parser->can('NF') or $parser->NF < $self->min_nf;
     return 0 if not $self->_test_preconditions($parser);
     return $self->_test_cond_sub($parser);
 }
@@ -325,8 +326,8 @@ sub test {
 sub _check_parser_arg {
     return 0 if not @_;
     my $parser = shift;
-    return 0 if not $parser->isa('Text::Parser');
-    return 1;
+    return 0 if not defined blessed($parser);
+    $parser->isa('Text::Parser');
 }
 
 sub _test_preconditions {
@@ -340,6 +341,7 @@ sub _test_preconditions {
 sub _test_cond_sub {
     my ( $self, $parser ) = @_;
     my $cond = $self->_cond_sub;
+    return 0 if not defined $parser->this_line;
     return $cond->($parser);
 }
 
@@ -352,6 +354,7 @@ Takes one argument that must be of type C<Text::Parser> or its derivative. Has n
 sub run {
     my $self = shift;
     die rule_run_improperly if not _check_parser_arg(@_);
+    return if $self->action !~ /\S+/;
     my (@res) = $self->_call_act_sub( $_[0] );
     return if $self->dont_record;
     $_[0]->push_records(@res);

@@ -18,22 +18,44 @@ ExAWK(), 'Throws an error for no arguments';
 
 lives_ok {
     my $rule = Text::Parser::ExAWK::Rule->new( if => '' );
-    is( $rule->min_nf, 0,            'Min NF is 0' );
+    is( $rule->min_nf, 0, 'Min NF is 0' );
+    my $parser = Text::Parser->new();
+    lives_ok {
+        is $rule->test(''), 0, 'Test nothing';
+        is $rule->test($parser), 0, 'Test works';
+        $parser->auto_split(1);
+        is $rule->test($parser), 0, 'Test fails because there is no this_line';
+    }
+    'auto_split not enabled and still lives';
+    $rule->add_precondition('${-1} eq "ELSE"');
+    is( $rule->min_nf, 1,            'At least one field needed' );
     is( $rule->action, 'return $0;', 'Default action' );
+    is( $rule->min_nf, 1,            'Stays at 1' );
     $rule->add_precondition('$4 eq "SOMETHING"');
+    throws_ok {
+        $rule->add_precondition('${-1 eq "ELSE"');
+    }
+    ExAWK(), 'Throws for bad syntax';
     is( $rule->min_nf, 4, 'Min NF changes to 4' );
     $rule->action('return $5');
     is( $rule->min_nf, 5, 'Min NF changes to 5' );
     $rule->action('return $3');
     is( $rule->min_nf, 4, 'Changes back to 4' );
     is( $rule->test,   0, 'Always returns 0 if no object passed' );
-    my $parser = Text::Parser->new();
-    dies_ok {
-        $rule->test($parser);
+    $parser = Text::Parser->new();
+    lives_ok {
+        is $rule->test($parser), 0, 'NF cant be done';
+        $parser->auto_split(1);
+        is $rule->test($parser), 0, 'NF can be done, but condition fails';
     }
-    'auto_split not enabled';
+    'auto_split not enabled and still lives';
     $parser->auto_split(1);
     is( $rule->test($parser), 0, 'Test fails' );
+    throws_ok {
+        $rule->continue_to_next(1);
+    }
+    ExAWK(), 'Cannot continue to next if recording output';
+    $rule->dont_record(1);
 }
 'Empty rule starting with empty condition';
 
@@ -48,6 +70,11 @@ lives_ok {
     $rule->action('return $3');
     is( $rule->min_nf, 4, 'Changes back to 4' );
     is( $rule->test,   0, 'Always returns 0 if no object passed' );
+    $rule->dont_record(1);
+    lives_ok {
+        $rule->continue_to_next(1);
+    }
+    'Can continue to next if not recording';
 }
 'Another empty rule with empty action';
 
@@ -64,7 +91,16 @@ lives_ok {
         $rule->run;
     }
     ExAWK();
-    $rule->run($parser) if $rule->test($parser);
+    is $rule->test($parser), 0, 'Wont pass';
+    $rule->run($parser);
+    is_deeply( [ $parser->get_records ], [], 'Store undef' );
+    $parser->pop_record();
+    $rule->dont_record(1);
+    $rule->run($parser);
+    is_deeply( [ $parser->get_records ], [], 'No records this time' );
+    my $rule2 = Text::Parser::ExAWK::Rule->new( do => '' );
+    $rule2->run($parser);
+    is_deeply( [ $parser->get_records ], [], 'Nothing saved' );
 }
 'From the SYNOPSIS';
 
