@@ -154,9 +154,26 @@ exception
     ],
     extends => GenericError();
 
-=head2 AWK-style rule syntax related
+=head2 ExAWK rule syntax related
+
+=head3 C<Text::Parser::Errors::ExAWK>
+
+All errors corresponding to the L<Text::Parser::ExAWK::Rule> class.
+
+=cut
+
+exception ExAWK => 'a class of errors', extends => GenericError();
 
 =head3 C<Text::Parser::Errors::BadRuleSyntax>
+
+Generated from L<Text::Parser::ExAWK::Rule> class constructor or from the accessors of C<condition>, C<action>, or the method C<add_precondition>, when the rule strings specified fail to compile properly.
+
+=head4 Attributes
+
+=for :list
+* B<code> - the original rule string
+* B<msg>  - content of C<$@> after C<eval>
+* B<subroutine> - stringified form of the subroutine generated from the given C<code>.
 
 =cut
 
@@ -180,12 +197,44 @@ exception
         isa => \&_Str,
     ),
     ],
-    extends => GenericError();
+    extends => ExAWK();
+
+=head3 C<Text::Parser::Errors::IllegalRuleNoIfNoAct>
+
+Generated from constructor of the L<Text::Parser::ExAWK::Rule> when the rule is created with neither a C<condition> nor an C<action>
+
+=cut
+
+exception
+    IllegalRuleNoIfNoAct => 'Rule created without required components',
+    extends              => ExAWK();
+
+=head3 C<Text::Parser::Errors::IllegalRuleCont>
+
+Generated when the rule option C<continue_to_next> of the L<Text::Parser::ExAWK::Rule> object is set true when C<dont_record> is false.
+
+=cut
+
+exception
+    IllegalRuleCont =>
+    'Rule cannot continue to next if action result is recorded',
+    extends => ExAWK();
+
+=head3 C<Text::Parser::Errors::RuleRunImproperly>
+
+Generated from C<run> method of L<Text::Parser::ExAWK::Rule> is called without an object of L<Text::Parser> as argument.
+
+=cut
+
+exception
+    RuleRunImproperly => 'run was called without a parser object',
+    extends           => ExAWK();
 
 =head1 SEE ALSO
 
 =for :list
 * L<Text::Parser>
+* L<Text::Parser::ExAWK::Rule>
 * L<Throwable::SugarFactory>
 * L<Exceptions>
 
