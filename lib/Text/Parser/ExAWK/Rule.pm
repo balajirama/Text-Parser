@@ -211,8 +211,7 @@ sub _check_continue_to_next {
 Takes a boolean value. This can be set true only for rules with C<dont_record> attribute set to a true value. This attribute indicates that the rule will proceed to the next rule until some rule passes the C<test>. So if you have a series of rules to test and execute in sequence:
 
     foreach my $rule (@rules) {
-        my $test = $rule->test($parser);
-        next if not defined $test or not $test;
+        next if not $rule->test($parser);
         $rule->run($parser);
         break if not $rule->continue_to_next;
     }
