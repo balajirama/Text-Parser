@@ -18,12 +18,11 @@ The above code reads the first command-line argument as a string, and assuming i
 
     use Text::Parser;
 
-    my $parser = Text::Parser->new(auto_split => 1, auto_trim => 'b', auto_chomp => 1);
+    my $parser = Text::Parser->new(auto_split => 1);
 
-    $parser->awk_like_rule(
-        name => 'read_name',
+    $parser->add_rule(
         if   => '$1 eq "NAME:"',
-        do   => 'my (@fld) = $this->field_range(1, -1); return "@fld";',
+        do   => 'return ${2+};',
     );
 
     $parser->read(shift);
@@ -42,8 +41,7 @@ The above parser has a parsing rule that extracts the names and saves them as re
 
     use Text::Parser::ExAWK;
 
-    awk_style_rule name => 'read_name', if => '$1 eq "NAME:"',
-        do => 'my (@fld) = $this->field_range(1, -1); return "@fld";';
+    rule if => '$1 eq "NAME:"', do => 'return ${2+};';
 
     sub BUILD {
         my $self = shift;
