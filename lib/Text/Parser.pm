@@ -54,11 +54,11 @@ The above parser has a parsing rule that extracts the names and saves them as re
 
 The L<rationale|Text::Parser::Manual/MOTIVATION> for building C<Text::Parser> stems from the fact that text parsing is the single most common thing that programmers do, and yet there is no lean and simple way to do it. Most programmers still use the old boilerplate style with a C<while> loop.
 
-C<Text::Parser> is a format-agnostic text parsing class. With C<Text::Parser>, a developer can focus on specifying a grammar in the form of rules and then simply C<read> the file. Most developers want to collect records from the text file, and C<read> method automatically collects records that can be retrieved using C<get_records>. If the developer wants to do something special and unique, just C<extend> the C<Text::Parser> class.
+C<Text::Parser> is a format-agnostic text parsing class. With C<Text::Parser>, a developer can focus on specifying a grammar in the form of L<rules|Text::Parser::Manual::ExtendedAWKSyntax> and then simply C<read> the file. The C<read> method automatically runs each rule collecting records from the text input. And finally C<get_records> can retrieve the records. If the developer wants to do something special or unique, just C<extend> the C<Text::Parser> class. One may also want to create a class C<extend>ing the C<Text::Parser> class to organize all the rules in one place.
 
 =head1 THINGS TO BE DONE
 
-This package is still a work in progress and future versions are expected to include:
+This package is still a work in progress. Future versions are expected to include:
 
 =for :list
 * parsing from a buffer

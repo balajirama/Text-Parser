@@ -3,9 +3,7 @@
 
 # ABSTRACT: A manual for the Text::Parser class
 
-=head1 INTRODUCTION
-
-=head2 MOTIVATION
+=head1 MOTIVATION
 
 Text parsing is perhaps the single most common thing that almost every Perl program does. Yet we don't have a lean, flexible, text parsing utility. Ideally, the developer should only have to specify the "grammar" of the text file she intends to parse. Everything else, like C<open>ing a file handle, C<close>ing the file handle, tracking line-count, joining continued lines into one, reporting any errors in line continuation, trimming white space, splitting each line into fields, etc., should be automatic.
 
@@ -44,7 +42,7 @@ There are several problems with this sort of code:
 * Cannot be easily modified slightly and re-used for another very similar text format.
 * Documenting code in the while loop can get rather hairy.
 
-=head2 VISION
+=head1 VISION
 
 What if:
 
