@@ -50,49 +50,11 @@ The above parser has a parsing rule that extracts the names and saves them as re
         $self->apply_rules(__PACKAGE__);
     }
 
-=head1 RATIONALE
-
-Text parsing is perhaps the single most common thing that almost every Perl program does. Yet we don't have a lean, flexible, text parsing utility. Ideally, the developer should only have to specify the "grammar" of the text file she intends to parse. Everything else, like C<open>ing a file handle, C<close>ing the file handle, tracking line-count, joining continued lines into one, reporting any errors in line continuation, trimming white space, splitting each line into fields, etc., should be automatic.
-
-Unfortunately however, most file parsing code looks like this:
-
-    open FH, "<$fname";
-    my $line_count = 0;
-    while (<FH>) {
-        $line_count++;
-        chomp;
-        $_ = trim $_;  ## From String::Util
-        my (@fields) = split /\s+/;
-        # do something for each line ...
-    }
-    close FH;
-
-Note that a developer may have to repeat all of the above if she has to read another file with different content or format. And if the target text format allows line-wrapping with a continuation character, it isn't easy to implement it well with the above C<while> loop. Furthermore, the part that is not shown in the above code C<# do something for each line ...> can actually be quite complex with several cascading if-else blocks.
-
-    if ($fields[0] eq 'NAME:') {
-        # something
-    } elsif ($fields[0] eq 'ADDRESS:') {
-        # something else
-    } elsif ($fields[0] eq 'EMAIL:') {
-    .
-    .
-    .
-    } else {
-        # finally!
-    }
-
-There are several problems with this code:
-
-=for :list
-* Hard to refactor and simplify into small functions (See Clean Code).
-* Cannot be easily modified slightly and re-used for another very similar text format.
-* Complex conditions are harder to write and often result in nested conditions.
-
-With C<Text::Parser>, a developer can focus on specifying a grammar in the form of rules (see L<Text::Parser::ExAWK::Manual> for more information) that extract and store specific information. Voila! you have a parser, simply use the C<read> method to read a file. And the developer wants to do something unique, just extend the C<Text::Parser> class, and usually it is sufficient to override just one method (C<L<save_record|/save_record>>). L<These examples|/EXAMPLES> illustrate how easy this can be. 
-
 =head1 OVERVIEW
 
-C<Text::Parser> is a format-agnostic text parsing base class. Derived classes can specify the format-specific syntax they intend to parse.
+The L<rationale|Text::Parser::Manual/INTRODUCTION> for building this class stems from the fact that text parsing is the single most common thing that programmers do, and yet there is no lean and simple way to parse text files without having to write a C<while> loop and a lot of boilerplate lines of code.
+
+C<Text::Parser> is a format-agnostic text parsing class. With C<Text::Parser>, a developer can focus on specifying a grammar in the form of rules and then simply C<read> the file. If the developer wants to do something special, just extend the C<Text::Parser> class.
 
 =head1 THINGS TO BE DONE
 
@@ -308,8 +270,8 @@ sub read {
 
 sub _handle_read_inp {
     my $self = shift;
-    return $self->filehandle if not @_;
-    return if not ref( $_[0] ) and not $_[0];
+    return $self->filehandle   if not @_;
+    return                     if not ref( $_[0] ) and not $_[0];
     return $self->filename(@_) if not ref( $_[0] );
     return $self->filehandle(@_);
 }
@@ -425,7 +387,7 @@ sub _get_valid_text_filename {
 # Don't touch: Override this is Text::Parser::AutoUncompress
 sub _throw_invalid_file_exception {
     my ( $self, $fname ) = ( shift, shift );
-    die invalid_filename( name => $fname ) if not -f $fname;
+    die invalid_filename( name => $fname )  if not -f $fname;
     die file_not_readable( name => $fname ) if not -r $fname;
     die file_not_plain_text( name => $fname );
 }
@@ -457,9 +419,9 @@ has filehandle => (
 
 sub filehandle {
     my $self = shift;
-    return if not @_ and not $self->_has_filehandle;
+    return                      if not @_ and not $self->_has_filehandle;
     $self->_save_filehandle(@_) if @_;
-    $self->_clear_filename if @_;
+    $self->_clear_filename      if @_;
     return $self->_get_filehandle;
 }
 

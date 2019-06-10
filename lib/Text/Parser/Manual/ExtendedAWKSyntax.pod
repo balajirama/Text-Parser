@@ -1,0 +1,139 @@
+
+# PODNAME: Text::Parser::Manual::ExtendedAWKSyntax
+
+# ABSTRACT: A manual for ExAWK (extended AWK) syntax
+
+=head1 BASIC STRUCTURE
+
+The basic syntax of the AWK program is:
+
+    condition { task; }
+
+The form of the ExAWK rule is like this:
+
+    if => 'condition', do => 'task'
+
+B<Note:> You I<must> enclose your expressions C<condition> and C<task> in single quotes. If the single quotes are missing, you will get garbage or the expression will fail to compile. It is important to note that I recommend the use of single quotes C<'> and not double quotes C<"> for a reason. Read on.
+
+Either 'if' or 'do' must be supplied. If neither is supplied, an exception will be thrown.
+
+The language for the 'if' and 'do' is Perl (not AWK). So for example, to compare strings you should use C<eq> and not C<==> like you would in AWK. If the 'if' and 'do' strings do not compile to form kosher Perl code, you'll get an exception. Except that we provide I<positional field identifiers> like C<$1>, C<$2>, etc., which have a different meaning here. C<$1>, C<${-1}>, and C<$0> etc., are replaced by the Perl expressions C<$this-E<gt>field(0)>, C<$this-E<gt>field(-1)>, and C<$this-E<gt>this_line> respectively and then C<eval>uated.
+
+Just as in AWK the C<condition> can be as simple as a regular expression, or a complex boolean expression. In AWK you could do:
+
+    $ awk '/EMAIL:/ {print $2;}' file.txt
+
+In ExAWK you could write something like this:
+
+    if => 'm/EMAIL:/', do => 'print $2, "\n";'
+
+The default C<condition> in ExAWK is just like in AWK: true for each input line.
+
+The default C<task> in AWK is C<print>. Thus:
+
+    $ awk '/li/' file.txt
+
+will print all the lines with C<'li'> somewhere in it. But in ExAWK, since it integrates with the L<Text::Parser> class, the default task is C<return $0;>. This means that if you provide a condition but not a task, in ExAWK, the default is to return the line as it is.
+
+    if => 'm/li/'  # returns each line that contains 'li' in it.
+
+If you want to C<print> instead and not record anything, you need to specify that:
+
+    if => 'm/li/', do => 'print', dont_record => 1
+
+=head1 FIELD VARIABLES
+
+AWK is very popular for its intuitive field identifiers C<$1>, C<$2>, C<$3> etc. ExAWK provides the same and much more.
+
+B<Note:> The identifiers C<$1>, C<$2> etc., are not the same as the native Perl variables C<$1>, C<$2> etc. These native Perl variables exist only in regexp substitutions. The positional field I<identifiers> C<$1>, C<$2> etc. exist only inside the I<string> expressions in ExAWK.
+
+To access fields from the end of the line, use identifiers C<${-1}>, C<${-2}>, etc. Like AWK, C<$0> identifies the whole line. In ExAWK, the Perl in-built variable C<$_> is also set to the current line. So any in-built functions that take a missing parameter to be C<$_> will behave accordingly. Thus your conditional expressions could be something like:
+
+    if => 'm/EMAIL:/'
+
+You don't need to bother about the existence of a field when you write these expressions. That will tested first. This results in some surprising differences. For example, in AWK if you write:
+
+    $ awk '$4 == ""' text.txt
+
+then all lines with 3 or less fields will automatically be printed to the screen. But in ExAWK:
+
+    if => '$4 eq ""'
+
+would never be true. In my view, the behavior of ExAWK is more sensible.
+
+=head1 The C<$this> variable
+
+Sometimes you want to access specific attributes of your parser class, or maybe you want to call a method.
+
+=head1 DIFFERENCES BETWEEN AWK and ExAWK
+
+=for :list
+* AWK cannot store very complex data structures. ExAWK can.
+* In UNIX implementation of AWK, the positional variables are limited to C<$9>. In POSIX implementations this limitation has already been removed. We also remove this limit.
+* In AWK there are no positional variables for positions counted from the end. In ExAWK, you have C<${-1}>, C<${-2}>, C<${-3}> etc.
+* In AWK if you use a positional variable like C<$8> when there are only 7 fields on a line, it evaluates to empty string. In ExAWK, if you use C<$8> in any of the strings, an automatic pre-condition is generated to check that there must be at least 8 fields on the input line.
+
+    # Note that the language of the 'if' and 'do' strings is not AWK, but follows Perl only
+
+    package TaxPayersParser;
+
+    use Moose;
+    extends 'Text::Parser';
+
+    use Text::Parser::ExAWK;
+
+    # Forms a new record
+    awk_style_rule name => 'read_name', if => '$1 eq "NAME:"',
+        do => 'my (@fld) = $this->field_range(1, -1);
+               return {name => "@fld"};';
+
+    # Adds data to the last record
+    awk_style_rule name => 'read_address', if => '$1 eq "ADDRESS:"',
+        do => 'my (@fld) = $this->field_range(1, -1);
+               my $last=$this->pop_record(); 
+               $last->{address} = "@fld"; 
+               return $last;';
+
+    # 'name' is only an optional parameter. When not specified
+    # it will be autogenerated.
+    awk_style_rule if => '$1 eq "TAX-PAYER-IDENTIFICATION:"', 
+        do => 'my $last = $this->pop_record;
+               $last->{tax_payer_id} = $2;
+               return $last;';
+
+    # If 'do' is specified, then 'if' is an optional condition. If no
+    # 'if' condition is specified, the rule will be executed always
+    awk_style_rule do => 'return $this->pop_record;';
+
+    # If 'if' conditional is specified, and 'do' is not specified, then
+    # the implied meaning is that the whole line is returned as a string
+    # and it will be stored as a record.
+    awk_style_rule if => '$1 eq "THIS WILL NEVER MATCH"';
+
+    # One could avoid saving a record by using the option 'dont_record'
+    # Here is an example of the comment character #
+    awk_style_rule if => '$1 =~ /^#/', dont_record => 1;
+
+    # Sometimes it is useful to make a parser state variable. For example,
+    # suppose we want to keep track of the number of retirees.
+    awk_style_rule if => '$1 eq "RETIRED:" and $2 eq "Y"',
+        do => '$this->_is_retired;', dont_record => 1;
+
+    has retired_people => (
+        is          => 'rw', 
+        isa         => 'Int', 
+        default     => 0, 
+        init_arg    => undef, 
+        lazy        => 1, 
+        traits      => ['Counter'], 
+        handles     => {
+            _is_retired => 'inc', 
+        }, 
+    );
+    # In the above rule, the 'do' block is executed, but the return value
+    # of the $this->_is_retired is not saved as a record. If the 'dont_record'
+    # option were not set, then an integer record of the number of retirees
+    # so far will be saved every time the RETIRED: Y is encountered.
+
+=cut
+
