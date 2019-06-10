@@ -1,0 +1,63 @@
+
+# PODNAME: Text::Parser::Manual::ComparingWithNativePerl
+
+# ABSTRACT: A comparison of text parsing with native Perl and Text::Parser
+
+=head1 A SIMPLE DATA FILE
+
+To understand how L<Text::Parser> compares to the native Perl way of doing things, let's take a simple example and see how we would write code. Let's say we have a simple text file (F<info.txt>) with lines of information like this:
+
+    NAME: Brian
+    EMAIL: brian@webhost.net
+    NAME: Darin Cruz
+    EMAIL: darin123@yahoo.co.uk
+    NAME: Elizabeth
+    NAME: Audrey C. Miller
+    EMAIL: aud@audrey.io
+
+You have to write code that would parse this to create a data structure with all names and corresponding email addresses. How would do it?
+
+=head2 Native Perl code
+
+Here's an implementation in native Perl:
+
+    open IN, "<info.txt";
+    my @data = ();
+    while(<IN>) {
+        chomp;
+        my (@field) = split /\s+/;
+        if ($field[0] eq 'NAME:') {
+            shift @field;
+            push @data, { name => join(' ', @field) };
+        } elsif($field[0] eq 'EMAIL:') {
+            $data[-1]->{email} = $field[1];
+        }
+    }
+    close IN;
+
+=head2 With Text::Parser
+
+Here's how you'd write the code with L<Text::Parser>.
+
+    use Text::Parser;
+
+    my $parser = Text::Parser->new();
+    $parser->add_rule( if => '$1 eq "NAME:"', do => 'return { name => ${2+} }' );
+    $parser->add_rule( if => '$1 eq "EMAIL:"',
+        do => 'my $rec = $this->pop_record; $rec->{email} = $2; return $rec' );
+    $parser->read('info.txt');
+    my (@data) = $parser->get_records();
+
+That's it!
+
+Notice how elegant and self-explanatory the code looks. If you write the C<while> loop in the native Perl example, you can't tell what it is doing until you read it fully.
+
+=head1 COMPLEX TEXT FORMAT
+
+Take the case of some very complex text formats
+
+=head2 Native Perl code
+
+=head2 With Text::Parser
+
+

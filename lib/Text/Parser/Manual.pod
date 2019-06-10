@@ -36,10 +36,10 @@ Note that a developer may have to repeat all of the above if she has to read ano
         # finally!
     }
 
-There are several problems with this code:
+There are several problems with this sort of code:
 
 =for :list
-* Hard to refactor and simplify into small functions (See Clean Code).
+* Hard to refactor and simplify into small functions (See I<"Clean Code"> by Robert C. Martin).
 * Complex conditions are harder to write and often result in nested conditions.
 * Cannot be easily modified slightly and re-used for another very similar text format.
 * Documenting code in the while loop can get rather hairy.
@@ -51,9 +51,9 @@ What if:
 =for :list
 * a utility took care of all the "mundane" boilerplate like C<open>, C<close> etc.?
 * parsing line-wrapped files were as simple as writing a small function that joins lines to unwrap?
-* data extraction could be done with a set of self-explanatory rules that follow AWK-like syntax?
-* the resulting code "reads like well-written prose" (-Bjarnes Stroustrup)?
-* developers could easily extend a text parser written by one developer?
+* data extraction could be done with a set of self-explanatory rules that don't need to be documented?
+* the resulting code "reads like well-written prose"?
+* developers could easily extend a text parser written by another developer?
 
 L<Text::Parser> can help you accomplish all of these and more!
 
@@ -69,66 +69,4 @@ This manual is divided into chapters:
 * L<Text::Parser::Manual::ManagingComplexRules> - what if you have a complex text file and need to write several rules? This chapter shows how you could manage these elegantly in a separate class.
 * L<Text::Parser::Manual::UsingParserStateVariables> - what if the target text file has two different sorts of format, and there is an indicator that points out when the format changes?
 * L<Text::Parser::Manual::InheritingAndModifyingRules> - suppose someone else has written a parser to handle a specific text format. And your target text format is similar, and you'd like to leverage their work. But you have some differences? Is it possible to re-use their code without modifying the original functionality?
-
-=head1 COMPARING WITH NATIVE PERL
-
-To understand how L<Text::Parser> compares to the native Perl way of doing things, let's take a simple example and see how we would write code. Let's say we have a simple text file (F<info.txt>) with lines of information like this:
-
-    NAME: Brian
-    EMAIL: brian@webhost.net
-    NAME: Darin Cruz
-    EMAIL: darin123@yahoo.co.uk
-    NAME: Elizabeth
-    NAME: Audrey C. Miller
-    EMAIL: aud@audrey.io
-
-You have to write code that would parse this to create a data structure with all names and corresponding email addresses. How would do it?
-
-=head2 Native Perl code
-
-Here's an implementation in native Perl:
-
-    open IN, "<info.txt";
-    my @data = ();
-    while(<IN>) {
-        chomp;
-        my (@field) = split /\s+/;
-        if ($field[0] eq 'NAME:') {
-            shift @field;
-            push @data, { name => join(' ', @field) };
-        } elsif($field[0] eq 'EMAIL:') {
-            $data[-1]->{email} = $field[1];
-        }
-    }
-    close IN;
-
-=head2 With Text::Parser
-
-Here's how you'd write the code with L<Text::Parser>.
-
-    use Text::Parser;
-
-    my $parser = Text::Parser->new();
-    $parser->add_rule( if => '$1 eq "NAME:"', do => 'return ${2+}' );
-    $parser->add_rule( if => '$1 eq "EMAIL:"', do => 'return $2' );
-    $parser->read('info.txt');
-    my (@data) = $parser->get_records();
-
-That's it!
-
-Notice how elegant the code looks. And most importantly, you could now use the same parser object (C<$parser>) to parse another text file with the same text format.
-
-    $parser->read('another.txt');
-
-With native Perl, you'd have to wrap all that C<while> loop into a function and then call it with the file name.
-
-=head2 More complexity in the format
-
-Now let's say that the file F<another.txt> has the email line changed and it looks like this instead:
-
-    EMAIL ADDRESS: person@domain.net
-
-Now, with native perl you'd have to 
-
-=head2 Directly from your code
 
