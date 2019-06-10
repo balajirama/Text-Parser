@@ -8,7 +8,7 @@ Text::Parser - Simplifies text parsing. Easily extensible to parse any text form
 
 =head1 VERSION
 
-version 0.920
+version 0.921
 
 =head1 SYNOPSIS
 
@@ -34,7 +34,7 @@ The above code reads the first command-line argument as a string, and assuming i
     my (@names) = $parser->get_records();
     print "The following names were found:\n@names\n";
 
-The above parser has a parsing rule that extracts the names and saves them as records. The syntax of these rules is inspired by the AWK programming language and is described in L<Text::Parser::ExAWK::Manual>.
+The above parser has a parsing rule that extracts the names and saves them as records. The syntax of these rules is inspired by the AWK programming language and is described in L<Text::Parser::Manual::ExtendedAWKSyntax>.
 
     package My::Parser;
 
@@ -56,9 +56,9 @@ The above parser has a parsing rule that extracts the names and saves them as re
 
 =head1 OVERVIEW
 
-The L<rationale|Text::Parser::Manual/INTRODUCTION> for building this class stems from the fact that text parsing is the single most common thing that programmers do, and yet there is no lean and simple way to parse text files without having to write a C<while> loop and a lot of boilerplate lines of code.
+The L<rationale|Text::Parser::Manual/MOTIVATION> for building C<Text::Parser> stems from the fact that text parsing is the single most common thing that programmers do, and yet there is no lean and simple way to do it. Most programmers still use the old boilerplate style with a C<while> loop.
 
-C<Text::Parser> is a format-agnostic text parsing class. With C<Text::Parser>, a developer can focus on specifying a grammar in the form of rules and then simply C<read> the file. If the developer wants to do something special, just extend the C<Text::Parser> class.
+C<Text::Parser> is a format-agnostic text parsing class. With C<Text::Parser>, a developer can focus on specifying a grammar in the form of rules and then simply C<read> the file. Most developers want to collect records from the text file, and C<read> method automatically collects records that can be retrieved using C<get_records>. If the developer wants to do something special and unique, just C<extend> the C<Text::Parser> class.
 
 =head1 CONSTRUCTOR
 
@@ -556,13 +556,9 @@ Try this parser with a SPICE deck with continuation characters and see what you 
 
 =head1 THINGS TO BE DONE
 
-Future versions are expected to include:
+This package is still a work in progress and future versions are expected to include:
 
 =over 4
-
-=item *
-
-progress-bar support
 
 =item *
 
@@ -574,11 +570,15 @@ automatically uncompress input
 
 =item *
 
+progress-bar support
+
+=item *
+
 I<suggestions welcome ...>
 
 =back
 
-Interested contributors welcome.
+Contributions and suggestions are welcome and properly acknowledged.
 
 =head1 SEE ALSO
 
