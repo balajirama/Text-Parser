@@ -11,7 +11,7 @@ use MooseX::ClassAttribute;
 use Moose::Exporter;
 
 Moose::Exporter->setup_import_methods(
-    as_is => ['rule'],
+    as_is => ['prule'],
     also  => 'Moose',
 );
 
@@ -29,7 +29,13 @@ class_has _class_rule_order => (
     traits  => ['Hash'],
 );
 
-sub rule {
+=method prule
+
+Takes a hash argument. The hash is passed to the constructor of L<Text::Parser::ExAWK::Rule> to make a rule object.
+
+=cut
+
+sub prule {
     return;
 }
 
