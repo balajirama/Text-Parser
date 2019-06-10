@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+0.920     2019-06-09 19:48:42-07:00 America/Los_Angeles
   - Bug in new version of Dist::Zilla::Plugin::Test::MinimumVersion causes bug. Work-around provided (#35).
     See bug#8 on https://github.com/doherty/Dist-Zilla-Plugin-Test-MinimumVersion/issues
 
