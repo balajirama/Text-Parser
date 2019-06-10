@@ -294,6 +294,10 @@ L<field_range|Text::Parser::AutoSplit/field_range>
 
 =item *
 
+L<join_range|Text::Parser::AutoSplit/join_range>
+
+=item *
+
 L<find_field|Text::Parser::AutoSplit/find_field>
 
 =item *

@@ -548,6 +548,7 @@ When the C<L<auto_split|/auto_split>> attribute is on, (or if it is turned on la
 * L<fields|Text::Parser::AutoSplit/fields>
 * L<field|Text::Parser::AutoSplit/field>
 * L<field_range|Text::Parser::AutoSplit/field_range>
+* L<join_range|Text::Parser::AutoSplit/join_range>
 * L<find_field|Text::Parser::AutoSplit/find_field>
 * L<find_field_index|Text::Parser::AutoSplit/find_field_index>
 * L<splice_fields|Text::Parser::AutoSplit/splice_fields>
