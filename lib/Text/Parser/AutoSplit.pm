@@ -9,6 +9,7 @@ use Moose::Role;
 use MooseX::CoverableModifiers;
 use String::Util qw(trim);
 use Text::Parser::Errors;
+use English;
 
 =head1 SYNOPSIS
 
@@ -161,6 +162,23 @@ sub _sub_field_range {
     my (@range)
         = ( $start <= $end ) ? ( $start .. $end ) : reverse( $end .. $start );
     map { $self->field($_) } @range;
+}
+
+=auto_split_meth join_range
+
+This method essentially joins the return value of the C<field_range> method. It takes three arguments. The first argument is the joining string, and the other two are optional integer arguments C<$i> and C<$j> just like C<field_range> method.
+
+    $self->join_range();            # Joins with empty string as separator
+    $self->join_range(' ');         # Joins with space separator
+    $self->join_range(' ', 2);      # Joins all elements starting with index 2 to the end
+    $self->join_range(' ', 1, -2);  # Joins all elements in specified range
+
+=cut
+
+sub join_range {
+    my ($self, $sep) = (shift, shift);
+    $sep = $LIST_SEPARATOR if not defined $sep;
+    join $sep, $self->field_range(@_);
 }
 
 =auto_split_meth find_field
