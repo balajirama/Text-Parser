@@ -11,7 +11,7 @@ use Scalar::Util 'blessed';
 
 =head1 SYNOPSIS
 
-Users should not use this class directly to create and run rules. See L<Text::Parser::ExAWK> for instructions on creating rules in a class. But the example below shows the way this class works for those that intend to improve the class.
+Users should not use this class directly to create and run rules. See L<Text::Parser::Manual::ExtendedAWKSyntax> for instructions on creating rules in a class. But the example below shows the way this class works for those that intend to improve the class.
 
     use Text::Parser::ExAWK::Rule;
     use Text::Parser;               # To demonstrate use with Text::Parser

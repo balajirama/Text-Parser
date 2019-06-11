@@ -18,50 +18,40 @@ The above code reads the first command-line argument as a string, and assuming i
 
     use Text::Parser;
 
-    my $parser = Text::Parser->new(auto_split => 1);
+    my $parser = Text::Parser->new();
+    $parser->add_rule(do => 'print');
+    $parser->read(shift);
+
+The above code will print all lines with C<this thing> or C<that thing>. Note that while in the first example, the content of the file is printed only after it is fully read in. In the second example however, printing happens immediately.
+
+Your rule could be written differently:
+
+    $parser->add_rule(if => 'm/th(is|at) thing/', do => 'print');
+
+You can also do something more complex like this:
 
     $parser->add_rule(
-        if   => '$1 eq "NAME:"',
-        do   => 'return ${2+};',
+        if => '$1 eq "STATE:"',
+        do => 'return ${2+}', 
     );
 
-    $parser->read(shift);
-    my (@names) = $parser->get_records();
-    print "The following names were found:\n@names\n";
-
-The above parser has a parsing rule that extracts the names and saves them as records. The syntax of these rules is inspired by the AWK programming language and is described in L<Text::Parser::Manual::ExtendedAWKSyntax>.
-
-    package My::Parser;
-
-    use strict;
-    use warnings;
-
-    use Moose;
-    extends 'Text::Parser';
-
-    use Text::Parser::ExAWK;
-
-    rule if => '$1 eq "NAME:"', do => 'return ${2+};';
-
-    sub BUILD {
-        my $self = shift;
-        $self->apply_rules(__PACKAGE__);
-    }
+Or add a whole list of rules to parse a complex text file format and build a data structure from the records returned by C<get_records>.
 
 =head1 OVERVIEW
 
-The L<rationale|Text::Parser::Manual/MOTIVATION> for building C<Text::Parser> stems from the fact that text parsing is the single most common thing that programmers do, and yet there is no lean and simple way to do it. Most programmers still use the old boilerplate style with a C<while> loop.
+The L<rationale|Text::Parser::Manual/MOTIVATION> for building C<Text::Parser> stems from the fact that text parsing is the single most common thing that programmers do, and yet there is no lean and simple way to do it. Most programmers still use the old boilerplate style with a C<while> loop. The idea of specifying terse, yet very self-explanatory rules, is an inspiration from AWK. Incidentally, AWK is the inspiration for Perl itself! Yet, command-line C<perl -lane> or even C<perl -lan script.pl> are very limited in what they can do. Programmers cannot use them for serious programs.
 
-C<Text::Parser> is a format-agnostic text parsing class. With C<Text::Parser>, a developer can focus on specifying a grammar in the form of L<rules|Text::Parser::Manual::ExtendedAWKSyntax> and then simply C<read> the file. The C<read> method automatically runs each rule collecting records from the text input. And finally C<get_records> can retrieve the records. If the developer wants to do something special or unique, just C<extend> the C<Text::Parser> class. One may also want to create a class C<extend>ing the C<Text::Parser> class to organize all the rules in one place.
+With C<Text::Parser>, a developer can focus on specifying a grammar in the form of L<rules|Text::Parser::Manual::ExtendedAWKSyntax> and then simply C<read> the file. The C<read> method automatically runs each rule collecting records from the text input into an array internally. And finally C<get_records> can retrieve the records and you can build your own data structure with it. Thus the programmer now has the power of Perl, along with the elegance of tools like AWK to parse text files.
+
+If the developer wants to do something special or unique, just C<extend> the C<Text::Parser> class. One may also want to create a class C<extend>ing the C<Text::Parser> class to organize all the rules in one place.
 
 =head1 THINGS TO BE DONE
 
-This package is still a work in progress. Future versions are expected to include:
+This package is still a work in progress. Future versions are expected to include features to:
 
 =for :list
-* parsing from a buffer
+* read and parse from a buffer
 * automatically uncompress input
-* progress-bar support
 * I<suggestions welcome ...>
 
 Contributions and suggestions are welcome and properly acknowledged.
