@@ -230,7 +230,7 @@ Takes a hash as input. The keys of this hash must be the attributes of the L<Tex
     $parser->add_rule(if => 'm/li/, do => 'print', dont_record);   # Prints lines with 'li'
     $parser->add_rule( do => 'uc($3)' );                           # Saves records of upper-cased third elements
 
-Calling this method without any arguments will throw an exception.
+Calling this method without any arguments will throw an exception. The method internally sets the C<auto_split> attribute.
 
 =cut
 
@@ -242,7 +242,7 @@ has _obj_rules => (
     traits  => ['Array'],
     handles => {
         _push_rule    => 'push',
-        _clear_rules  => 'clear',
+        clear_rules  => 'clear',
         _has_no_rules => 'is_empty',
         _get_rules    => 'elements',
     },
@@ -254,6 +254,14 @@ sub add_rule {
     my $rule = Text::Parser::Rule->new(@_);
     $self->_push_rule($rule);
 }
+
+=method clear_rules
+
+Takes no arguments, returns nothing. Clears the rules that were added to the object.
+
+    $parser->clear_rules;
+
+This is useful to be able to re-use the parser after a C<read> call, to parse another text with another set of rules.
 
 =method read
 
