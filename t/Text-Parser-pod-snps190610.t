@@ -38,4 +38,18 @@ lives_ok {
 }
 'does not die';
 
+lives_ok {
+    my $parser = Text::Parser->new();
+    $parser->add_rule(
+        if               => '$1 eq "NAME:"',
+        do               => 'lc($2)',
+        dont_record      => 1,
+        continue_to_next => 1
+    );
+    $parser->read('t/names.txt');
+    is( scalar( $parser->get_records ), 0, 'Got nothing things' );
+    is_deeply( [ $parser->get_records ], [], 'empty array' );
+}
+'does not die';
+
 done_testing;
