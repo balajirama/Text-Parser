@@ -158,7 +158,7 @@ exception
 
 =head3 C<Text::Parser::Errors::ExAWK>
 
-All errors corresponding to the L<Text::Parser::ExAWK::Rule> class.
+All errors corresponding to the L<Text::Parser::Rule> class.
 
 =cut
 
@@ -166,7 +166,7 @@ exception ExAWK => 'a class of errors', extends => GenericError();
 
 =head3 C<Text::Parser::Errors::BadRuleSyntax>
 
-Generated from L<Text::Parser::ExAWK::Rule> class constructor or from the accessors of C<condition>, C<action>, or the method C<add_precondition>, when the rule strings specified fail to compile properly.
+Generated from L<Text::Parser::Rule> class constructor or from the accessors of C<condition>, C<action>, or the method C<add_precondition>, when the rule strings specified fail to compile properly.
 
 =head4 Attributes
 
@@ -201,7 +201,7 @@ exception
 
 =head3 C<Text::Parser::Errors::IllegalRuleNoIfNoAct>
 
-Generated from constructor of the L<Text::Parser::ExAWK::Rule> when the rule is created with neither a C<condition> nor an C<action>
+Generated from constructor of the L<Text::Parser::Rule> when the rule is created with neither a C<condition> nor an C<action>
 
 =cut
 
@@ -211,7 +211,7 @@ exception
 
 =head3 C<Text::Parser::Errors::IllegalRuleCont>
 
-Generated when the rule option C<continue_to_next> of the L<Text::Parser::ExAWK::Rule> object is set true when C<dont_record> is false.
+Generated when the rule option C<continue_to_next> of the L<Text::Parser::Rule> object is set true when C<dont_record> is false.
 
 =cut
 
@@ -222,7 +222,7 @@ exception
 
 =head3 C<Text::Parser::Errors::RuleRunImproperly>
 
-Generated from C<run> method of L<Text::Parser::ExAWK::Rule> is called without an object of L<Text::Parser> as argument.
+Generated from C<run> method of L<Text::Parser::Rule> is called without an object of L<Text::Parser> as argument.
 
 =cut
 
@@ -234,7 +234,7 @@ exception
 
 =for :list
 * L<Text::Parser>
-* L<Text::Parser::ExAWK::Rule>
+* L<Text::Parser::Rule>
 * L<Throwable::SugarFactory>
 * L<Exceptions>
 

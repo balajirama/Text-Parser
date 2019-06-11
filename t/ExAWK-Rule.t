@@ -7,24 +7,25 @@ use Test::Exception;
 use Text::Parser::Errors;
 
 BEGIN {
-    use_ok 'Text::Parser::ExAWK::Rule';
+    use_ok 'Text::Parser::Rule';
     use_ok 'Text::Parser';
 }
 
 throws_ok {
-    my $rule = Text::Parser::ExAWK::Rule->new();
+    my $rule = Text::Parser::Rule->new();
 }
 ExAWK(), 'Throws an error for no arguments';
 
 lives_ok {
-    my $rule = Text::Parser::ExAWK::Rule->new( if => '' );
+    my $rule = Text::Parser::Rule->new( if => '' );
     is( $rule->min_nf, 0, 'Min NF is 0' );
     my $parser = Text::Parser->new();
     lives_ok {
         is $rule->test(''), 0, 'Test nothing';
         is $rule->test($parser), 0, 'Test works';
         $parser->auto_split(1);
-        is $rule->test($parser), 0, 'Test fails because there is no this_line';
+        is $rule->test($parser), 0,
+            'Test fails because there is no this_line';
     }
     'auto_split not enabled and still lives';
     $rule->add_precondition('${-1} eq "ELSE"');
@@ -60,7 +61,7 @@ lives_ok {
 'Empty rule starting with empty condition';
 
 lives_ok {
-    my $rule = Text::Parser::ExAWK::Rule->new( do => '' );
+    my $rule = Text::Parser::Rule->new( do => '' );
     is( $rule->min_nf,    0,   'Min NF is 0' );
     is( $rule->condition, '1', 'Default action' );
     $rule->add_precondition('$4 eq "SOMETHING"');
@@ -79,7 +80,7 @@ lives_ok {
 'Another empty rule with empty action';
 
 lives_ok {
-    my $rule = Text::Parser::ExAWK::Rule->new(
+    my $rule = Text::Parser::Rule->new(
         if => '$1 eq "NAME:"',
         do => 'my (@fld) = $this->field_range(1, -1); return "@fld";',
     );
@@ -98,7 +99,7 @@ lives_ok {
     $rule->dont_record(1);
     $rule->run($parser);
     is_deeply( [ $parser->get_records ], [], 'No records this time' );
-    my $rule2 = Text::Parser::ExAWK::Rule->new( do => '' );
+    my $rule2 = Text::Parser::Rule->new( do => '' );
     $rule2->run($parser);
     is_deeply( [ $parser->get_records ], [], 'Nothing saved' );
 }

@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-package Text::Parser::ExAWK::Rule;
+package Text::Parser::Rule;
 
 # ABSTRACT: Makes it possible to write AWK-style parsing rules for Text::Parser
 
@@ -13,11 +13,11 @@ use Scalar::Util 'blessed';
 
 Users should not use this class directly to create and run rules. See L<Text::Parser::Manual::ExtendedAWKSyntax> for instructions on creating rules in a class. But the example below shows the way this class works for those that intend to improve the class.
 
-    use Text::Parser::ExAWK::Rule;
+    use Text::Parser::Rule;
     use Text::Parser;               # To demonstrate use with Text::Parser
     use Data::Dumper 'Dumper';      # To print any records
 
-    my $rule = Text::Parser::ExAWK::Rule->new(
+    my $rule = Text::Parser::Rule->new(
         if => '$1 eq "NAME:"', 
         do => 'my (@fld) = $this->field_range(1, -1); return "@fld";', 
     );
@@ -230,7 +230,7 @@ has continue_to_next => (
 
 Takes optional attributes described in L<ATTRIBUTES|/ATTRIBUTES> section.
 
-    my $rule = Text::Parser::ExAWK::Rule->new(
+    my $rule = Text::Parser::Rule->new(
         condition => '$1 eq "NAME:"',   # Some condition string
         action => 'return $2;',         # Some action to do when condition is met
         dont_record => 1,               # Directive to not record

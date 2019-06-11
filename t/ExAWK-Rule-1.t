@@ -6,15 +6,15 @@ package SomeParser;
 
 use Moose;
 extends 'Text::Parser';
-use Text::Parser::ExAWK::Rule;
+use Text::Parser::Rule;
 
 my (@rules);
 push @rules,
-    Text::Parser::ExAWK::Rule->new(
+    Text::Parser::Rule->new(
     if => '$1 eq "NAME:"',
     do => 'return $2'
     );
-push @rules, Text::Parser::ExAWK::Rule->new( if => '$1 eq "SOMETHING"', );
+push @rules, Text::Parser::Rule->new( if => '$1 eq "SOMETHING"', );
 
 $rules[1]->add_precondition('$2 eq "ELSE:"');
 
