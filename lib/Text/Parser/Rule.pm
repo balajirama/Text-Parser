@@ -7,7 +7,11 @@ package Text::Parser::Rule;
 
 use Moose;
 use Text::Parser::Errors;
-use Scalar::Util 'blessed';
+use Scalar::Util 'blessed', 'looks_like_number';
+use String::Util ':all';
+use String::Util::Match 'match_array_or_regex';
+use String::Util::Range 'convert_sequence_to_range';
+use String::Index qw(cindex ncindex crindex ncrindex);
 
 =head1 SYNOPSIS
 
@@ -17,15 +21,16 @@ Users should not use this class directly to create and run rules. See L<Text::Pa
     use Text::Parser;               # To demonstrate use with Text::Parser
     use Data::Dumper 'Dumper';      # To print any records
 
-    my $rule = Text::Parser::Rule->new(
-        if => '$1 eq "NAME:"', 
-        do => 'my (@fld) = $this->field_range(1, -1); return "@fld";', 
-    );
+    my $rule = Text::Parser::Rule->new( if => '$1 eq "NAME:"', do => '${2+}' );
 
-    # auto_split must be true to get any rules to work
+    # Must have auto_split attribute set - this is automatically done by
+    # the add_rule method of Text::Parser
     my $parser = Text::Parser->new(auto_split => 1);
 
-    my @records = ();
+    # Example of how internally the $parser would run the $rule
+    # This code below won't really run any rules because rules
+    # have to be applied when the $parser->read() method is called
+    # and not outside of that
     $rule->run($parser) if $rule->test($parser);
     print "Continuing to next rule..." if $rule->continue_to_next;
 
@@ -33,9 +38,16 @@ Users should not use this class directly to create and run rules. See L<Text::Pa
 
 The attributes below may be used as options to C<new> constructor. Note that in some cases, the accessor method for the attribute is differently named. Use the attribute name in the constructor and accessor as a method.
 
-=attr if (accessor C<condition>)
+=attr condition
 
-Read-write attribute. Must be string which after transformation must C<eval> successfully without compilation errors. This C<condition> is C<test>ed before the C<action> is C<run>. In the constructor, this attribute must be specified using C<if> option instead.
+Read-write attribute. Set in the constructor with C<if> key. Must be string which after transformation must C<eval> successfully without compilation errors.
+
+    my $rule = Text::Parser::Rule->new( if => 'm//' );
+    print $rule->action, "\n";           # m//
+    $rule->action('m/something/');
+    print $rule->action, "\n";           @ m/something/
+
+During a call to C<L<test|/test>> method, this C<condition> is C<eval>uated and the result is returned as a boolean for further decision-making.
 
 =cut
 
@@ -164,9 +176,14 @@ sub _gen_joined_str {
 
 =attr action
 
-Must be string which after transformation must C<eval> successfully without compilation errors. The C<action> returns a value which may be stored as a record by the caller.
+Read-write attribute. Set in the constructor with C<do> key. Must be string which after transformation must C<eval> successfully without compilation errors.
 
-    $rule->action('')
+    my $rule = Text::Parser->new( do => '' );
+    print $rule->action, "\n";        # :nothing:
+    $rule->action('return $1');
+    print $rule->action, "\n";        # return $1
+
+The C<L<action|/action>> is executed during a call to C<run> when C<condition> (and all preconditions) is true. The return value of the C<eval>uated C<action> is used or discarded based on the C<dont_record> attribute.
 
 =cut
 
@@ -203,7 +220,7 @@ Boolean indicating if return value of the C<action> (when transformed and C<eval
 
     print "Will not save records\n" if $rule->dont_record;
 
-The accessor is already being handled and used in C<L<run|/run>> method. Usually the results of the C<eval>uated C<action> are recorded in the object passed to C<run>. But when this attribute is set to true, then results are not recorded.
+The attribute is used in C<L<run|/run>> method. The results of the C<eval>uated C<action> are recorded in the object passed to C<run>. But when this attribute is set to true, then results are not recorded.
 
 =cut
 
@@ -223,8 +240,10 @@ sub _check_continue_to_next {
 
 =attr continue_to_next
 
-Takes a boolean value. This can be set true only for rules with C<dont_record> attribute set to a true value. This attribute indicates that the rule will proceed to the next rule until some rule passes the C<test>. So if you have a series of rules to test and execute in sequence:
+Takes a boolean value. This can be set true only for rules with C<dont_record> attribute set to a true value. This attribute indicates that the rule will proceed to the next rule until some rule passes the C<L<test|/test>>. It is easiest to understand the use of this if you imagine a series of rules to test and execute in sequence:
 
+    # This code is actually used in Text::Parser
+    # to run through the rules specified
     foreach my $rule (@rules) {
         next if not $rule->test($parser);
         $rule->run($parser);
@@ -267,7 +286,14 @@ sub BUILD {
 
 =method add_precondition
 
-Takes a list of rule strings that are similar to the C<condition> string.
+Takes a list of rule strings that are similar to the C<condition> string. For example:
+
+    $rule->add_precondition(
+        '$2 !~ /^ln/', 
+        'looks_like_number($3)', 
+    );
+
+During the call to C<L<test|/test>>, these preconditions and the C<condition> will all be combined in the C<and> operation. That means, all the preconditions must be satisfied, and then the C<condition> must be satisfied. If any of them C<eval>uates to a false boolean, C<test> will return false.
 
 =cut
 
@@ -324,7 +350,14 @@ has _precond_subroutines => (
 
 =method test
 
-Takes one argument that must be of type C<Text::Parser> (or some inherited class of that). Returns a boolean value indicating if the C<run> method may be called. Inside C<test>, each of these conditions must pass before the C<condition> is tested. If all preconditions and C<condition> pass, then C<test> returns true.
+Takes one argument that must be a C<Text::Parser>. Returns a boolean value may be used to decide to call the C<run> method.
+
+If all preconditions and C<condition> C<eval>uate to a boolean true, then C<test> returns true.
+
+    my $parser = Text::Parser->new(auto_split => 1);
+    $rule->test($parser);
+
+The method will always return a boolean false if the C<Text::Parser> object passed does not have the C<auto_split> attribute on.
 
 =cut
 
@@ -332,7 +365,7 @@ sub test {
     my $self = shift;
     return 0 if not _check_parser_arg(@_);
     my $parser = shift;
-    return 0 if not $parser->can('NF') or $parser->NF < $self->min_nf;
+    return 0 if not $parser->auto_split or $parser->NF < $self->min_nf;
     return 0 if not $self->_test_preconditions($parser);
     return $self->_test_cond_sub($parser);
 }
@@ -361,14 +394,19 @@ sub _test_cond_sub {
 
 =method run
 
-Takes one argument that must be of type C<Text::Parser> or its derivative. Has no return value.
+Takes one argument that must be a C<Text::Parser>. Has no return value.
+
+    my $parser = Text::Parser->new(auto_split => 1);
+    $rule->run($parser);
+
+Runs the C<eval>uated C<action>. If C<dont_record> is false, the return value of the C<action> is recorded in C<$parser>. Otherwise, it is ignored.
 
 =cut
 
 sub run {
     my $self = shift;
     die rule_run_improperly if not _check_parser_arg(@_);
-    return if $self->action !~ /\S+/;
+    return if $self->action !~ /\S+/ or not $_[0]->auto_split;
     my (@res) = $self->_call_act_sub( $_[0] );
     return if $self->dont_record;
     $_[0]->push_records(@res);
