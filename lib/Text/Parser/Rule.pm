@@ -56,8 +56,9 @@ sub _set_condition {
 }
 
 sub _get_min_req_fields {
-    my $str  = shift;
-    my @indx = $str =~ /\$([0-9]+)|\$[{]([-][0-9]+)[}]/g;
+    my $str = shift;
+    my @indx
+        = $str =~ /\$([0-9]+)|\$[{]([-][0-9]+)[}]|\$[{]([-]?[0-9]+)[+][}]/g;
     my @inds = sort { $b <=> $a } ( grep { defined $_ } @indx );
     return 0 if not @inds;
     ( $inds[0] >= -$inds[-1] ) ? $inds[0] : -$inds[-1];
@@ -81,8 +82,22 @@ sub _gen_sub_str {
 sub _replace_awk_vars {
     my $str = shift;
     $str =~ s/\$0/\$this->this_line/g;
+    $str = _replace_positional_indicators($str);
+    $str = _replace_range_shortcut($str);
+    return $str;
+}
+
+sub _replace_positional_indicators {
+    my $str = shift;
     $str =~ s/\$[{]([-][0-9]+)[}]/\$this->field($1)/g;
     $str =~ s/\$([0-9]+)/\$this->field($1 - 1)/g;
+    return $str;
+}
+
+sub _replace_range_shortcut {
+    my $str = shift;
+    $str =~ s/\$[{]([-][0-9]+)[+][}]/\$this->join_range(\$", $1)/g;
+    $str =~ s/\$[{]([0-9]+)[+][}]/\$this->join_range(\$", $1-1)/g;
     return $str;
 }
 

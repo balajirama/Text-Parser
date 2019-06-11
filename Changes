@@ -2,7 +2,7 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
   - A new class for text parsing rules created Text::Parser::Parser (#17)
-  - Added new method to Text::Parser called add_rule to create rules (#37)
+  - Added new methods to Text::Parser called add_rule to create rules (#37), and clear_rules to delete rules (#40)
   - Added new method join_range available when auto_split => 1 (#38)
 
 0.920     2019-06-09 19:48:42-07:00 America/Los_Angeles
