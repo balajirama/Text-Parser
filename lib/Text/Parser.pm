@@ -250,6 +250,7 @@ has _obj_rules => (
 
 sub add_rule {
     my $self = shift;
+    $self->auto_split(1) if not $self->auto_split;
     my $rule = Text::Parser::Rule->new(@_);
     $self->_push_rule($rule);
 }

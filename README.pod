@@ -127,6 +127,16 @@ To "slurp" a file into a single string, set C<multiline_type> to C<join_last>. I
 
 These are meant to be called from the C<::main> program or within subclasses. In general, don't override them - just use them.
 
+=head2 add_rule
+
+Takes a hash as input. The keys of this hash must be the attributes of the L<Text::Parser::Rule> class constructor and the values should also meet the requirements of that constructor.
+
+    $parser->add_rule(do => '', dont_record => 1);                 # Empty rule: does nothing
+    $parser->add_rule(if => 'm/li/, do => 'print', dont_record);   # Prints lines with 'li'
+    $parser->add_rule( do => 'uc($3)' );                           # Saves records of upper-cased third elements
+
+Calling this method without any arguments will throw an exception.
+
 =head2 read
 
 Takes a single optional argument that can be either a string containing the name of the file, or a filehandle reference (a C<GLOB>) like C<\*STDIN> or an object of the C<L<FileHandle>> class.
