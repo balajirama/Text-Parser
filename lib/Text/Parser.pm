@@ -66,6 +66,7 @@ use Moose::Util 'apply_all_roles', 'ensure_all_roles';
 use Moose::Util::TypeConstraints;
 use String::Util qw(trim ltrim rtrim eqq);
 use Text::Parser::Errors;
+use Text::Parser::Rule;
 
 enum 'Text::Parser::Types::MultilineType' => [qw(join_next join_last)];
 enum 'Text::Parser::Types::TrimType'      => [qw(l r b n)];
@@ -220,6 +221,38 @@ sub __newval_multi_line {
 =head1 METHODS
 
 These are meant to be called from the C<::main> program or within subclasses. In general, don't override them - just use them.
+
+=method add_rule
+
+Takes a hash as input. The keys of this hash must be the attributes of the L<Text::Parser::Rule> class constructor and the values should also meet the requirements of that constructor.
+
+    $parser->add_rule(do => '', dont_record => 1);                 # Empty rule: does nothing
+    $parser->add_rule(if => 'm/li/, do => 'print', dont_record);   # Prints lines with 'li'
+    $parser->add_rule( do => 'uc($3)' );                           # Saves records of upper-cased third elements
+
+Calling this method without any arguments will throw an exception.
+
+=cut
+
+has _obj_rules => (
+    is      => 'rw',
+    isa     => 'ArrayRef[Text::Parser::Rule]',
+    lazy    => 1,
+    default => sub { [] },
+    traits  => ['Array'],
+    handles => {
+        _push_rule    => 'push',
+        _clear_rules  => 'clear',
+        _has_no_rules => 'is_empty',
+        _get_rules    => 'elements',
+    },
+);
+
+sub add_rule {
+    my $self = shift;
+    my $rule = Text::Parser::Rule->new(@_);
+    $self->_push_rule($rule);
+}
 
 =method read
 
@@ -450,7 +483,18 @@ B<Note:> Developers may store records in any form - string, array reference, has
 
 sub save_record {
     my ( $self, $record ) = ( shift, shift );
-    $self->push_records($record);
+    $self->_has_no_rules
+        ? $self->push_records($record)
+        : $self->_run_through_rules;
+}
+
+sub _run_through_rules {
+    my $self = shift;
+    foreach my $rule ( $self->_get_rules ) {
+        next if not $rule->test($self);
+        $rule->run($self);
+        last if not $rule->continue_to_next;
+    }
 }
 
 =head1 FOR USE IN SUBCLASS ONLY

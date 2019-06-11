@@ -213,7 +213,7 @@ Takes a boolean value. This can be set true only for rules with C<dont_record> a
     foreach my $rule (@rules) {
         next if not $rule->test($parser);
         $rule->run($parser);
-        break if not $rule->continue_to_next;
+        last if not $rule->continue_to_next;
     }
 
 =cut
