@@ -1,9 +1,9 @@
 
-# PODNAME: Text::Parser::Manual::ControlStructure
+# PODNAME: Text::Parser::Manual::ManagingComplexRules
 
-# ABSTRACT: Building complex control structures
+# ABSTRACT: Building complex control structures, and managing lots of rules
 
-=head1 THE POWER OF TWO ATTRIBUTES
+=head1 COMPLEX CONDITIONAL TREES
 
 If you wanted to build a complex C<if-elsif-else> tree of conditions, in AWK, you need to write them inside one rule like this:
 

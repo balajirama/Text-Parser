@@ -64,7 +64,7 @@ This manual is divided into chapters:
 =for :list
 * L<Text::Parser::Manual::ComparingWithNativePerl> - this chapter should explain why one should consider using L<Text::Parser> instead of native Perl.
 * L<Text::Parser::Manual::ExtendedAWKSyntax> - this chapter outlines the syntax for the rules
-* L<Text::Parser::Manual::ManagingComplexRules> - what if you have a complex text file and need to write several rules? This chapter shows how you could manage these elegantly in a separate class.
-* L<Text::Parser::Manual::UsingParserStateVariables> - what if the target text file has two different sorts of format, and there is an indicator that points out when the format changes?
+* L<Text::Parser::Manual::ManagingComplexRules> - what if you have a complex text file and need to write several rules? What options do you have?
+* L<Text::Parser::Manual::CommunicatingBetweenRules> - using parser attributes to communicate between rules
 * L<Text::Parser::Manual::InheritingAndModifyingRules> - suppose someone else has written a parser to handle a specific text format. And your target text format is similar, and you'd like to leverage their work. But you have some differences? Is it possible to re-use their code without modifying the original functionality?
 

@@ -95,7 +95,9 @@ would automatically check that there are at least three fields on the line. This
 
 Sometimes you want to access specific attributes of your parser class, or maybe you want to call a method. The C<$this> variable is accessible in both the C<condition> and the C<task> strings.
 
-Note that this is a real variable. If you modify the value of C<$this>, it will change.
+B<Important Note:> This is a real variable. If you modify the value of C<$this>, it will change. So don't assign to the variable C<$this>. If you save the C<$this> to another variable in the hope that you can retrieve it later, remember that all positional field indicators and range shortcuts are entirely dependent on the C<this> variable. If this variable is tampered with, you could get garbage results. You have been forewarned.
+
+The C<$this> variable allows you to L<communicate|Text::Parser::Manual::CommunicatingBetweenRules> parser state or information across different rules.
 
 =head1 DIFFERENCES BETWEEN AWK and ExAWK
 
