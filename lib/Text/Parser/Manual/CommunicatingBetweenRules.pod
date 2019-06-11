@@ -1,0 +1,5 @@
+
+# PODNAME: Text::Parser::Manual::CommunicatingBetweenRules
+
+# ABSTRACT: methods to communicate between rules
+
