@@ -61,6 +61,14 @@ lives_ok {
 'Empty rule starting with empty condition';
 
 lives_ok {
+    my $rule = Text::Parser::Rule->new(if => 'undef');
+    my $parser = Text::Parser->new(auto_split => 1);
+    is($rule->test($parser), 0, 'Will evaluate to 0');
+    $rule->add_precondition('undef');
+    is($rule->test($parser), 0, 'Will evaluate to 0');
+} 'Does not die';
+
+lives_ok {
     my $rule = Text::Parser::Rule->new( do => '' );
     is( $rule->min_nf,    0,   'Min NF is 0' );
     is( $rule->condition, '1', 'Default action' );
