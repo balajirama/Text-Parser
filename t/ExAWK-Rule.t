@@ -85,9 +85,10 @@ lives_ok {
         do => 'my (@fld) = $this->field_range(1, -1); return "@fld";',
     );
 
-    my $parser = Text::Parser->new( auto_split => 1, );
+    my $parser  = Text::Parser->new( auto_split => 1, );
+    my $parser2 = Text::Parser->new();
 
-    my @records = ();
+        my @records = ();
     throws_ok {
         $rule->run;
     }
@@ -97,6 +98,8 @@ lives_ok {
     is_deeply( [ $parser->get_records ], [], 'Store undef' );
     $parser->pop_record();
     $rule->dont_record(1);
+    $rule->run($parser2);
+    is_deeply([$parser2->get_records], [], 'No records');
     $rule->run($parser);
     is_deeply( [ $parser->get_records ], [], 'No records this time' );
     my $rule2 = Text::Parser::Rule->new( do => '' );
