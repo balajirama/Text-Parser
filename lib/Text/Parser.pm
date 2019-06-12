@@ -242,7 +242,6 @@ has _obj_rules => (
     traits  => ['Array'],
     handles => {
         _push_rule    => 'push',
-        clear_rules  => 'clear',
         _has_no_rules => 'is_empty',
         _get_rules    => 'elements',
     },
@@ -262,6 +261,13 @@ Takes no arguments, returns nothing. Clears the rules that were added to the obj
     $parser->clear_rules;
 
 This is useful to be able to re-use the parser after a C<read> call, to parse another text with another set of rules.
+
+=cut
+
+sub clear_rules {
+    my $self = shift;
+    $self->_obj_rules( [] );
+}
 
 =method read
 
