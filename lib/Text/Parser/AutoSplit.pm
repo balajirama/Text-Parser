@@ -141,6 +141,7 @@ sub field_range {
 
 sub __validate_index_range {
     my $self = shift;
+
     $self->field($_) for (@_);
     map { _pos_index( $_, $self->NF ) } __set_defaults(@_);
 }
@@ -168,16 +169,17 @@ sub _sub_field_range {
 
 This method essentially joins the return value of the C<field_range> method. It takes three arguments. The first argument is the joining string, and the other two are optional integer arguments C<$i> and C<$j> just like C<field_range> method.
 
-    $self->join_range();            # Joins with empty string as separator
-    $self->join_range(' ');         # Joins with space separator
-    $self->join_range(' ', 2);      # Joins all elements starting with index 2 to the end
-    $self->join_range(' ', 1, -2);  # Joins all elements in specified range
+    $self->join_range();            # Joins all fields with $" (see perlvar)
+    $self->join_range(0, -1, '#');  # Joins with # separator
+    $self->join_range(2);           # Joins all elements starting with index 2 to the end
+                                    # with $"
+    $self->join_range(1, -2);       # Joins all elements in specified range with $"
 
 =cut
 
 sub join_range {
-    my ($self, $sep) = (shift, shift);
-    $sep = $LIST_SEPARATOR if not defined $sep;
+    my $self = shift;
+    my $sep  = ( @_ < 3 ) ? $LIST_SEPARATOR : pop;
     join $sep, $self->field_range(@_);
 }
 

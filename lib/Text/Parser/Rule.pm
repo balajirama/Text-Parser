@@ -108,8 +108,8 @@ sub _replace_positional_indicators {
 
 sub _replace_range_shortcut {
     my $str = shift;
-    $str =~ s/\$[{]([-][0-9]+)[+][}]/\$this->join_range(\$", $1)/g;
-    $str =~ s/\$[{]([0-9]+)[+][}]/\$this->join_range(\$", $1-1)/g;
+    $str =~ s/\$[{]([-][0-9]+)[+][}]/\$this->join_range($1)/g;
+    $str =~ s/\$[{]([0-9]+)[+][}]/\$this->join_range($1-1)/g;
     return $str;
 }
 

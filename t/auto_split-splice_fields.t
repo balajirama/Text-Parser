@@ -25,7 +25,7 @@ sub save_record {
             'Reverse order of fields'
         );
         my $rev_str = join ' ', ( reverse( $self->fields ) );
-        is( $self->join_range( ' ', -1, 0 ),
+        is( $self->join_range( -1, 0, ' ' ),
             $rev_str, 'String in reverse order' );
     }
     'Does not die on searching backwards';
