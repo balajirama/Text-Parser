@@ -5,7 +5,7 @@ Revision history for {{$dist->name}}
   - Import functions from String::Util, Scalar::Util, String::Util::Match, String::Util::Range, and String::Index.
     These can be accessed inside the ExAWK string rules directly (#44)
   - Added new methods to Text::Parser called add_rule to create rules (#37), and clear_rules to delete rules (#40)
-  - Rules support range shortcuts like ${3+} (#39)
+  - Rules support range shortcuts like ${3+}, @{2+}, and \@{3+} (#39), (#45)
   - Added new method join_range available when auto_split => 1 (#38)
 
 0.920     2019-06-09 19:48:42-07:00 America/Los_Angeles
