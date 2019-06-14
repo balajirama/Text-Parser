@@ -34,12 +34,12 @@ Note that a developer may have to repeat all of the above if she has to read ano
         # finally!
     }
 
-There are several problems with this sort of code:
+There are several problems with this sort of code. For starters, it is:
 
 =for :list
 * Hard to refactor and simplify into small functions (See I<"Clean Code"> by Robert C. Martin).
-* Complex conditions are harder to write and often result in nested conditions.
 * Cannot be easily modified slightly and re-used for another very similar text format.
+* Complex conditions are harder to write and often result in nested conditions.
 * Documenting code in the while loop can get rather hairy.
 
 =head1 VISION

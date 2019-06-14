@@ -3,19 +3,23 @@
 
 # ABSTRACT: A comparison of text parsing with native Perl and Text::Parser
 
-=head1 A SIMPLE DATA FILE
+=head1 A SIMPLE EXAMPLE
 
 To understand how L<Text::Parser> compares to the native Perl way of doing things, let's take a simple example and see how we would write code. Let's say we have a simple text file (F<info.txt>) with lines of information like this:
 
     NAME: Brian
     EMAIL: brian@webhost.net
+    ADDRESS: 401 Burnswick Ave, Cool City, UT 12345
     NAME: Darin Cruz
+    ADDRESS: 209 Random St, Forest City, CA 92710
     EMAIL: darin123@yahoo.co.uk
-    NAME: Elizabeth
+    NAME: Elizabeth Andrews
+    ADDRESS: 0 Muutama Lane, Inaccessible Forest area, AK 88170
     NAME: Audrey C. Miller
+    ADDRESS: 9 New St, Smart City, PA 12933
     EMAIL: aud@audrey.io
 
-You have to write code that would parse this to create a data structure with all names and corresponding email addresses. How would do it?
+You have to write code that would parse this to create a data structure with all names and corresponding email addresses.
 
 =head2 Native Perl code
 
@@ -37,7 +41,7 @@ Here's an implementation in native Perl:
 
 =head2 With Text::Parser
 
-Here's how you'd write the code with L<Text::Parser>.
+Here's how you'd write the same thing with L<Text::Parser>.
 
     use Text::Parser;
 
@@ -48,16 +52,163 @@ Here's how you'd write the code with L<Text::Parser>.
     $parser->read('info.txt');
     my (@data) = $parser->get_records();
 
-That's it!
+=head1 QUICK OBSERVATIONS
 
-Notice how elegant and self-explanatory the code looks. If you write the C<while> loop in the native Perl example, you can't tell what it is doing until you read it fully.
+The programmer has to still write some form of C<if-then> code, but:
 
-=head1 COMPLEX TEXT FORMAT
+=for :list
+* she can focus on the content rather than the mechanics of file handling
+* another programmer can instantly understand what it is doing
+* parsing files has never been this intuiive, especially with shortcuts like C<${2+}>
 
-Take the case of some very complex text formats
+Besides, did you notice the bug in the C<while> loop of the native Perl code above? Hint: What happens if we C<split> a string with leading and trailing spaces?
+
+=head1 ANOTHER SIMPLE EXAMPLE
+
+Take another simple example. Here we have new stuff in F<info.txt>:
+
+    State: California
+    County: Santa Clara, 1304, San Jose, 2/18/1850
+    County: Alameda, 821, Oakland, 3/25/1853
+    County: San Mateo, 774, Redwood City, 4/19/1856
+    .
+    .
+    .
+
+    State: Arkansas
+    .
+    .
+    .
+
+Let's say you have to parse this and form a data structure.
 
 =head2 Native Perl code
 
+    use String::Util 'trim';
+
+    open IN, "<info.txt";
+    my @data = ();
+    while(<IN>) {
+        chomp;
+        $_ = trim($_);
+        my (@field) = split /[:,]\s+/;
+        if ($field[0] eq 'State') {
+            push @data, { state => $field[1] };
+        } elsif($field[0] eq 'County') {
+            my $data = pop @data;
+            $data->{$field[1]} => {area => $field[2], county_seat => $field[3], date_inc => $field[4]};
+            push @data, $data;
+        }
+    }
+    close IN;
+
 =head2 With Text::Parser
+
+    use Text::Parser;
+
+    my $parser = Text::Parser->new(auto_split => 1, FS => qr/[:,]\s+/);
+    $parser->add_rule(if => '$1 eq "State"', do => 'return {state => $2}')
+    $parser->add_rule(if => '$1 eq "County"',
+        do => 'my $data = $this->pop_record;
+        $data->{$2} = { area => $3, county_seat => $4, date_inc => $5, };
+        return $data;'
+    );
+    $parser->read('info.txt');
+
+=head1 SOMETHING MORE FUN
+
+Let's make the example a little more fun. A selection of students from Riverdale High and Hogwarts took part in a quiz. This is a record of their scores.
+
+    School = Riverdale High
+    Grade = 1
+    Student number, Name
+    0, Phoebe
+    1, Rachel
+    
+    Student number, Score
+    0, 3
+    1, 7
+    
+    Grade = 2
+    Student number, Name
+    0, Angela
+    1, Tristan
+    2, Aurora
+    
+    Student number, Score
+    0, 6
+    1, 3
+    2, 9
+    
+    School = Hogwarts
+    Grade = 1
+    Student number, Name
+    0, Ginny
+    1, Luna
+    
+    Student number, Score
+    0, 8
+    1, 7
+    
+    Grade = 2
+    Student number, Name
+    0, Harry
+    1, Hermione
+    
+    Student number, Score
+    0, 5
+    1, 10
+    
+    Grade = 3
+    Student number, Name
+    0, Fred
+    1, George
+    
+    Student number, Score
+    0, 0
+    1, 0 
+
+You want to parse this into a data structure like this:
+
+    "Hogwarts" => {
+        "1" => {
+            0 => {Name => "Phoebe", Score => 3}, 
+            1 => {Name => "Rachel", Score => 7}
+        }, 
+        .
+        .
+        .
+     }
+
+=head2 Native Perl
+
+Do I have to really do this?
+
+=head2 With Text::Parser
+
+    use Text::Parser;
+
+    my $parser = Text::Parser->new(FS => qr/\s+\=\s+|,\s+/);
+    $parser->add_rule(if => '$1 eq "School"',
+        do => '$this->set_var("school", $2); return {$2 => {}};');
+    $parser->add_rule(if => '$1 eq "Grade"',
+        do => 'my $s = $this->get_var("school");
+        my $p = $this->pop_record;
+        $p->{$s}{$2} = {};
+        $this->set_var("grade", $2);
+        return $p;');
+    $parser->add_rule(if => '$1 eq "Student number"',
+        do => '$this->set_var("info", $2);', dont_record => 1);
+    $parser->add_rule(
+        do => 'my $p = $this->pop_record;
+        my $s = $this->get_var("school");
+        my $g = $this->get_var("grade");
+        my $i = $this->get_var("info");
+        $p->{$s}{$g}{$1}{$i} = $2;
+        return $p;'
+    );
+    $parser->read('info.txt');
+
+That's it!
 
 
