@@ -269,6 +269,50 @@ sub clear_rules {
     $self->_obj_rules( [] );
 }
 
+=method BEGIN_rule
+
+Takes arguments exactly like C<add_rule>. This creates a rule that would be run before any text input is read - just like the C<BEGIN> block of awk. By default, if the user doesn't specify it, C<dont_record> option will be true - in other words, by default, no records will be saved when a C<BEGIN> rule is run. But it I<is> possible for the user to override this and set C<dont_record> to false and force a record to be saved.
+
+It I<is> possible to have an C<if> for a C<BEGIN> rule. But by default, the condition is always true. If the user chooses to specify the C<if> condition, then note that it will always return false if any positional identifiers like C<$1>, C<$2> etc., are used.
+
+The C<BEGIN> block is mainly used to initialize some variables.
+
+=cut
+
+has _begin_rule => (
+    is        => 'rw',
+    isa       => 'Text::Parser::Rule',
+    predicate => '_has_begin_rule',
+);
+
+sub BEGIN_rule {
+    my $self = shift;
+    $self->auto_split(1) if not $self->auto_split;
+    my (%opt) = @_;
+    $opt{dont_record} = 1 if not exists $opt{dont_record};
+    my $rule = Text::Parser::Rule->new(%opt);
+    $self->_begin_rule($rule);
+}
+
+=method END_rule
+
+=cut
+
+has _end_rule => (
+    is        => 'rw',
+    isa       => 'Text::Parser::Rule',
+    predicate => '_has_end_rule',
+);
+
+sub END_rule {
+    my $self = shift;
+    $self->auto_split(1) if not $self->auto_split;
+    my (%opt) = @_;
+    $opt{dont_record} = 1 if not exists $opt{dont_record};
+    my $rule = Text::Parser::Rule->new(%opt);
+    $self->_end_rule($rule);
+}
+
 =method read
 
 Takes a single optional argument that can be either a string containing the name of the file, or a filehandle reference (a C<GLOB>) like C<\*STDIN> or an object of the C<L<FileHandle>> class.
@@ -301,7 +345,9 @@ B<Note:> To extend the class to other text formats, override C<L<save_record|/sa
 sub read {
     my $self = shift;
     return if not defined $self->_handle_read_inp(@_);
+    $self->_run_begin_rule;
     $self->__read_and_close_filehandle;
+    $self->_run_end_rule;
 }
 
 sub _handle_read_inp {
@@ -310,6 +356,14 @@ sub _handle_read_inp {
     return                     if not ref( $_[0] ) and not $_[0];
     return $self->filename(@_) if not ref( $_[0] );
     return $self->filehandle(@_);
+}
+
+sub _run_begin_rule {
+    my $self = shift;
+    return if not $self->_has_begin_rule;
+    my $rule = $self->_begin_rule;
+    return if not $rule->test($self);
+    $rule->run($self);
 }
 
 sub __read_and_close_filehandle {
@@ -362,6 +416,14 @@ sub __try_to_parse {
     $self->_set_this_line($line);
     try { $self->save_record($line); }
     catch { die $_; };
+}
+
+sub _run_end_rule {
+    my $self = shift;
+    return if not $self->_has_end_rule;
+    my $rule = $self->_end_rule;
+    return if not $rule->test($self);
+    $rule->run($self);
 }
 
 =method filename
