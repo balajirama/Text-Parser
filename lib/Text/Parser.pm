@@ -267,15 +267,19 @@ This is useful to be able to re-use the parser after a C<read> call, to parse an
 sub clear_rules {
     my $self = shift;
     $self->_obj_rules( [] );
+    $self->_clear_begin_rule;
+    $self->_clear_end_rule;
 }
 
 =method BEGIN_rule
 
-Takes arguments exactly like C<add_rule>. This creates a rule that would be run before any text input is read - just like the C<BEGIN> block of awk. By default, if the user doesn't specify it, C<dont_record> option will be true - in other words, by default, no records will be saved when a C<BEGIN> rule is run. But it I<is> possible for the user to override this and set C<dont_record> to false and force a record to be saved.
+Takes a hash input like C<add_rule>, but C<if> and C<continue_to_next> keys will be ignored.
 
-It I<is> possible to have an C<if> for a C<BEGIN> rule. But by default, the condition is always true. If the user chooses to specify the C<if> condition, then note that it will always return false if any positional identifiers like C<$1>, C<$2> etc., are used.
+    $parser->BEGIN_rule(do => "#do something\n");
 
-The C<BEGIN> block is mainly used to initialize some variables.
+=for :list
+* Since any C<if> key is ignored, the C<do> key is always C<eval>uated. Multiple calls to C<BEGIN_rule> will append to the previous calls; meaning, the actions of previous calls will be included.
+* The C<BEGIN> block is mainly used to initialize some variables. So by default C<dont_record> is set true. User I<can> change this and set C<dont_record> as false, thus forcing a record to be saved.
 
 =cut
 
@@ -283,18 +287,47 @@ has _begin_rule => (
     is        => 'rw',
     isa       => 'Text::Parser::Rule',
     predicate => '_has_begin_rule',
+    clearer   => '_clear_begin_rule',
 );
 
 sub BEGIN_rule {
     my $self = shift;
     $self->auto_split(1) if not $self->auto_split;
+    my (%opt) = _defaults_for_begin_end(@_);
+    $self->_modify_rule( '_begin_rule', %opt );
+}
+
+sub _defaults_for_begin_end {
     my (%opt) = @_;
     $opt{dont_record} = 1 if not exists $opt{dont_record};
+    delete $opt{if}               if exists $opt{if};
+    delete $opt{continue_to_next} if exists $opt{continue_to_next};
+    return (%opt);
+}
+
+sub _modify_rule {
+    my ( $self, $func, %opt ) = @_;
+    my $pred = '_has' . $func;
+    $self->_append_rule_lines( $func, \%opt ) if $self->$pred();
     my $rule = Text::Parser::Rule->new(%opt);
-    $self->_begin_rule($rule);
+    $self->$func($rule);
+}
+
+sub _append_rule_lines {
+    my ( $self, $func, $opt ) = ( shift, shift, shift );
+    my $old = $self->$func();
+    $opt->{do} = $old->action . $opt->{do};
 }
 
 =method END_rule
+
+Takes a hash input like C<add_rule>, but C<if> and C<continue_to_next> keys will be ignored. Similar to C<BEGIN_rule>, but the actions in the C<END_rule> will be executed at the end of the C<read> method.
+
+    $parser->END_rule(do => "#do something\n");
+
+=for :list
+* Since any C<if> key is ignored, the C<do> key is always C<eval>uated. Multiple calls to C<END_rule> will append to the previous calls; meaning, the actions of previous calls will be included.
+* The C<END> block is mainly used to do final processing of collected records. So by default C<dont_record> is set true. User I<can> change this and set C<dont_record> as false, thus forcing a record to be saved.
 
 =cut
 
@@ -302,15 +335,14 @@ has _end_rule => (
     is        => 'rw',
     isa       => 'Text::Parser::Rule',
     predicate => '_has_end_rule',
+    clearer   => '_clear_end_rule',
 );
 
 sub END_rule {
     my $self = shift;
     $self->auto_split(1) if not $self->auto_split;
-    my (%opt) = @_;
-    $opt{dont_record} = 1 if not exists $opt{dont_record};
-    my $rule = Text::Parser::Rule->new(%opt);
-    $self->_end_rule($rule);
+    my (%opt) = _defaults_for_begin_end(@_);
+    $self->_modify_rule( '_end_rule', %opt );
 }
 
 =method read
@@ -345,9 +377,9 @@ B<Note:> To extend the class to other text formats, override C<L<save_record|/sa
 sub read {
     my $self = shift;
     return if not defined $self->_handle_read_inp(@_);
-    $self->_run_begin_rule;
+    $self->_run_begin_end_block('_begin_rule');
     $self->__read_and_close_filehandle;
-    $self->_run_end_rule;
+    $self->_run_begin_end_block('_end_rule');
 }
 
 sub _handle_read_inp {
@@ -358,11 +390,11 @@ sub _handle_read_inp {
     return $self->filehandle(@_);
 }
 
-sub _run_begin_rule {
-    my $self = shift;
-    return if not $self->_has_begin_rule;
-    my $rule = $self->_begin_rule;
-    return if not $rule->test($self);
+sub _run_begin_end_block {
+    my ( $self, $func ) = ( shift, shift );
+    my $pred = '_has' . $func;
+    return if not $self->$pred();
+    my $rule = $self->$func();
     $rule->run($self);
 }
 
@@ -416,14 +448,6 @@ sub __try_to_parse {
     $self->_set_this_line($line);
     try { $self->save_record($line); }
     catch { die $_; };
-}
-
-sub _run_end_rule {
-    my $self = shift;
-    return if not $self->_has_end_rule;
-    my $rule = $self->_end_rule;
-    return if not $rule->test($self);
-    $rule->run($self);
 }
 
 =method filename

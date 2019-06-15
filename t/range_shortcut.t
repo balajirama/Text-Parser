@@ -11,6 +11,8 @@ BEGIN {
 
 lives_ok {
     my $parser = Text::Parser->new();
+    $parser->END_rule(do => '');
+    $parser->END_rule(do => '');
     $parser->add_rule( do => 'uc(${2+})', if => '$1 eq "NAME:"' );
     $parser->read('t/fullnames.txt');
     is( scalar( $parser->get_records ), 3, 'Got 3 items' );

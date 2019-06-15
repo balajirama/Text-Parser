@@ -145,6 +145,42 @@ Takes no arguments, returns nothing. Clears the rules that were added to the obj
 
 This is useful to be able to re-use the parser after a C<read> call, to parse another text with another set of rules.
 
+=head2 BEGIN_rule
+
+Takes a hash input like C<add_rule>, but C<if> and C<continue_to_next> keys will be ignored.
+
+    $parser->BEGIN_rule(do => "#do something\n");
+
+=over 4
+
+=item *
+
+Since any C<if> key is ignored, the C<do> key is always C<eval>uated. Multiple calls to C<BEGIN_rule> will append to the previous calls; meaning, the actions of previous calls will be included.
+
+=item *
+
+The C<BEGIN> block is mainly used to initialize some variables. So by default C<dont_record> is set true. User I<can> change this and set C<dont_record> as false, thus forcing a record to be saved.
+
+=back
+
+=head2 END_rule
+
+Takes a hash input like C<add_rule>, but C<if> and C<continue_to_next> keys will be ignored. Similar to C<BEGIN_rule>, but the actions in the C<END_rule> will be executed at the end of the C<read> method.
+
+    $parser->END_rule(do => "#do something\n");
+
+=over 4
+
+=item *
+
+Since any C<if> key is ignored, the C<do> key is always C<eval>uated. Multiple calls to C<END_rule> will append to the previous calls; meaning, the actions of previous calls will be included.
+
+=item *
+
+The C<END> block is mainly used to do final processing of collected records. So by default C<dont_record> is set true. User I<can> change this and set C<dont_record> as false, thus forcing a record to be saved.
+
+=back
+
 =head2 read
 
 Takes a single optional argument that can be either a string containing the name of the file, or a filehandle reference (a C<GLOB>) like C<\*STDIN> or an object of the C<L<FileHandle>> class.
