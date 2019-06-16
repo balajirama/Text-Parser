@@ -16,26 +16,11 @@ package Text::Parser;
 
 The above code reads the first command-line argument as a string, and assuming it is the name of a text file, it will print the content of the file to C<STDOUT>. If the string is not the name of a text file it will throw an exception and exit.
 
-    use Text::Parser;
-
     my $parser = Text::Parser->new();
     $parser->add_rule(do => 'print');
     $parser->read(shift);
 
-The above code will print all lines with C<this thing> or C<that thing>. Note that while in the first example, the content of the file is printed only after it is fully read in. In the second example however, printing happens immediately.
-
-Your rule could be written differently:
-
-    $parser->add_rule(if => 'm/th(is|at) thing/', do => 'print');
-
-You can also do something more complex like this:
-
-    $parser->add_rule(
-        if => '$1 eq "STATE:"',
-        do => 'return ${2+}', 
-    );
-
-Or add a whole list of rules to parse a complex text file format and build a data structure from the records returned by C<get_records>.
+You can do a lot of complex things. For examples see the L<manual|Text::Parser::Manual>.
 
 =head1 OVERVIEW
 
@@ -380,6 +365,7 @@ sub read {
     $self->_run_begin_end_block('_begin_rule');
     $self->__read_and_close_filehandle;
     $self->_run_begin_end_block('_end_rule');
+    $self->_clear_this_line;
 }
 
 sub _handle_read_inp {
@@ -390,19 +376,26 @@ sub _handle_read_inp {
     return $self->filehandle(@_);
 }
 
+has _ExAWK_symbol_table => (
+    is      => 'rw',
+    isa     => 'HashRef[Any]',
+    default => sub { {} },
+    lazy    => 1,
+);
+
 sub _run_begin_end_block {
     my ( $self, $func ) = ( shift, shift );
     my $pred = '_has' . $func;
     return if not $self->$pred();
     my $rule = $self->$func();
     $rule->run($self);
+    $self->_ExAWK_symbol_table( {} ) if $func eq '_end_rule';
 }
 
 sub __read_and_close_filehandle {
     my $self = shift;
     $self->_prep_to_read_file;
     $self->__read_file_handle;
-    $self->_clear_this_line;
     $self->_close_filehandles if $self->_has_filename;
 }
 

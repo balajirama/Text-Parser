@@ -50,7 +50,6 @@ Here's how you'd write the same thing with L<Text::Parser>.
     $parser->add_rule( if => '$1 eq "EMAIL:"',
         do => 'my $rec = $this->pop_record; $rec->{email} = $2; return $rec' );
     $parser->read('info.txt');
-    my (@data) = $parser->get_records();
 
 =head1 QUICK OBSERVATIONS
 
@@ -80,7 +79,20 @@ Take another simple example. Here we have new stuff in F<info.txt>:
     .
     .
 
-Let's say you have to parse this and form a data structure.
+Let's say you have to parse this and form a data structure like this:
+
+    [
+        {
+            state           => 'California', 
+            'Santa Clara'   => {area => 1304, county_seat => 'San Jose', date_inc => '2/18/1850'}, 
+            'Alameda'       => {area => 821, county_seat => 'Oakland', date_inc => '3/25/1853'}, 
+            'San Mateo'     => {area => 774, county_seat => 'Redwood City', date_inc => '4/19/1856'}, 
+        }, 
+        {
+            state           => 'Arkansas', 
+            ...
+        }
+    ]
 
 =head2 Native Perl code
 
@@ -107,7 +119,7 @@ Let's say you have to parse this and form a data structure.
     use Text::Parser;
 
     my $parser = Text::Parser->new(auto_split => 1, FS => qr/[:,]\s+/);
-    $parser->add_rule(if => '$1 eq "State"', do => 'return {state => $2}')
+    $parser->add_rule(if => '$1 eq "State"', do => 'return {state => $2}');
     $parser->add_rule(if => '$1 eq "County"',
         do => 'my $data = $this->pop_record;
         $data->{$2} = { area => $3, county_seat => $4, date_inc => $5, };
@@ -117,7 +129,7 @@ Let's say you have to parse this and form a data structure.
 
 =head1 SOMETHING MORE FUN
 
-Let's make the example a little more fun. A selection of students from Riverdale High and Hogwarts took part in a quiz. This is a record of their scores.
+Let's take something more fun. A selection of students from Riverdale High and Hogwarts took part in a quiz. This is a record of their scores.
 
     School = Riverdale High
     Grade = 1
@@ -170,19 +182,42 @@ Let's make the example a little more fun. A selection of students from Riverdale
 
 You want to parse this into a data structure like this:
 
-    "Hogwarts" => {
-        "1" => {
-            0 => {Name => "Phoebe", Score => 3}, 
-            1 => {Name => "Rachel", Score => 7}
+    # Entries data-structure hierarchy is:
+    #   school/grade/student number/Name
+    #   school/grade/student number/Score
+    {
+        "Riverdale High" => {
+            "1" => {
+                0 => {Name => "Phoebe", Score => 3}, 
+                1 => {Name => "Rachel", Score => 7}
+            }, 
+            "2" => {
+                0 => {Name => "Angela", Score => 6}, 
+                1 => {Name => "Tristan", Score => 3}, 
+                2 => {Name => "Aurora", Score => 9}, 
+            }, 
         }, 
-        .
-        .
-        .
-     }
+    }, 
+    {
+        "Hogwarts" => {
+            "1" => {
+                0 => {Name => "Ginny", Score => 8}, 
+                1 => {Name => "Luna", Score => 7}, 
+            }, 
+            "2" => {
+                0 => {Name => "Harry", Score => 5}, 
+                1 => {Name => "Hermione", Score => 10}, 
+            }, 
+            "3" => {
+                0 => {Name => "Fred", Score => 0}, 
+                1 => {Name => "George", Score => 0 }, 
+            },
+        }, 
+    }
 
 =head2 Native Perl
 
-Do I have to really do this?
+Do I have to really do this? Why don't I let you try this yourself.
 
 =head2 With Text::Parser
 
@@ -190,21 +225,17 @@ Do I have to really do this?
 
     my $parser = Text::Parser->new(FS => qr/\s+\=\s+|,\s+/);
     $parser->add_rule(if => '$1 eq "School"',
-        do => '$this->set_var("school", $2); return {$2 => {}};');
+        do => '~school = $2; return {$2 => {}};');
     $parser->add_rule(if => '$1 eq "Grade"',
-        do => 'my $s = $this->get_var("school");
-        my $p = $this->pop_record;
-        $p->{$s}{$2} = {};
-        $this->set_var("grade", $2);
+        do => 'my $p = $this->pop_record;
+        $p->{~school}{$2} = {};
+        ~grade = $2;
         return $p;');
     $parser->add_rule(if => '$1 eq "Student number"',
-        do => '$this->set_var("info", $2);', dont_record => 1);
+        do => '~info = $2;', dont_record => 1);
     $parser->add_rule(
         do => 'my $p = $this->pop_record;
-        my $s = $this->get_var("school");
-        my $g = $this->get_var("grade");
-        my $i = $this->get_var("info");
-        $p->{$s}{$g}{$1}{$i} = $2;
+        $p->{~school}{~grade}{$1}{~info} = $2;
         return $p;'
     );
     $parser->read('info.txt');

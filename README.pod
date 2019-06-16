@@ -20,26 +20,11 @@ version 0.921
 
 The above code reads the first command-line argument as a string, and assuming it is the name of a text file, it will print the content of the file to C<STDOUT>. If the string is not the name of a text file it will throw an exception and exit.
 
-    use Text::Parser;
-
     my $parser = Text::Parser->new();
     $parser->add_rule(do => 'print');
     $parser->read(shift);
 
-The above code will print all lines with C<this thing> or C<that thing>. Note that while in the first example, the content of the file is printed only after it is fully read in. In the second example however, printing happens immediately.
-
-Your rule could be written differently:
-
-    $parser->add_rule(if => 'm/th(is|at) thing/', do => 'print');
-
-You can also do something more complex like this:
-
-    $parser->add_rule(
-        if => '$1 eq "STATE:"',
-        do => 'return ${2+}', 
-    );
-
-Or add a whole list of rules to parse a complex text file format and build a data structure from the records returned by C<get_records>.
+You can do a lot of complex things. For examples see the L<manual|Text::Parser::Manual>.
 
 =head1 OVERVIEW
 

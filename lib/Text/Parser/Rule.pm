@@ -12,6 +12,7 @@ use String::Util ':all';
 use String::Util::Match 'match_array_or_regex';
 use String::Util::Range 'convert_sequence_to_range';
 use String::Index qw(cindex ncindex crindex ncrindex);
+use List::Util 'uniq';
 
 =head1 SYNOPSIS
 
@@ -79,6 +80,7 @@ sub _get_min_req_fields {
 my $SUB_BEGIN = 'sub {
     my $this = shift;
     return if not defined $this->this_line; # condition usually caught earlier, but to be safe
+    my $__ = $this->_ExAWK_symbol_table;
     local $_ = $this->this_line;
     ';
 
@@ -95,6 +97,7 @@ sub _replace_awk_vars {
     local $_ = shift;
     _replace_positional_indicators();
     _replace_range_shortcut();
+    _replace_exawk_vars() if m/[~][a-z_][a-z0-9_]+/i;
     return $_;
 }
 
@@ -111,6 +114,14 @@ sub _replace_range_shortcut {
     s/\\\@[{]([0-9]+)[+][}]/[\$this->field_range($1-1)]/g;
     s/\@[{]([-][0-9]+)[+][}]/\$this->field_range($1)/g;
     s/\@[{]([0-9]+)[+][}]/\$this->field_range($1-1)/g;
+}
+
+sub _replace_exawk_vars {
+    my (@varnames) = uniq( $_ =~ /[~]([a-z_][a-z0-9_]+)/ig );
+    foreach my $var (@varnames) {
+        my $v = '~' . $var;
+        s/$v/\$__->{$var}/g;
+    }
 }
 
 has _cond_sub_str => (
@@ -408,7 +419,7 @@ Runs the C<eval>uated C<action>. If C<dont_record> is false, the return value of
 sub run {
     my $self = shift;
     die rule_run_improperly if not _check_parser_arg(@_);
-    return if $self->action !~ /\S+/ or not $_[0]->auto_split;
+    return if nocontent( $self->action ) or not $_[0]->auto_split;
     my (@res) = $self->_call_act_sub( $_[0] );
     return if $self->dont_record;
     $_[0]->push_records(@res);
