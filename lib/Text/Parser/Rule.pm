@@ -79,7 +79,6 @@ sub _get_min_req_fields {
 
 my $SUB_BEGIN = 'sub {
     my $this = shift;
-    return if not defined $this->this_line; # condition usually caught earlier, but to be safe
     my $__ = $this->_ExAWK_symbol_table;
     local $_ = $this->this_line;
     ';
@@ -407,10 +406,11 @@ sub _test_cond_sub {
 
 =method run
 
-Takes one argument that must be a C<Text::Parser>. Has no return value.
+Takes one argument that must be a C<Text::Parser>, and one optional argument which can be C<0> or C<1>. The default for this optional argument is C<1>. The C<0> value is used when calling a special kind of rule that doesn't need to check for valid current line (mainly useful for C<BEGIN> and C<END> rules). Has no return value.
 
     my $parser = Text::Parser->new(auto_split => 1);
     $rule->run($parser);
+    $rule->run($parser, 'no_line');
 
 Runs the C<eval>uated C<action>. If C<dont_record> is false, the return value of the C<action> is recorded in C<$parser>. Otherwise, it is ignored.
 
@@ -420,13 +420,15 @@ sub run {
     my $self = shift;
     die rule_run_improperly if not _check_parser_arg(@_);
     return if nocontent( $self->action ) or not $_[0]->auto_split;
-    my (@res) = $self->_call_act_sub( $_[0] );
+    push @_, 1 if @_ == 1;
+    my (@res) = $self->_call_act_sub(@_);
     return if $self->dont_record;
     $_[0]->push_records(@res);
 }
 
 sub _call_act_sub {
-    my ( $self, $parser ) = @_;
+    my ( $self, $parser, $test_line) = @_;
+    return if $test_line and not defined $parser->this_line;
     my $act = $self->_act_sub;
     return ( $act->($parser) );
 }

@@ -365,7 +365,6 @@ sub read {
     $self->_run_begin_end_block('_begin_rule');
     $self->__read_and_close_filehandle;
     $self->_run_begin_end_block('_end_rule');
-    $self->_clear_this_line;
 }
 
 sub _handle_read_inp {
@@ -388,7 +387,7 @@ sub _run_begin_end_block {
     my $pred = '_has' . $func;
     return if not $self->$pred();
     my $rule = $self->$func();
-    $rule->run($self);
+    $rule->run($self, 0);
     $self->_ExAWK_symbol_table( {} ) if $func eq '_end_rule';
 }
 
@@ -397,6 +396,7 @@ sub __read_and_close_filehandle {
     $self->_prep_to_read_file;
     $self->__read_file_handle;
     $self->_close_filehandles if $self->_has_filename;
+    $self->_clear_this_line;
 }
 
 sub _prep_to_read_file {
