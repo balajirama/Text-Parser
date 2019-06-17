@@ -28,11 +28,11 @@ You can do a lot of complex things. For examples see the L<manual|Text::Parser::
 
 =head1 OVERVIEW
 
-The L<rationale|Text::Parser::Manual/MOTIVATION> for building C<Text::Parser> stems from the fact that text parsing is the single most common thing that programmers do, and yet there is no lean and simple way to do it. Most programmers still use the old boilerplate style with a C<while> loop. The idea of specifying terse, yet very self-explanatory rules, is an inspiration from AWK. Incidentally, AWK is the inspiration for Perl itself! Yet, command-line C<perl -lane> or even C<perl -lan script.pl> are very limited in what they can do. Programmers cannot use them for serious programs.
+The L<need|Text::Parser::Manual/MOTIVATION> for this class stems from the fact that text parsing is the most common thing that programmers do, and yet there is no lean, simple way to do it efficiently. Most programmers still use boilerplate code with a C<while> loop.
 
-With C<Text::Parser>, a developer can focus on specifying a grammar in the form of L<rules|Text::Parser::Manual::ExtendedAWKSyntax> and then simply C<read> the file. The C<read> method automatically runs each rule collecting records from the text input into an array internally. And finally C<get_records> can retrieve the records and you can build your own data structure with it. Thus the programmer now has the power of Perl, along with the elegance of tools like AWK to parse text files.
+Instead C<Text::Parser> allows programmers to parse text with terse, self-explanatory L<rules|Text::Parser::Manual::ExtendedAWKSyntax>, whose structure is very similar to AWK, but extends beyond the capability of AWK. Incidentally, AWK is the inspiration for Perl itself! And one would have expected Perl to extend the capabilities of AWK. Yet, command-line C<perl -lane> or even C<perl -lan script.pl> are L<very limited|Text::Parser::Manual::ComparingWithNativePerl> in what they can do. Programmers cannot use them for serious programs.
 
-If the developer wants to do something special or unique, just C<extend> the C<Text::Parser> class. One may also want to create a class C<extend>ing the C<Text::Parser> class to organize all the rules in one place.
+With C<Text::Parser>, a developer can focus on specifying a grammar and then simply C<read> the file. The C<L<read|/read>> method automatically runs each rule collecting records from the text input into an array internally. And finally C<L<get_records|/get_records>> can retrieve the records. Thus the programmer now has the power of Perl to create complex data structures, along with the elegance of AWK to parse text files.
 
 =head1 CONSTRUCTOR
 
@@ -134,7 +134,7 @@ This is useful to be able to re-use the parser after a C<read> call, to parse an
 
 Takes a hash input like C<add_rule>, but C<if> and C<continue_to_next> keys will be ignored.
 
-    $parser->BEGIN_rule(do => "#do something\n");
+    $parser->BEGIN_rule(do => '~count = 0;');
 
 =over 4
 
@@ -152,7 +152,7 @@ The C<BEGIN> block is mainly used to initialize some variables. So by default C<
 
 Takes a hash input like C<add_rule>, but C<if> and C<continue_to_next> keys will be ignored. Similar to C<BEGIN_rule>, but the actions in the C<END_rule> will be executed at the end of the C<read> method.
 
-    $parser->END_rule(do => "#do something\n");
+    $parser->END_rule(do => 'print ~count, "\n";');
 
 =over 4
 
@@ -259,7 +259,7 @@ Takes no arguments and returns the last saved record. Leaves the saved records u
 
     my $last_rec = $parser->last_record;
 
-=head1 FOR USE IN SUBCLASS ONLY
+=head1 USE ONLY IN RULES AND SUBCLASS
 
 Do NOT override these methods. They are valid only within a subclass, inside the user-implementation of methods described under L<OVERRIDE IN SUBCLASS|/"OVERRIDE IN SUBCLASS">. 
 
@@ -342,25 +342,25 @@ L<splice_fields|Text::Parser::AutoSplit/splice_fields>
 
 =head1 OVERRIDE IN SUBCLASS
 
-The following methods should never be called in the C<::main> program. They are meant to be overridden (or re-defined) in a subclass.
+The following methods should never be called in the C<::main> program. They may be overridden (or re-defined) in a subclass.
 
 =head2 save_record
 
-This method should be re-defined in a subclass to parse the target text format. To save a record, the re-defined implementation in the derived class must call C<SUPER::save_record> (or C<super> if you're using L<Moose>) with exactly one argument as a record. If no arguments are passed, C<undef> is stored as a record.
+This method may be re-defined in a subclass to parse the target text format. The default implementation takes a single argument and stores it as a record. If no arguments are passed, C<undef> is stored as a record. Note that unlike earlier versions of C<Text::Parser> it is not required to override this method in your derived class. You can simply use the rules instead.
 
 For a developer re-defining C<save_record>, in addition to C<L<this_line|/"this_line">>, six additional methods become available if the C<auto_split> attribute is set. These methods are described in greater detail in L<Text::Parser::AutoSplit>, and they are accessible only within C<save_record>.
 
 B<Note:> Developers may store records in any form - string, array reference, hash reference, complex data structure, or an object of some class. The program that reads these records using C<L<get_records|/get_records>> has to interpret them. So developers should document the records created by their own implementation of C<save_record>.
 
-=head2 FOR MULTI-LINE TEXT PARSING
+=head2 PARSING LINE-WRAPPED FILES
 
-These methods need to be re-defined by only multiline derived classes, i.e., if the target text format allows wrapping the content of one line into multiple lines. In most cases, you should re-define both methods. As usual, the C<L<this_line|/"this_line">> method may be used while re-defining them.
+These methods are useful when parsing line-wrapped files, i.e., if the target text format allows wrapping the content of one line into multiple lines. In such cases, you should C<extend> the C<Text::Parser> class and override the following methods.
 
 =head3 is_line_continued
 
-This takes a string argument and returns a boolean indicating if the line is continued or not. See L<Text::Parser::Multiline> for more on this.
+If the target text format supports line-wrapping, the developer must override and implement this method. Your method should take a string argument and return a boolean indicating if the line is continued or not.
 
-The return values of the default method provided with this class are:
+There is a default implementation shipped with this class with return values as follows:
 
     multiline_type    |    Return value
     ------------------+---------------------------------
@@ -370,221 +370,11 @@ The return values of the default method provided with this class are:
 
 =head3 join_last_line
 
-This method takes two strings, joins them while removing any continuation characters, and returns the result. The default implementation just concatenates two strings and returns the result without removing anything (not even chomp). See L<Text::Parser::Multiline> for more on this.
+Again, the developer should implement this method. This method should take two strings, join them while removing any continuation characters, and return the result. The default implementation just concatenates two strings and returns the result without removing anything (not even C<chomp>). See L<Text::Parser::Multiline> for more on this.
 
 =head1 EXAMPLES
 
-=head2 Example 1 : A simple CSV Parser
-
-We will write a parser for a simple CSV file that reads each line and stores the records as array references. This example is oversimplified, and does B<not> handle embedded newlines.
-
-    package Text::Parser::CSV;
-    use Moose;
-    extends 'Text::Parser';
-    use Text::CSV;
-
-    my $csv;
-    sub save_record {
-        my ($self, $line) = @_;
-        $csv //= Text::CSV->new({ binary => 1, auto_diag => 1});
-        $csv->parse($line);
-        $self->SUPER::save_record([$csv->fields]);
-    }
-
-That's it! Now in C<main::> you can write something like this:
-
-    use Text::Parser::CSV;
-    
-    my $csvp = Text::Parser::CSV->new();
-    $csvp->read(shift @ARGV);
-    foreach my $aref ($csvp->get_records) {
-        my (@arr) = @{$aref};
-        print "@arr\n";
-    }
-
-The above program reads the content of a given CSV file and prints the content out in space-separated form.
-
-=head2 Example 2 : Error checking
-
-I<Note:> Read the documentation for C<L<Exceptions>> to learn about creating, throwing, and catching exceptions in Perl 5. All of the methods of creating, throwing, and catching exceptions described in L<Exceptions> are supported.
-
-You I<can> throw exceptions from C<save_record> in your subclass, for example, when you detect a syntax error. The C<read> method will C<close> all filehandles automatically as soon as an exception is thrown. The exception will pass through to C<::main> unless you catch and handle it in your derived class.
-
-Here is an example showing the use of an exception to detect a syntax error in a file:
-
-    package My::Text::Parser;
-    use Exception::Class (
-        'My::Text::Parser::SyntaxError' => {
-            description => 'syntax error',
-            alias => 'throw_syntax_error', 
-        },
-    );
-    
-    use Moose;
-    extends 'Text::Parser';
-
-    sub save_record {
-        my ($self, $line) = @_;
-        throw_syntax_error(error => 'syntax error') if _syntax_error($line);
-        $self->SUPER::save_record($line);
-    }
-
-=head2 Example 3 : Aborting without errors
-
-We can also abort parsing a text file without throwing an exception. This could be if we got the information we needed. For example:
-
-    package SomeParser;
-    use Moose;
-    extends 'Text::Parser';
-
-    sub BUILDARGS {
-        my $pkg = shift;
-        return {auto_split => 1};
-    }
-
-    sub save_record {
-        my ($self, $line) = @_;
-        return $self->abort_reading() if $self->field(0) eq '**ABORT';
-        return $self->SUPER::save_record($line);
-    }
-
-Above is shown a parser C<SomeParser> that would save each line as a record, but would abort reading the rest of the file as soon as it reaches a line with C<**ABORT> as the first word. When this parser is given the following file as input:
-
-    somefile.txt:
-
-    Some text is here.
-    More text here.
-    **ABORT reading
-    This text is not read
-    This text is not read
-    This text is not read
-    This text is not read
-
-You can now write a program as follows:
-
-    use SomeParser;
-
-    my $par = SomeParser->new();
-    $par->read('somefile.txt');
-    print $par->get_records(), "\n";
-
-The output will be:
-
-    Some text is here.
-    More text here.
-
-=head2 Example 4 : Multi-line parsing
-
-Some text formats allow users to split a line into several lines with a line continuation character (usually at the end or the beginning of a line).
-
-=head3 Trivial line-joiner
-
-Below is a trivial example where all lines are joined into one:
-
-    use strict;
-    use warnings;
-    use Text::Parser;
-
-    my $join_all = Text::Parser->new(auto_chomp => 1, multiline_type => 'join_last');
-    $join_all->read('input.txt');
-    print $join_all->get_records(), "\n";
-
-Another trivial example is L<here|Text::Parser::Multiline/SYNOPSIS>.
-
-=head3 Continue with character
-
-(Pun intended! ;-))
-
-In the above example, all lines are joined (indiscriminately). But most often text formats have a continuation character that specifies that the line continues to the next line, or that the line is a continuation of the I<previous> line. Here's an example parser that treats the back-slash (C<\>) character as a line-continuation character:
-
-    package MyMultilineParser;
-    use Moose;
-    extends 'Text::Parser';
-    use strict;
-    use warnings;
-
-    sub new {
-        my $pkg = shift;
-        $pkg->SUPER::new(multiline_type => 'join_next');
-    }
-
-    sub is_line_continued {
-        my $self = shift;
-        my $line = shift;
-        chomp $line;
-        return $line =~ /\\\s*$/;
-    }
-
-    sub join_last_line {
-        my $self = shift;
-        my ($last, $line) = (shift, shift);
-        chomp $last;
-        $last =~ s/\\\s*$/ /g;
-        return $last . $line;
-    }
-
-    1;
-
-In your C<main::>
-
-    use MyMultilineParser;
-    use strict;
-    use warnings;
-
-    my $parser = MyMultilineParser->new();
-    $parser->read('multiline.txt');
-    print "Read:\n"
-    print $parser->get_records(), "\n";
-
-Try with the following input F<multiline.txt>:
-
-    Garbage In.\
-    Garbage Out!
-
-When you run the above code with this file, you should get:
-
-    Read:
-    Garbage In. Garbage Out!
-
-=head3 Simple SPICE line joiner
-
-Some text formats allow a line to indicate that it is continuing from a previous line. For example L<SPICE|https://bwrcs.eecs.berkeley.edu/Classes/IcBook/SPICE/> has a continuation character (C<+>) on the next line, indicating that the text on that line should be joined with the I<previous> line. Let's show how to build a simple SPICE line-joiner. To build a full-fledged parser you will have to specify the rich and complex grammar for SPICE circuit description.
-
-    use TrivialSpiceJoin;
-    use Moose;
-    extends 'Text::Parser';
-
-    use constant {
-        SPICE_LINE_CONTD => qr/^[+]\s*/,
-        SPICE_END_FILE   => qr/^\.end/i,
-    };
-
-    sub new {
-        my $pkg = shift;
-        $pkg->SUPER::new(auto_chomp => 1, multiline_type => 'join_last');
-    }
-
-    sub is_line_continued {
-        my ( $self, $line ) = @_;
-        return 0 if not defined $line;
-        return $line =~ SPICE_LINE_CONTD;
-    }
-    
-    sub join_last_line {
-        my ( $self, $last, $line ) = ( shift, shift, shift );
-        return $last if not defined $line;
-        $line =~ s/^[+]\s*/ /;
-        return $line if not defined $last;
-        return $last . $line;
-    }
-
-    sub save_record {
-        my ( $self, $line ) = @_;
-        return $self->abort_reading() if $line =~ SPICE_END_FILE;
-        $self->SUPER::save_record($line);
-    }
-
-Try this parser with a SPICE deck with continuation characters and see what you get. Try having errors in the file. You may now write a more elaborate method for C<save_record> above and that could be used to parse a full SPICE file.
+You can find example code in L<Text::Parser::Manual::ComparingWithNativePerl>.
 
 =head1 THINGS TO BE DONE
 
@@ -614,27 +404,19 @@ Contributions and suggestions are welcome and properly acknowledged.
 
 =item *
 
-L<FileHandle>
+L<Text::Parser::Manual> - Read this manual
 
 =item *
 
-L<Text::Parser::Errors>
+L<FileHandle> - if you want to C<read> from file handles directly
 
 =item *
 
-L<Moose::Manual::Exceptions::Manifest>
+L<Text::Parser::Errors> - documentation of the exceptions this class throws
 
 =item *
 
-L<Exceptions>
-
-=item *
-
-L<Dispatch::Class>
-
-=item *
-
-L<Text::Parser::Multiline>
+L<Text::Parser::Multiline> - how to read line-wrapped text input
 
 =back
 
