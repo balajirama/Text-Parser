@@ -165,7 +165,7 @@ has FS => (
 
 =attr multiline_type
 
-If the target text format allows line-wrapping with a continuation character, the C<multiline_type> option tells the parser to join them into a single line. When setting this attribute, one must re-define L<two more methods|/"FOR MULTI-LINE TEXT PARSING">. See L<these examples|/"Example 4 : Multi-line parsing">.
+If the target text format allows line-wrapping with a continuation character, the C<multiline_type> option tells the parser to join them into a single line. When setting this attribute, one must re-define L<two more methods|/"PARSING LINE-WRAPPED FILES">.
 
 By default, the read-write C<multiline_type> attribute has a value of C<undef>, i.e., the target text format will not have wrapped lines. It can be set to either C<'join_next'> or C<'join_last'>.
 
@@ -176,9 +176,9 @@ By default, the read-write C<multiline_type> attribute has a value of C<undef>, 
     print "Parser is a multi-line parser of type: $mult" if defined $mult;
 
 =for :list
-* If the target format allows line-wrapping I<to the B<next>> line, set C<multiline_type> to C<join_next>. L<This example|/"Continue with character"> illustrates this case.
-* If the target format allows line-wrapping I<from the B<last>> line, set C<multiline_type> to C<join_last>. L<This simple SPICE line-joiner|/"Simple SPICE line joiner"> illustrates this case.
-* To "slurp" a file into a single string, set C<multiline_type> to C<join_last>. In this special case, you don't need to re-define the C<L<is_line_continued|/is_line_continued>> and C<L<join_last_line|/join_last_line>> methods. See L<this trivial line-joiner|/"Trivial line-joiner"> example.
+* If the target format allows line-wrapping I<to the B<next>> line, set C<multiline_type> to C<join_next>.
+* If the target format allows line-wrapping I<from the B<last>> line, set C<multiline_type> to C<join_last>.
+* To "slurp" a file into a single string, set C<multiline_type> to C<join_last>. In this special case, you don't need to re-define the C<L<is_line_continued|/is_line_continued>> and C<L<join_last_line|/join_last_line>> methods.
 
 =cut
 
@@ -619,7 +619,7 @@ has _current_line => (
 
 =sub_use_method abort_reading
 
-Takes no arguments. Returns C<1>. To be used only in the derived class to abort C<read> in the middle. See L<this example|/"Example 3 : Aborting without errors">.
+Takes no arguments. Returns C<1>. To be used only in the derived class to abort C<read> in the middle.
 
     sub save_record {
         # ...
