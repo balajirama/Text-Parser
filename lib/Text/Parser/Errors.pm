@@ -66,7 +66,7 @@ Thrown when file name specified to C<L<read|Text::Parser/read>> or C<L<filename|
 =cut
 
 exception
-    FileNotReadable => 'file does not exist',
+    FileNotReadable => 'file is not readable',
     has             => [
     name => (
         is  => 'ro',
@@ -88,7 +88,7 @@ Thrown when file name specified to C<L<read|Text::Parser/read>> or C<L<filename|
 =cut
 
 exception
-    FileNotPlainText => 'file does not exist',
+    FileNotPlainText => 'file is not a plain text file',
     has              => [
     name => (
         is  => 'ro',
@@ -154,10 +154,87 @@ exception
     ],
     extends => GenericError();
 
+=head2 ExAWK rule syntax related
+
+=head3 C<Text::Parser::Errors::ExAWK>
+
+All errors corresponding to the L<Text::Parser::Rule> class.
+
+=cut
+
+exception ExAWK => 'a class of errors', extends => GenericError();
+
+=head3 C<Text::Parser::Errors::BadRuleSyntax>
+
+Generated from L<Text::Parser::Rule> class constructor or from the accessors of C<condition>, C<action>, or the method C<add_precondition>, when the rule strings specified fail to compile properly.
+
+=head4 Attributes
+
+=for :list
+* B<code> - the original rule string
+* B<msg>  - content of C<$@> after C<eval>
+* B<subroutine> - stringified form of the subroutine generated from the given C<code>.
+
+=cut
+
+exception
+    BadRuleSyntax => 'Compilation error in reading syntax',
+    has           => [
+    code => (
+        is  => 'ro',
+        isa => \&_Str,
+    ),
+    ],
+    has => [
+    msg => (
+        is  => 'ro',
+        isa => \&_Str,
+    ),
+    ],
+    has => [
+    subroutine => (
+        is  => 'ro',
+        isa => \&_Str,
+    ),
+    ],
+    extends => ExAWK();
+
+=head3 C<Text::Parser::Errors::IllegalRuleNoIfNoAct>
+
+Generated from constructor of the L<Text::Parser::Rule> when the rule is created with neither a C<condition> nor an C<action>
+
+=cut
+
+exception
+    IllegalRuleNoIfNoAct => 'Rule created without required components',
+    extends              => ExAWK();
+
+=head3 C<Text::Parser::Errors::IllegalRuleCont>
+
+Generated when the rule option C<continue_to_next> of the L<Text::Parser::Rule> object is set true when C<dont_record> is false.
+
+=cut
+
+exception
+    IllegalRuleCont =>
+    'Rule cannot continue to next if action result is recorded',
+    extends => ExAWK();
+
+=head3 C<Text::Parser::Errors::RuleRunImproperly>
+
+Generated from C<run> method of L<Text::Parser::Rule> is called without an object of L<Text::Parser> as argument.
+
+=cut
+
+exception
+    RuleRunImproperly => 'run was called without a parser object',
+    extends           => ExAWK();
+
 =head1 SEE ALSO
 
 =for :list
 * L<Text::Parser>
+* L<Text::Parser::Rule>
 * L<Throwable::SugarFactory>
 * L<Exceptions>
 
