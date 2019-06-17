@@ -245,7 +245,7 @@ Takes no arguments, returns nothing. Clears the rules that were added to the obj
 
     $parser->clear_rules;
 
-This is useful to be able to re-use the parser after a C<read> call, to parse another text with another set of rules.
+This is useful to be able to re-use the parser after a C<read> call, to parse another text with another set of rules. The C<clear_rules> method does clear even the rules set up by C<L<BEGIN_rule|/BEGIN_rule>> and C<L<END_rule|/END_rule>>.
 
 =cut
 

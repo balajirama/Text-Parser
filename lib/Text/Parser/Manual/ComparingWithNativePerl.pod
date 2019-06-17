@@ -9,9 +9,9 @@ When people compare Perl against AWK, the usual answer is this:
 
     $ > perl -lane 'print;' file.txt
 
-But the problem is that it isn't useful for anything more than just oneliners. Secondly, this cannot be used in a complex program. And even if you could write some one-liner code, you cannot follow good programming practices line C<use strict>.
+But the problem is that it isn't useful for anything more than just oneliners. Secondly, this cannot be used in a complex program. And even if you could write some one-liner code, you cannot follow good programming practices like C<use strict>.
 
-So I will show that the Perl one-liner is surely not a useful solution for serious programs.
+The Perl one-liner is surely not a useful solution for serious programs. But if you're not convinced, we'll go through some examples here.
 
 =head1 A SIMPLE EXAMPLE
 
@@ -44,7 +44,8 @@ Could we do this using a Perl one-liner?
         @data = ();\
         }\
         if($F[0] eq "NAME:") {\
-            push @data, {name => $F[1]};\
+            shift @F;\
+            push @data, {name => join(' ', @F)};\
         } elsif($F[0] eq "EMAIL:") {\
             $d = pop @data; $d->{email} = $F[1];\
         } elsif($F[0] eq "ADDRESS:") {\
@@ -69,6 +70,9 @@ Here's an implementation in native Perl scipt:
             push @data, { name => join(' ', @field) };
         } elsif($field[0] eq 'EMAIL:') {
             $data[-1]->{email} = $field[1];
+        } elsif($field[0] eq 'ADDRESS:') {
+            shift @field;
+            $data[-1]->{email} = join ' ', @field;
         }
     }
     close IN;
@@ -83,6 +87,8 @@ Here's how you'd write the same thing with L<Text::Parser>.
     $parser->add_rule( if => '$1 eq "NAME:"', do => 'return { name => ${2+} }' );
     $parser->add_rule( if => '$1 eq "EMAIL:"',
         do => 'my $rec = $this->pop_record; $rec->{email} = $2; return $rec' );
+    $parser->add_rule( if => '$1 eq "ADDRESS:"',
+        do => 'my $rec = $this->pop_record; $rec->{email} = ${2+}; return $rec' );
     $parser->read('info.txt');
 
 =head2 Quick observations
