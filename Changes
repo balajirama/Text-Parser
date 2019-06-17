@@ -1,6 +1,7 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+  - Changed the primary usage model from inheritance-based to regular use in main.
   - A new class for text parsing rules created Text::Parser::Rule (#17).
   - Import functions from String::Util, Scalar::Util, String::Util::Match, String::Util::Range, and String::Index.
     These can be accessed inside the ExAWK string rules directly (#44)
