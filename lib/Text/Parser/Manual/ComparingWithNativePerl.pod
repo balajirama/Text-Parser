@@ -3,6 +3,16 @@
 
 # ABSTRACT: A comparison of text parsing with native Perl and Text::Parser
 
+=head1 LIMITATIONS OF THE PERL ONE-LINER
+
+When people compare Perl against AWK, the usual answer is this:
+
+    $ > perl -lane 'print;' file.txt
+
+But the problem is that it isn't useful for anything more than just oneliners. Secondly, this cannot be used in a complex program. And even if you could write some one-liner code, you cannot follow good programming practices line C<use strict>.
+
+So I will show that the Perl one-liner is surely not a useful solution for serious programs.
+
 =head1 A SIMPLE EXAMPLE
 
 To understand how L<Text::Parser> compares to the native Perl way of doing things, let's take a simple example and see how we would write code. Let's say we have a simple text file (F<info.txt>) with lines of information like this:
@@ -21,9 +31,33 @@ To understand how L<Text::Parser> compares to the native Perl way of doing thing
 
 You have to write code that would parse this to create a data structure with all names and corresponding email addresses.
 
-=head2 Native Perl code
+    { name => "Brian", email => "brian@webhost.net", address => "401 Burnswick Ave, Cool City, UT 12345"}, 
+    .
+    .
+    .
 
-Here's an implementation in native Perl:
+=head2 Perl one-liner
+
+Could we do this using a Perl one-liner?
+
+    perl -lane 'BEGIN {
+        @data = ();\
+        }\
+        if($F[0] eq "NAME:") {\
+            push @data, {name => $F[1]};\
+        } elsif($F[0] eq "EMAIL:") {\
+            $d = pop @data; $d->{email} = $F[1];\
+        } elsif($F[0] eq "ADDRESS:") {\
+            $d = pop @data;\
+            shift @F; \
+            $d->{address} = join ' ', @F;\
+        }' info.txt
+
+So much for a one-liner! But you can't do anything else with this, can you?
+
+=head2 Native Perl script
+
+Here's an implementation in native Perl scipt:
 
     open IN, "<info.txt";
     my @data = ();
@@ -51,16 +85,17 @@ Here's how you'd write the same thing with L<Text::Parser>.
         do => 'my $rec = $this->pop_record; $rec->{email} = $2; return $rec' );
     $parser->read('info.txt');
 
-=head1 QUICK OBSERVATIONS
+=head2 Quick observations
 
-The programmer has to still write some form of C<if-then> code, but:
+The programmer has to still specify how to extract data, but:
 
 =for :list
 * she can focus on the content rather than the mechanics of file handling
-* another programmer can instantly understand what it is doing
+* another programmer can instantly understand what is going on
+* the results can be used in a more complex program - not just a one-liner
 * parsing files has never been this intuiive, especially with shortcuts like C<${2+}>
 
-Besides, did you notice the bug in the C<while> loop of the native Perl code above? Hint: What happens if we C<split> a string with leading and trailing spaces?
+Besides, did you notice the bug in the C<while> loop of the native Perl script above? Hint: What happens if we C<split> a string with leading and trailing spaces?
 
 =head1 ANOTHER SIMPLE EXAMPLE
 
@@ -93,6 +128,10 @@ Let's say you have to parse this and form a data structure like this:
             ...
         }
     ]
+
+=head2 Perl one-liner
+
+It is clear that the one-liner is no longer really a one-liner. And you cannot C<use strict>. But go ahead and give it a try if you want.
 
 =head2 Native Perl code
 
@@ -242,4 +281,6 @@ Do I have to really do this? Why don't I let you try this yourself.
 
 That's it!
 
+By now, you should have concluded that it is pointless trying to write native Perl to parse text input.
 
+L<Table of contents|Text::Parser::Manual> | L<Next|Text::Parser::Manual::ExtendedAWKSyntax>

@@ -3,23 +3,47 @@
 
 # ABSTRACT: A manual for ExAWK (extended AWK) syntax
 
-=head1 BASIC STRUCTURE
+=head1 THE EXTENDED AWK LANGUAGE
+
+So you saw the power of L<Text::Parser> and want to write your own. First you need to learn something about the rules.
+
+=head2 Why extend?
+
+The AWK programming language does give us the flexibility to do a number of things. But it is limited in many respects. Below is a list of things that come to my mind:
+
+=for :list
+* AWK's regular expressions are limited. Perl is superior here and we want to leverage that.
+* You can't create deep data-structures (multi-dimensional arrays/hashes) in AWK. You can't create objects and classes.
+* Every rule will be tested and executed. It would be nice to control whether the next rule would be executed.
+* The UNIX version of AWK has only nine field identifiers C<$1> through C<$9>. GAWK and other implementations remove this limitation.
+* AWK has a limited set of built-in functions.
+
+AWK itself cannot be used for much more than reading text files and processing them. It is not really useful for a more complex program.
+
+=head2 Why AWK?
+
+Despite its limitations, AWK is excellent for parsing and processing text input. And despite the fact that Perl is supposed to allow us to do something more advanced, parsing text files I<should> be as easy as it is with AWK. So instead of re-inventing the wheel... (you get the point?).
+
+=head1 BASIC SYNTAX
 
 The basic syntax of the AWK program is:
 
     condition { task; }
 
-The form of the ExAWK rule is like this:
+If C<condition> is specified, then the C<task> block is optional, and if the C<task> block is specified, then the C<condition> is optional.
+
+The basic form of the ExAWK rule is like this:
 
     if => 'condition', do => 'task'
+            ## options: 
+            ##   dont_record => 0|1
+            ##   continue_to_next => 0|1
 
-B<Note:> You I<must> enclose your string C<condition> and C<task> in single quotes. If the single quotes are missing, you will get garbage or the expression will fail to compile. It is important to note that I recommend the use of single quotes C<'> and not double quotes C<"> for a reason. Read on.
+These are normally supplied as arguments to C<L<add_rule|Text::Parser/add_rule>>, C<L<BEGIN_rule|Text::Parser/BEGIN_rule>>, and C<L<END_rule|Text::Parser/END_rule>>.
 
-Either C<condition> or C<task> must be supplied. If neither is supplied, an exception will be thrown.
+Similar to AWK, if C<condition> is specified, then the C<task> is optional, and if the C<task> is specified, then the C<condition> is optional. The language for the C<condition> and C<task> is Perl (not AWK). So for example, to compare strings you should use C<eq> and not C<==> like you would in AWK. If the C<'if'> and C<'do'> strings are transformed into regular Perl and compiled.
 
-The language for the C<condition> and C<task> is Perl (not AWK). So for example, to compare strings you should use C<eq> and not C<==> like you would in AWK. If the C<'if'> and C<'do'> strings do not compile to form kosher Perl code, you'll get an exception.
-
-=head2 Simplicity like AWK
+=head2 Simplicity
 
 Just as in AWK the C<condition> can be as simple as a regular expression, or a complex boolean expression. In AWK you could do:
 
@@ -29,7 +53,11 @@ In ExAWK you could write something like this to get something equivalent (Note t
 
     if => 'm/EMAIL:/', do => 'print $2, "\n"'
 
-The default C<condition> in ExAWK is just like in AWK: true for each input line. The default C<task> in AWK is C<print>. Thus:
+The default C<condition> in ExAWK is just like in AWK: true for each input line. The following will simply print every line in a file:
+
+    do => 'print'
+
+The default C<task> in AWK is C<print>. Thus:
 
     $ awk '/li/' file.txt
 
@@ -41,17 +69,7 @@ If you want to C<print> instead and not record anything, you need to specify tha
 
     if => 'm/li/', do => 'print', dont_record => 1
 
-Notice the similarity to the AWK syntax: 
-
-    $ awk '/li/ {print}' file.txt
-
-Like AWK, C<$0> identifies the whole line.
-
-In ExAWK, the Perl in-built variable C<$_> is also set to the current line. So any in-built functions that take a missing parameter to be C<$_> will behave accordingly. Thus your conditional expressions could be something like:
-
-    if => 'm/EMAIL:/'
-
-=head1 ACCESSING POSITIONAL FIELDS
+In ExAWK, the Perl in-built variable C<$_> is set to the current line. So any in-built functions that take a missing parameter to be C<$_> will behave accordingly (this is how C<if =E<gt> 'm/li/'> and C<do =E<gt> 'print'> happen to work).
 
 =head2 Field identifiers
 
@@ -59,17 +77,19 @@ AWK is very popular for its intuitive field identifiers C<$1>, C<$2>, C<$3> etc.
 
 It is B<important> to note that C<$1>, C<$2>, etc., are not variables, even in AWK. They are just I<positional field identifiers>. They represent an Rvalue and cannot be modified. So for example
 
-    $ awk '// {$1 == "something";}' file.txt
+    $ awk '// {$1 = "something";}' file.txt
 
-will not accomplish anything. The same is true in ExAWK.
+will not accomplish anything. The first field in each line remains what it is.
 
-The ExAWK identifiers C<$1>, C<$2> etc., are not the same as the native Perl variables C<$1>, C<$2> etc. These native Perl variables exist only in regexp substitutions. The I<positional field identifiers> C<$1>, C<$2> etc. exist only inside the I<string> expressions in ExAWK.
+Similarly, ExAWK identifiers C<$1>, C<$2> etc., are also not variables. In particular they are I<not> the same as the native Perl regular expression field identifiers C<$1>, C<$2> etc., which are used in regexp substitutions.
+
+The I<positional field identifiers> C<$1>, C<$2> etc. have special meaning inside the I<string> expressions of ExAWK. Like AWK, C<$1> represents the first field, C<$2> represents the second field, and so on. Like AWK, C<$0> identifies the whole line.
 
 =head2 Reverse field identifiers
 
-Now we add new features that really go beyond AWK. To access fields from the end of the line, use identifiers C<${-1}>, C<${-2}>, etc.
+Now we add new features that really go beyond AWK. To access fields from the end of the line, use identifiers C<${-1}>, C<${-2}>, etc. C<${-1}> is the last field, C<${-2}> is the penultimate field, and so forth.
 
-=head3 Automatic checks for NF
+=head2 Automatic checks for NF
 
 You don't need to bother about the existence of a field when you write these expressions. For example, in AWK if you write:
 
@@ -79,17 +99,17 @@ then all lines with 3 or less fields will automatically be printed to the screen
 
     if => '$4 eq ""'
 
-would never be true. Furthermore, if you had written a rule like this in AWK:
+would never be true. (Why?) Now, if you had written a rule like this in AWK:
 
     $ awk '$1 == "MIDDLE" && $2 == "NAME:" {print toupper($3)}' file.txt
 
-You could still get empty lines for each person that has no middle name.
+you might get a lot of empty lines for each person that has no middle name.
 
 Instead, in ExAWK, the following rule:
 
     if => '$1 eq "MIDDLE" and $2 eq "NAME:"', do => 'return uc($3)'
 
-would automatically check that there are at least three fields on the line. This means it will never return anything in case of people with no middle names.
+would automatically check that there are at least three fields on the line. This means it will never return anything in case of people with no middle names. This ensures you don't run into C<undef>.
 
 =head2 The C<$this> variable
 
@@ -99,7 +119,72 @@ B<Important Note:> This is a real variable. If you modify the value of C<$this>,
 
 The C<$this> variable allows you to L<communicate|Text::Parser::Manual::CommunicatingBetweenRules> parser state or information across different rules.
 
-=head1 DIFFERENCES BETWEEN AWK and ExAWK
+=head2 Local variables
+
+You can use any Perl local variables you want. For example:
+
+    do => 'my (@numbers) = ${3+}; # do something with @numbers'
+
+Note that C<@numbers> above is accessible only within that rule task. It is not accessible outside of that C<do> string.
+
+Use any variable other than C<$this>.
+
+=head2 Shared variables
+
+If you want to create variables that are initialized or assigned in one rule, but accessed in another rule, you need to use a I<"shared variable">. A shared variable can be a scalar, or a hash reference, or an array reference. It cannot be a hash or an array itself. All shared variables must begin with the tilde (C<~>) character, whether scalar, arrayref, or hashref. And all of them must begin with an alphabet or underscore (C<_>).
+
+    if => '$1 eq "MARKER:"', do => '~info = $2;'
+
+In the above rule, C<~info> is a shared variable, and will be accessible in other rules.
+
+All shared variables created during the parsing of a text input exist only for the duration of the C<read> method call. They are not accessible outside the C<Text::Parser> class.
+
+=head3 Suite of string and array utility functions
+
+Perl anyway has more built-in functions that are very useful and better than their AWK counterparts. But in addition, L<CPAN|http://www.cpan.org> has a lot of great modules with utility functions. ExAWK gives the programmer access to a number of these functions:
+
+=for :list
+* L<Scalar::Util> : C<blessed>, C<looks_like_number>
+* L<String::Util> : All functions here
+* L<String::Util::Match> : C<match_array_or_regex>
+* L<String::Util::Range> : C<convert_sequence_to_range>
+* L<String::Index> : C<cindex>, C<ncindex>, C<crindex>, C<ncrindex>
+* L<List::Util> : The following functions - C<max maxstr min minstr product sum0 uniq pairs unpairs pairkeys pairvalues pairfirst pairgrep pairmap>
+
+=head1 COMPLEX CONDITIONAL TREES
+
+If you wanted to build a complex C<if-elsif-else> tree of conditions, in AWK, you need to write them inside one rule like this:
+
+    // {
+        if (condition1) {
+            task1;
+        } elsif(condition2) {
+            task2;
+        } else {
+            task3;
+        }
+        if (condition3) {
+            task4;
+        }
+        if(condition4) {
+            task5;
+        } else {
+            task6;
+        }
+    }
+
+With the pair of options C<dont_record> and C<continue_to_next> one can build rules that replace any number of complex set of cascaded C<if-elsif-else> blocks while still retaining most of them in an elegant single-line form.
+
+    if => 'condition1', do => 'task1';
+    if => 'condition2', do => 'task2';
+    if => 1, do => 'task3', dont_record => 1, continue_to_next => 1;
+    if => 'condition3', do => 'task4', dont_record => 1, conditnue_to_next => 1;
+    if => 'condition4', do => 'task5';
+    if => 1, do => 'task6';
+
+Not only are these rules compact, it is also possible to understand the execution flow.
+
+=head1 SUMMARY
 
 =for :list
 * AWK cannot store very complex data structures. ExAWK can.
@@ -107,3 +192,4 @@ The C<$this> variable allows you to L<communicate|Text::Parser::Manual::Communic
 * In AWK there are no positional variables for positions counted from the end. In ExAWK, you have C<${-1}>, C<${-2}>, C<${-3}> etc.
 * In AWK if you use a positional variable like C<$8> when there are only 7 fields on a line, it evaluates to empty string. In ExAWK, if you use C<$8> in any of the strings, an automatic pre-condition is generated to check that there must be at least 8 fields on the input line.
 
+L<Table of contents|Text::Parser::Manual> | L<Previous|Text::Parser::Manual::ComparingWithNativePerl>

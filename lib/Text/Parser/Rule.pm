@@ -12,7 +12,9 @@ use String::Util ':all';
 use String::Util::Match 'match_array_or_regex';
 use String::Util::Range 'convert_sequence_to_range';
 use String::Index qw(cindex ncindex crindex ncrindex);
-use List::Util 'uniq';
+use List::Util qw(max maxstr min minstr product sum0
+                uniq pairs unpairs pairkeys
+                pairvalues pairfirst pairgrep pairmap);
 
 =head1 SYNOPSIS
 

@@ -3,37 +3,4 @@
 
 # ABSTRACT: Building complex control structures, and managing lots of rules
 
-=head1 COMPLEX CONDITIONAL TREES
-
-If you wanted to build a complex C<if-elsif-else> tree of conditions, in AWK, you need to write them inside one rule like this:
-
-    // {
-        if (condition1) {
-            task1;
-        } elsif(condition2) {
-            task2;
-        } else {
-            task3;
-        }
-        if (condition3) {
-            task4;
-        }
-        if(condition4) {
-            task5;
-        } else {
-            task6;
-        }
-    }
-
-With the pair of attributes C<dont_record> and C<continue_to_next> one can build rules that replace any number of complex set of cascaded C<if-elsif-else> blocks while still retaining most of them in an elegant single-line form.
-
-    if => 'condition1', do => 'task1';
-    if => 'condition2', do => 'task2';
-    if => 1, do => 'task3', dont_record => 1, continue_to_next => 1;
-    if => 'condition3', do => 'task4', dont_record => 1, conditnue_to_next => 1;
-    if => 'condition4', do => 'task5';
-    if => 1, do => 'task6';
-
-Not only are these rules compact, it is also possible to understand the execution flow.
-
 

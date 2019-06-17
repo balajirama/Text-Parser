@@ -38,7 +38,7 @@ There are several problems with this sort of code. For starters, it is:
 
 =for :list
 * Hard to refactor and simplify into small functions (See I<"Clean Code"> by Robert C. Martin).
-* Cannot be easily modified slightly and re-used for another very similar text format.
+* Cannot be easily modified and re-used for another very similar text format.
 * Complex conditions are harder to write and often result in nested conditions.
 * Documenting code in the while loop can get rather hairy.
 
@@ -64,7 +64,5 @@ This manual is divided into chapters:
 =for :list
 * L<Text::Parser::Manual::ComparingWithNativePerl> - this chapter should explain why one should consider using L<Text::Parser> instead of native Perl.
 * L<Text::Parser::Manual::ExtendedAWKSyntax> - this chapter outlines the syntax for the rules
-* L<Text::Parser::Manual::ManagingComplexRules> - what if you have a complex text file and need to write several rules? What options do you have?
-* L<Text::Parser::Manual::CommunicatingBetweenRules> - using parser attributes to communicate between rules
-* L<Text::Parser::Manual::InheritingAndModifyingRules> - suppose someone else has written a parser to handle a specific text format. And your target text format is similar, and you'd like to leverage their work. But you have some differences? Is it possible to re-use their code without modifying the original functionality?
 
+You can L<start here|Text::Parser::Manual::ExtendedAWKSyntax>.
