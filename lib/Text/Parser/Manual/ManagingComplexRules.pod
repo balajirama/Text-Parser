@@ -1,6 +1,0 @@
-
-# PODNAME: Text::Parser::Manual::ManagingComplexRules
-
-# ABSTRACT: Building complex control structures, and managing lots of rules
-
-
