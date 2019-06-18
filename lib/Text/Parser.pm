@@ -14,19 +14,19 @@ package Text::Parser;
     $parser->read(shift);
     print $parser->get_records, "\n";
 
-The above code reads the first command-line argument as a string, and assuming it is the name of a text file, it will print the content of the file to C<STDOUT>. If the string is not the name of a text file it will throw an exception and exit.
+The above code prints the content of the file (named in the first argument) to C<STDOUT>.
 
     my $parser = Text::Parser->new();
     $parser->add_rule(do => 'print');
     $parser->read(shift);
 
-You can do a lot of complex things. For examples see the L<manual|Text::Parser::Manual>.
+This example also dones the same as the earlier one. For more complex examples see the L<manual|Text::Parser::Manual>.
 
 =head1 OVERVIEW
 
-The L<need|Text::Parser::Manual/MOTIVATION> for this class stems from the fact that text parsing is the most common thing that programmers do, and yet there is no lean, simple way to do it efficiently. Most programmers still use boilerplate code with a C<while> loop.
+The L<need|Text::Parser::Manual/MOTIVATION> for this class stems from the fact that text parsing is the most common thing that programmers do, and yet there is no lean, simple way to do it efficiently. Most programmers still write boilerplate code with a C<while> loop.
 
-Instead C<Text::Parser> allows programmers to parse text with terse, self-explanatory L<rules|Text::Parser::Manual::ExtendedAWKSyntax>, whose structure is very similar to AWK, but extends beyond the capability of AWK. Incidentally, AWK is the inspiration for Perl itself! And one would have expected Perl to extend the capabilities of AWK. Yet, command-line C<perl -lane> or even C<perl -lan script.pl> are L<very limited|Text::Parser::Manual::ComparingWithNativePerl> in what they can do. Programmers cannot use them for serious programs.
+Instead C<Text::Parser> allows programmers to parse text with terse, self-explanatory L<rules|Text::Parser::Manual::ExtendedAWKSyntax>, whose structure is very similar to L<AWK|https://books.google.com/books/about/The_AWK_Programming_Language.html?id=53ueQgAACAAJ>, but extends beyond the capability of AWK. Incidentally, AWK is L<one of the ancestors of Perl|http://history.perl.org/PerlTimeline.html>! One would have expected Perl to extend the capabilities of AWK. Yet, that's not the case. Command-line C<perl -lane> or even C<perl -lan script.pl> are L<very limited|Text::Parser::Manual::ComparingWithNativePerl> in what they can do. Programmers cannot use them for serious projects. And parsing text files in regular Perl features the C<while> loop with multiple conditions.
 
 With C<Text::Parser>, a developer can focus on specifying a grammar and then simply C<read> the file. The C<L<read|/read>> method automatically runs each rule collecting records from the text input into an array internally. And finally C<L<get_records|/get_records>> can retrieve the records. Thus the programmer now has the power of Perl to create complex data structures, along with the elegance of AWK to parse text files.
 
@@ -365,6 +365,7 @@ sub read {
     $self->_run_begin_end_block('_begin_rule');
     $self->__read_and_close_filehandle;
     $self->_run_begin_end_block('_end_rule');
+    $self->_ExAWK_symbol_table( {} );
 }
 
 sub _handle_read_inp {
@@ -387,8 +388,7 @@ sub _run_begin_end_block {
     my $pred = '_has' . $func;
     return if not $self->$pred();
     my $rule = $self->$func();
-    $rule->run($self, 0);
-    $self->_ExAWK_symbol_table( {} ) if $func eq '_end_rule';
+    $rule->run( $self, 0 );
 }
 
 sub __read_and_close_filehandle {
@@ -780,7 +780,7 @@ You can find example code in L<Text::Parser::Manual::ComparingWithNativePerl>.
 
 =for :list
 * L<Text::Parser::Manual> - Read this manual
-* L<FileHandle> - if you want to C<read> from file handles directly
+* L<The AWK Programming Language|https://books.google.com/books/about/The_AWK_Programming_Language.html?id=53ueQgAACAAJ> - by B<A>ho, B<W>einberg, and B<K>ernighan.
 * L<Text::Parser::Errors> - documentation of the exceptions this class throws
 * L<Text::Parser::Multiline> - how to read line-wrapped text input
 
