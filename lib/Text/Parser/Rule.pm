@@ -9,12 +9,6 @@ use Moose;
 use Text::Parser::Errors;
 use Scalar::Util 'blessed', 'looks_like_number';
 use String::Util ':all';
-use String::Util::Match 'match_array_or_regex';
-use String::Util::Range 'convert_sequence_to_range';
-use String::Index qw(cindex ncindex crindex ncrindex);
-use List::Util qw(max maxstr min minstr product sum0
-                uniq pairs unpairs pairkeys
-                pairvalues pairfirst pairgrep pairmap);
 
 =head1 SYNOPSIS
 
@@ -118,11 +112,16 @@ sub _replace_range_shortcut {
 }
 
 sub _replace_exawk_vars {
-    my (@varnames) = uniq( $_ =~ /[~]([a-z_][a-z0-9_]+)/ig );
+    my (@varnames) = _uniq( $_ =~ /[~]([a-z_][a-z0-9_]+)/ig );
     foreach my $var (@varnames) {
         my $v = '~' . $var;
         s/$v/\$__->{$var}/g;
     }
+}
+
+sub _uniq {
+    my (%elem) = map { $_ => 1 } @_;
+    return ( keys %elem );
 }
 
 has _cond_sub_str => (
@@ -429,7 +428,7 @@ sub run {
 }
 
 sub _call_act_sub {
-    my ( $self, $parser, $test_line) = @_;
+    my ( $self, $parser, $test_line ) = @_;
     return if $test_line and not defined $parser->this_line;
     my $act = $self->_act_sub;
     return ( $act->($parser) );

@@ -4,9 +4,11 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Import::Into;
 
 BEGIN {
     use_ok 'Text::Parser';
+    String::Index->import::into('Text::Parser::Rule', qw(cindex ncindex crindex ncrindex));
     use_ok 'Text::Parser::Rule';
 }
 
