@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+0.926     2019-06-21 11:48:08-07:00 America/Los_Angeles
   - Removed unnecessary module dependencies. Users can always use Import::Into when they need to add new functions (Issue #52)
   - Bug with shared variables not being removed after read call fixed (Issue #49)
   - Minor updates to documentation
