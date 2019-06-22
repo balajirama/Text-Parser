@@ -428,7 +428,7 @@ sub run {
     my $self = shift;
     die rule_run_improperly if not _check_parser_arg(@_);
     return if not $_[0]->auto_split;
-    push @_, 1 if @_ == 1;
+    push @_, 1 if @_ < 2;
     $self->_run(@_);
 }
 
