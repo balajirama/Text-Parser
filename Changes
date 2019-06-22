@@ -1,6 +1,7 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+  - Text::Parser takes almost 20x the amount of time as native perl. Improved runtime by 25% and brought down to 10-15x runtime (Issue #54)
 
 0.926     2019-06-21 11:48:08-07:00 America/Los_Angeles
   - Removed unnecessary module dependencies. Users can always use Import::Into when they need to add new functions (Issue #52)

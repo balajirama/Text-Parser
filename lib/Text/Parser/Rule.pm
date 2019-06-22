@@ -376,10 +376,8 @@ sub test {
     my $self = shift;
     return 0 if not _check_parser_arg(@_);
     my $parser = shift;
-    return 0 if not $parser->auto_split or $parser->NF < $self->min_nf;
-    return 0
-        if not( $self->_no_preconds or $self->_test_preconditions($parser) );
-    return $self->_test_cond_sub($parser);
+    return 0 if not $parser->auto_split;
+    return $self->_test($parser);
 }
 
 sub _check_parser_arg {
@@ -387,6 +385,14 @@ sub _check_parser_arg {
     my $parser = shift;
     return 0 if not defined blessed($parser);
     $parser->isa('Text::Parser');
+}
+
+sub _test {
+    my ( $self, $parser ) = ( shift, shift );
+    return 0 if $parser->NF < $self->min_nf;
+    return 0
+        if not( $self->_no_preconds or $self->_test_preconditions($parser) );
+    return $self->_test_cond_sub($parser);
 }
 
 sub _test_preconditions {
@@ -421,11 +427,17 @@ Runs the C<eval>uated C<action>. If C<dont_record> is false, the return value of
 sub run {
     my $self = shift;
     die rule_run_improperly if not _check_parser_arg(@_);
-    return if nocontent( $self->action ) or not $_[0]->auto_split;
+    return if not $_[0]->auto_split;
     push @_, 1 if @_ == 1;
-    my (@res) = $self->_call_act_sub(@_);
+    $self->_run(@_);
+}
+
+sub _run {
+    my ( $self, $parser ) = ( shift, shift );
+    return if nocontent( $self->action );
+    my (@res) = $self->_call_act_sub( $parser, @_ );
     return if $self->dont_record;
-    $_[0]->push_records(@res);
+    $parser->push_records(@res);
 }
 
 sub _call_act_sub {

@@ -381,7 +381,7 @@ sub _run_begin_end_block {
     my $pred = '_has' . $func;
     return if not $self->$pred();
     my $rule = $self->$func();
-    $rule->run( $self, 0 );
+    $rule->_run( $self, 0 );
 }
 
 sub __read_and_close_filehandle {
@@ -572,8 +572,8 @@ sub save_record {
 sub _run_through_rules {
     my $self = shift;
     foreach my $rule ( $self->_get_rules ) {
-        next if not $rule->test($self);
-        $rule->run($self);
+        next if not $rule->_test($self);
+        $rule->_run($self, 0);
         last if not $rule->continue_to_next;
     }
 }

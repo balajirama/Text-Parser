@@ -1,4 +1,4 @@
-#!/usr/bin/env perl
+#!/usr/bin/env perl -d:NYTProf
 
 use strict;
 use warnings;
@@ -59,12 +59,6 @@ sub read_with_native_perl {
     }
 }
 
-use Benchmark;
-
-timethese(
-    5000,
-    {   'Native Perl'  => \&read_with_native_perl,
-        'Text::Parser' => \&read_with_text_parser
-    }
-);
+read_with_text_parser;
+read_with_native_perl;
 
