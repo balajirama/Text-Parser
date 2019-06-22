@@ -377,7 +377,8 @@ sub test {
     return 0 if not _check_parser_arg(@_);
     my $parser = shift;
     return 0 if not $parser->auto_split or $parser->NF < $self->min_nf;
-    return 0 if not $self->_test_preconditions($parser);
+    return 0
+        if not( $self->_no_preconds or $self->_test_preconditions($parser) );
     return $self->_test_cond_sub($parser);
 }
 
