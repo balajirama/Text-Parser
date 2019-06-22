@@ -1,7 +1,7 @@
 
 use strict;
 use warnings;
- 
+
 package Text::Parser::RuleSpec;
 
 # ABSTRACT: specifying class rules for a Text::Parser
@@ -63,5 +63,46 @@ Now in C<main>
                            ## and all other rules special to Parser2
 
 =cut
+
+use Moose;
+use Moose::Exporter;
+use MooseX::ClassAttribute;
+
+Moose::Exporter->setup_import_methods(
+    with_meta => ['spec_rule'],
+    also      => 'Moose'
+);
+
+class_has _all_rules => (
+    is      => 'rw',
+    isa     => 'HashRef[Text::Parser::Rule]',
+    lazy    => 1,
+    default => sub { {} },
+    traits  => ['Hash'],
+    handles => {
+        _add_new_rule => 'set',
+        _exists_rule  => 'exists'
+    },
+);
+
+class_has _rules_of_class => (
+    is      => 'rw',
+    isa     => 'HashRef[ArrayRef[Str]]',
+    lazy    => 1,
+    default => sub {
+        { [] }
+    },
+);
+
+sub spec_rule {
+    my ( $meta, $name ) = ( shift, shift );
+    my $rule = Text::Parser::Rule->new(@_);
+    Text::Parser::RuleSpec->_add_new_rule( $meta->name . '/' . $name, $rule );
+}
+
+__PACKAGE__->meta->make_immutable;
+
+no Moose;
+no MooseX::ClassAttribute;
 
 1;
