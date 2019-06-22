@@ -62,6 +62,13 @@ Now in C<main>
     $p2->read('file.txt'); ## Applies all rules of Parser1, except the one that is modified
                            ## and all other rules special to Parser2
 
+=head1 EXPORTS
+
+The following methods are exported into the C<use>r's namespace by default:
+
+=for :list
+* C<L<spec_rule|/spec_rule>>
+
 =cut
 
 use Moose;
@@ -94,8 +101,18 @@ class_has _rules_of_class => (
     },
 );
 
+=func spec_rule
+
+Takes one mandatory string argument, followed by a mandatory set of arguments that will be passed to the constructor of C<Text::Parser::Rule>.
+
+It returns nothing, but saves a rule registered under the namespace from where this function is called.
+
+=cut
+
+
 sub spec_rule {
     my ( $meta, $name ) = ( shift, shift );
+    return if not defined $name or defined ref($name);
     my $rule = Text::Parser::Rule->new(@_);
     Text::Parser::RuleSpec->_add_new_rule( $meta->name . '/' . $name, $rule );
 }
