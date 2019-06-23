@@ -59,6 +59,8 @@ sub read_with_native_perl {
     }
 }
 
-read_with_text_parser;
-read_with_native_perl;
+for my $i ( 0 .. 1000 ) {
+    read_with_text_parser;
+    read_with_native_perl;
+}
 

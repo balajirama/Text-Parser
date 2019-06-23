@@ -58,10 +58,33 @@ has condition => (
 
 sub _set_condition {
     my $self = shift;
+    $self->_has_blank_condition(0);
     $self->_set_highest_nf;
     $self->_cond_sub_str( _gen_sub_str( $self->condition ) );
     $self->_cond_sub(
         _set_cond_sub( $self->condition, $self->_cond_sub_str ) );
+}
+
+has _has_blank_condition => (
+    is      => 'rw',
+    isa     => 'Bool',
+    lazy    => 1,
+    default => 1,
+);
+
+sub _set_highest_nf {
+    my $self = shift;
+    my $nf   = _get_min_req_fields( $self->_gen_joined_str );
+    $self->_set_min_nf($nf);
+}
+
+sub _gen_joined_str {
+    my $self = shift;
+    my (@strs) = ();
+    push @strs, $self->condition            if $self->_has_condition;
+    push @strs, $self->action               if $self->_has_action;
+    push @strs, $self->_join_preconds('; ') if not $self->_no_preconds;
+    my $str = join '; ', @strs;
 }
 
 sub _get_min_req_fields {
@@ -170,21 +193,6 @@ has min_nf => (
     handles  => { _set_min_nf => 'set', }
 );
 
-sub _set_highest_nf {
-    my $self = shift;
-    my $nf   = _get_min_req_fields( $self->_gen_joined_str );
-    $self->_set_min_nf($nf);
-}
-
-sub _gen_joined_str {
-    my $self = shift;
-    my (@strs) = ();
-    push @strs, $self->condition            if $self->_has_condition;
-    push @strs, $self->action               if $self->_has_action;
-    push @strs, $self->_join_preconds('; ') if not $self->_no_preconds;
-    my $str = join '; ', @strs;
-}
-
 =attr action
 
 Read-write attribute. Set in the constructor with C<do> key. Must be string which after transformation must C<eval> successfully without compilation errors.
@@ -290,7 +298,13 @@ sub BUILD {
     die illegal_rule_no_if_no_act
         if not $self->_has_condition and not $self->_has_action;
     $self->action('return $0;') if not $self->_has_action;
-    $self->condition(1)         if not $self->_has_condition;
+    $self->_constr_condition if not $self->_has_condition;
+}
+
+sub _constr_condition {
+    my $self = shift;
+    $self->condition(1);
+    $self->_has_blank_condition(1);
 }
 
 =head1 METHODS
@@ -392,6 +406,7 @@ sub _test {
     return 0 if $parser->NF < $self->min_nf;
     return 0
         if not( $self->_no_preconds or $self->_test_preconditions($parser) );
+    return 1 if $self->_has_blank_condition;
     return $self->_test_cond_sub($parser);
 }
 
