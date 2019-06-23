@@ -61,7 +61,8 @@ sub applies_rule {
     my ( $meta, $name ) = ( shift, shift );
     return if not defined $name or defined ref($name);
     my $rule = Text::Parser::Rule->new(@_);
-    Text::Parser::RuleSpec->_add_new_rule( $meta->name . '/' . $name, $rule );
+    my $key  = $meta->name . '/' . $name;
+    Text::Parser::RuleSpec->_add_new_rule( $key => $rule );
 }
 
 __PACKAGE__->meta->make_immutable;
