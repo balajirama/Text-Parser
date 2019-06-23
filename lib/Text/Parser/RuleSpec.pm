@@ -4,70 +4,18 @@ use warnings;
 
 package Text::Parser::RuleSpec;
 
-# ABSTRACT: specifying class rules for a Text::Parser
+# ABSTRACT: Rule specification for class-rules (for derived classes of Text::Parser)
 
 =head1 SYNOPSIS
 
-This class is primarily to enable users to make sub-classes of C<Text::Parser> in such a way that the rules can be easily re-used.
-
-    package Parser1;
-
-    use Text::Parser::RuleSpec;
-    extends 'Text::Parser';
-
-    new_rule 'RuleName1', if => '# condition', do => 'return $0';
-    # .
-    # .
-    # .
-    # Lots of rules
-    # .
-    # .
-    #
-    
-    sub BUILD {
-        my $self = shift;
-        $self->class_rules(__PACKAGE__);
-    }
-
-The later...
-
-    package Parser2;
-
-    use Text::Parser::RuleSpec;
-    extends 'Parser1';
-
-    modify_rule 'Parser1/RuleName1', if => '# other condition', do => '# do something else';
-    # .
-    # .
-    # .
-    # Other rules special to Parser2
-    # .
-    # .
-    #
-
-    sub BUILD {
-        my $self = shift;
-        $self->class_rules(__PACKAGE__);
-    }
-
-Now in C<main>
-
-    use Parser1;
-    use Parser2;
-    use strict;
-
-    my $p1 = Parser1->new();
-    my $p2 = Parser2->new();
-    $p1->read('file.txt'); ## Applies rules only from Parser1
-    $p2->read('file.txt'); ## Applies all rules of Parser1, except the one that is modified
-                           ## and all other rules special to Parser2
+B<NOTE:> This module is still under construction. Don't use this one. Go back to using L<Text::Parser> normally.
 
 =head1 EXPORTS
 
 The following methods are exported into the C<use>r's namespace by default:
 
 =for :list
-* C<L<spec_rule|/spec_rule>>
+* C<L<applies_rule|/applies_rule>>
 
 =cut
 
@@ -76,7 +24,7 @@ use Moose::Exporter;
 use MooseX::ClassAttribute;
 
 Moose::Exporter->setup_import_methods(
-    with_meta => ['spec_rule'],
+    with_meta => ['applies_rule'],
     also      => 'Moose'
 );
 
@@ -92,7 +40,7 @@ class_has _all_rules => (
     },
 );
 
-class_has _rules_of_class => (
+class_has _class_rule_order => (
     is      => 'rw',
     isa     => 'HashRef[ArrayRef[Str]]',
     lazy    => 1,
@@ -101,7 +49,7 @@ class_has _rules_of_class => (
     },
 );
 
-=func spec_rule
+=func applies_rule
 
 Takes one mandatory string argument, followed by a mandatory set of arguments that will be passed to the constructor of C<Text::Parser::Rule>.
 
@@ -109,8 +57,7 @@ It returns nothing, but saves a rule registered under the namespace from where t
 
 =cut
 
-
-sub spec_rule {
+sub applies_rule {
     my ( $meta, $name ) = ( shift, shift );
     return if not defined $name or defined ref($name);
     my $rule = Text::Parser::Rule->new(@_);
