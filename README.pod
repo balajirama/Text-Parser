@@ -8,7 +8,7 @@ Text::Parser - Simplifies text parsing. Easily extensible to parse any text form
 
 =head1 VERSION
 
-version 0.926
+version 0.927
 
 =head1 SYNOPSIS
 
