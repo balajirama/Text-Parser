@@ -9,25 +9,34 @@ use Text::Parser::Errors;
 use Text::Parser::RuleSpec;
 
 dies_ok {
+    applies_rule;
+}
+SpecMustHaveName();
+
+dies_ok {
+    applies_rule {};
+}
+SpecMustHaveName();
+
+dies_ok {
     applies_rule if => '$1 eq "NAME:"';
 }
 SpecMustHaveName();
 
 lives_ok {
     applies_rule get_names => ( if => '$1 eq "NAME:"' );
-} 'Creates a rule get_names';
+}
+'Creates a rule get_names';
 
 dies_ok {
-    applies_rule get_names => (
-        if => '$1 eq "EMAIL:"'
-    );
-} NameRuleUniquely();
+    applies_rule get_names => ( if => '$1 eq "EMAIL:"' );
+}
+NameRuleUniquely();
 
 package main;
 use Test::Exception;
 use Text::Parser::RuleSpec;
 use Test::More;
-
 
 BEGIN {
     use_ok 'Text::Parser::RuleSpec';
