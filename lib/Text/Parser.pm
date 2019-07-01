@@ -67,7 +67,6 @@ enum 'Text::Parser::Types::TrimType'      => [qw(l r b n)];
 
 no Moose::Util::TypeConstraints;
 use FileHandle;
-use Try::Tiny;
 
 =constr new
 
