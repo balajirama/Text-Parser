@@ -46,9 +46,7 @@ class_has _class_rule_order => (
     is      => 'rw',
     isa     => 'HashRef[ArrayRef[Str]]',
     lazy    => 1,
-    default => sub {
-        {}
-    },
+    default => sub { {} },
 );
 
 =func applies_rule
