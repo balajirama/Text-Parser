@@ -20,7 +20,16 @@ The above code prints the content of the file (named in the first argument) to C
     $parser->add_rule(do => 'print');
     $parser->read(shift);
 
-This example also dones the same as the earlier one. For more complex examples see the L<manual|Text::Parser::Manual>.
+This example also does the same, but whereas the earlier code prints after reading the whole file, this one prints immediately.
+
+    my $parser = Text::Parser->new();
+    $parser->add_rule(if => '$1 eq "NAME:"', do => 'return ${2+}');
+    $parser->read(shift);
+    for my $name ($parser->get_records) {
+        # do something more complex
+    }
+
+For more complex examples see the L<manual|Text::Parser::Manual>.
 
 =head1 OVERVIEW
 
