@@ -61,7 +61,7 @@ It returns nothing, but saves a rule registered under the namespace from where t
 
 sub applies_rule {
     my ( $meta, $name ) = ( shift, shift );
-    _excepts_apply_rule( $meta, $name );
+    _excepts_apply_rule( $meta, $name, @_ );
     _register_rule( _full_rule_name( $meta, $name ), @_ );
     _push_rule_order( $meta, $name );
 }
@@ -75,8 +75,8 @@ sub _excepts_apply_rule {
     my ( $meta, $name ) = ( shift, shift );
     die spec_must_have_name package_name => $meta->name
         if not defined $name
-        or ref($name) ne ''
-        or ( @_ % 2 );
+        or ref($name) ne '';
+    die spec_requires_hash rule_name => $name if not @_ or ( scalar(@_) % 2 );
     die main_cant_apply_rule rule_name => $name if $meta->name eq 'main';
 }
 
@@ -97,7 +97,7 @@ sub _push_rule_order {
 
 sub _init_class_rule_order {
     my ( $h, $class, $parent ) = ( shift, shift, shift );
-    return if exists $h->{$class} and scalar( @{ $h->{$class} } ) > 0;
+    return if exists $h->{$class};
     $h->{$class} = exists $h->{$parent} ? [ @{ $h->{$parent} } ] : [];
 }
 

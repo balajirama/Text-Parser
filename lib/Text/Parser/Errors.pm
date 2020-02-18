@@ -258,6 +258,23 @@ exception
     ),
     ];
 
+=head3 C<Test::Parser::Errors::SpecRequiresHash>
+
+Thrown when C<L<applies_rule|Text::Parser::RuleSpec/applies_rule>> is called with invalid number of options.
+
+=cut
+
+exception
+    SpecRequiresHash =>
+    'applies_rule must be called with required hash argument',
+    extends => RuleSpecError(),
+    has     => [
+    rule_name => (
+        is  => 'ro',
+        isa => \&_Str,
+    ),
+    ];
+
 =head3 C<Text::Parser::Errors::MainCantApplyRule>
 
 This error means that C<L<applies_rule|Text::Parser::RuleSpec/applies_rule>> was called from your C<main> program (which is not right).
