@@ -62,8 +62,13 @@ It returns nothing, but saves a rule registered under the namespace from where t
 sub applies_rule {
     my ( $meta, $name ) = ( shift, shift );
     _excepts_apply_rule( $meta, $name );
-    _register_rule( $meta->name . '/' . $name, @_ );
-    _push_rule_order( $meta->name, $meta->name . '/' . $name );
+    _register_rule( _full_rule_name( $meta, $name ), @_ );
+    _push_rule_order( $meta, $name );
+}
+
+sub _full_rule_name {
+    my ( $meta, $name ) = ( shift, shift );
+    return $meta->name . '/' . $name;
 }
 
 sub _excepts_apply_rule {
@@ -83,9 +88,17 @@ sub _register_rule {
 }
 
 sub _push_rule_order {
-    my ( $class_name, $rule_name ) = ( shift, shift );
-    my $h = Text::Parser::RuleSpec->_class_rule_order;
-    push @{ $h->{$class_name} }, $rule_name;
+    my ( $meta, $rule_name ) = ( shift, shift );
+    my $h     = Text::Parser::RuleSpec->_class_rule_order;
+    my $class = $meta->name;
+    _init_class_rule_order( $h, $class, $meta->superclasses );
+    push @{ $h->{$class} }, _full_rule_name( $meta, $rule_name );
+}
+
+sub _init_class_rule_order {
+    my ( $h, $class, $parent ) = ( shift, shift, shift );
+    return if exists $h->{$class} and scalar( @{ $h->{$class} } ) > 0;
+    $h->{$class} = exists $h->{$parent} ? [ @{ $h->{$parent} } ] : [];
 }
 
 __PACKAGE__->meta->make_immutable;
