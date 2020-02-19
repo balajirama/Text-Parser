@@ -1,4 +1,3 @@
-
 use strict;
 use warnings;
 
@@ -96,9 +95,11 @@ sub _push_rule_order {
 }
 
 sub _init_class_rule_order {
-    my ( $h, $class, $parent ) = ( shift, shift, shift );
+    my ( $h, $class ) = ( shift, shift );
     return if exists $h->{$class};
-    $h->{$class} = exists $h->{$parent} ? [ @{ $h->{$parent} } ] : [];
+    $h->{$class} = [];
+    $h->{$class} = exists $h->{$_} ? [ @{ $h->{$class} }, @{ $h->{$_} } ] : []
+        for (@_);
 }
 
 __PACKAGE__->meta->make_immutable;
