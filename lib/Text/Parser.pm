@@ -95,7 +95,7 @@ sub _collect_any_class_rules {
     my $self = shift;
     my $cls  = $self->meta->name;
     my $h    = Text::Parser::RuleSpec->_class_rule_order;
-    return if not exists $h->{$cls} or not @{ $h->{$cls} };
+    return if not exists $h->{$cls};
     $self->_find_class_rules_and_set_auto_split( $h, $cls );
 }
 
