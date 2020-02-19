@@ -61,6 +61,7 @@ use Moose::Util::TypeConstraints;
 use String::Util qw(trim ltrim rtrim eqq);
 use Text::Parser::Errors;
 use Text::Parser::Rule;
+use Text::Parser::RuleSpec;
 
 enum 'Text::Parser::Types::MultilineType' => [qw(join_next join_last)];
 enum 'Text::Parser::Types::TrimType'      => [qw(l r b n)];
@@ -84,9 +85,26 @@ Takes optional attributes as in example below. See section L<ATTRIBUTES|/ATTRIBU
 
 sub BUILD {
     my $self = shift;
+    $self->_collect_any_class_rules;
     ensure_all_roles $self, 'Text::Parser::AutoSplit' if $self->auto_split;
     return if not defined $self->multiline_type;
     ensure_all_roles $self, 'Text::Parser::Multiline';
+}
+
+sub _collect_any_class_rules {
+    my $self = shift;
+    my $cls  = $self->meta->name;
+    my $h    = Text::Parser::RuleSpec->_class_rule_order;
+    return if not exists $h->{$cls} or not @{ $h->{$cls} };
+    $self->_find_class_rules_and_set_auto_split( $h, $cls );
+}
+
+sub _find_class_rules_and_set_auto_split {
+    my ( $self, $h, $cls ) = ( shift, shift, shift );
+    my (@r)
+        = map { Text::Parser::RuleSpec->_get_rule($_); } ( @{ $h->{$cls} } );
+    $self->auto_split(1) if not $self->auto_split;
+    $self->_class_rules( \@r );
 }
 
 =head1 ATTRIBUTES
@@ -121,7 +139,7 @@ has auto_split => (
     isa     => 'Bool',
     lazy    => 1,
     default => 0,
-    trigger => \&__newval_auto_split, 
+    trigger => \&__newval_auto_split,
 );
 
 sub __newval_auto_split {
@@ -220,6 +238,18 @@ Calling this method without any arguments will throw an exception. The method in
 
 =cut
 
+has _class_rules => (
+    is      => 'rw',
+    isa     => 'ArrayRef[Text::Parser::Rule]',
+    lazy    => 1,
+    default => sub { [] },
+    traits  => ['Array'],
+    handles => {
+        _has_no_rules => 'is_empty',
+        _get_rules    => 'elements',
+    },
+);
+
 has _obj_rules => (
     is      => 'rw',
     isa     => 'ArrayRef[Text::Parser::Rule]',
@@ -227,9 +257,9 @@ has _obj_rules => (
     default => sub { [] },
     traits  => ['Array'],
     handles => {
-        _push_rule    => 'push',
-        _has_no_rules => 'is_empty',
-        _get_rules    => 'elements',
+        _push_obj_rule    => 'push',
+        _has_no_obj_rules => 'is_empty',
+        _get_obj_rules    => 'elements',
     },
 );
 
@@ -237,7 +267,7 @@ sub add_rule {
     my $self = shift;
     $self->auto_split(1) if not $self->auto_split;
     my $rule = Text::Parser::Rule->new(@_);
-    $self->_push_rule($rule);
+    $self->_push_obj_rule($rule);
 }
 
 =method clear_rules
@@ -572,16 +602,16 @@ B<Note:> Developers may store records in any form - string, array reference, has
 
 sub save_record {
     my ( $self, $record ) = ( shift, shift );
-    $self->_has_no_rules
+    ( $self->_has_no_rules and $self->_has_no_obj_rules )
         ? $self->push_records($record)
         : $self->_run_through_rules;
 }
 
 sub _run_through_rules {
     my $self = shift;
-    foreach my $rule ( $self->_get_rules ) {
+    foreach my $rule ( $self->_get_rules, $self->_get_obj_rules ) {
         next if not $rule->_test($self);
-        $rule->_run($self, 0);
+        $rule->_run( $self, 0 );
         last if not $rule->continue_to_next;
     }
 }

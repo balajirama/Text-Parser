@@ -7,7 +7,22 @@ package Text::Parser::RuleSpec;
 
 =head1 SYNOPSIS
 
-B<NOTE:> This module is still under construction. Don't use this one. Go back to using L<Text::Parser> normally.
+    package MyParser;
+
+    use Text::Parser::RuleSpec;
+    extends 'Text::Parser';
+
+    applies_rule get_emails => (
+        if => '$1 eq "EMAIL:"', 
+        do => '$2;'
+    );
+
+    package main;
+
+    my $parser = MyParser->new();
+    $parser->read('/path/to/email_lists.txt');
+    my (@emails) = $parser->get_records();
+    print "Here are all the emails from the file: @emails\n";
 
 =head1 EXPORTS
 
@@ -37,7 +52,8 @@ class_has _all_rules => (
     traits  => ['Hash'],
     handles => {
         _add_new_rule => 'set',
-        _exists_rule  => 'exists'
+        _exists_rule  => 'exists',
+        _get_rule     => 'get',
     },
 );
 
@@ -50,11 +66,14 @@ class_has _class_rule_order => (
 
 =func applies_rule
 
-This function may be called only in a class of its own.
+May be called only outside the C<main> namespace. Takes one mandatory string argument which is a rule name, followed by a set of arguments that will be passed to the constructor of C<Text::Parser::Rule>. It returns nothing, but saves a rule registered under the namespace from where this function is called.
 
-Takes one mandatory string argument, followed by a mandatory set of arguments that will be passed to the constructor of C<Text::Parser::Rule>.
+    applies_rule print_emails => (
+        if => '$1 eq "EMAIL:"', 
+        do => 'print $2;', 
+    );
 
-It returns nothing, but saves a rule registered under the namespace from where this function is called.
+Exceptions will be thrown if any of the requirements are not met.
 
 =cut
 
