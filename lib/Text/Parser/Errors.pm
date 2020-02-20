@@ -305,7 +305,7 @@ exception
 
 =head3 C<Text::Parser::Errors::SingleParamsToNewMustBeHashRef>
 
-This error is thrown in place of L<Moose::Exception::SingleParamsToNewMustBeHashRef>
+This error is thrown in place of C<Moose::Exception::SingleParamsToNewMustBeHashRef>.
 
 =cut
 
