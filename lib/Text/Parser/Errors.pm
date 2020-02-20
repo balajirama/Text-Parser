@@ -301,6 +301,19 @@ exception
     NameRuleUniquely => 'name rules uniquely',
     extends          => RuleSpecError();
 
+=head2 Miscellaneous
+
+=head3 C<Text::Parser::Errors::SingleParamsToNewMustBeHashRef>
+
+This error is thrown in place of L<Moose::Exception::SingleParamsToNewMustBeHashRef>
+
+=cut
+
+exception
+    SingleParamsToNewMustBeHashRef =>
+    'single argument to new() must be hashref',
+    extends => GenericError();
+
 =head1 SEE ALSO
 
 =for :list

@@ -69,6 +69,13 @@ enum 'Text::Parser::Types::TrimType'      => [qw(l r b n)];
 no Moose::Util::TypeConstraints;
 use FileHandle;
 
+has _origclass => (
+    is      => 'ro',
+    isa     => 'Str',
+    lazy    => 1,
+    default => '',
+);
+
 =constr new
 
 Takes optional attributes as in example below. See section L<ATTRIBUTES|/ATTRIBUTES> for a list of the attributes and their description.
@@ -83,6 +90,14 @@ Takes optional attributes as in example below. See section L<ATTRIBUTES|/ATTRIBU
 
 =cut
 
+around BUILDARGS => sub {
+    my ( $orig, $class ) = ( shift, shift );
+    return $class->$orig( @_, _origclass => $class ) if @_ > 1 or not @_;
+    my $ptr = shift;
+    die single_params_to_new_must_be_hash_ref() if ref($ptr) ne 'HASH';
+    $class->$orig( %{$ptr}, _origclass => $class );
+};
+
 sub BUILD {
     my $self = shift;
     $self->_collect_any_class_rules;
@@ -93,7 +108,7 @@ sub BUILD {
 
 sub _collect_any_class_rules {
     my $self = shift;
-    my $cls  = $self->meta->name;
+    my $cls  = $self->_origclass;
     my $h    = Text::Parser::RuleSpec->_class_rule_order;
     return if not exists $h->{$cls};
     $self->_find_class_rules_and_set_auto_split( $h, $cls );
@@ -103,8 +118,8 @@ sub _find_class_rules_and_set_auto_split {
     my ( $self, $h, $cls ) = ( shift, shift, shift );
     my (@r)
         = map { Text::Parser::RuleSpec->_get_rule($_); } ( @{ $h->{$cls} } );
-    $self->auto_split(1) if not $self->auto_split;
     $self->_class_rules( \@r );
+    $self->auto_split(1) if not $self->auto_split;
 }
 
 =head1 ATTRIBUTES

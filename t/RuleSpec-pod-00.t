@@ -22,7 +22,9 @@ use Test::More;
 use Test::Exception;
 
 lives_ok {
-    my $parser = MyParser->new();
+    my $parser  = MyParser->new();
+    my $parser2 = MyParser->new( { auto_split => 1 } );
+    is_deeply( $parser, $parser2, 'The two parsers are identical' );
     $parser->read('t/example-compare_native_perl-1.txt');
     is_deeply(
         [ $parser->get_records() ],
