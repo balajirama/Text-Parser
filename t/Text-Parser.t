@@ -3,6 +3,7 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
+use Text::Parser::Errors;
 
 BEGIN { use_ok 'Text::Parser'; }
 BEGIN { use_ok 'FileHandle'; }
@@ -11,8 +12,7 @@ my $fname = 'text-simple.txt';
 
 my $pars;
 throws_ok { $pars = Text::Parser->new('balaji'); }
-'Moose::Exception::SingleParamsToNewMustBeHashRef',
-    'Throws an exception for non-hash input';
+SingleParamsToNewMustBeHashRef(), 'single non-hashref arg';
 throws_ok { $pars = Text::Parser->new( balaji => 1 ); }
 'Moose::Exception::Legacy', 'Throws an exception for bad keys';
 throws_ok { $pars = Text::Parser->new( multiline_type => 'balaji' ); }

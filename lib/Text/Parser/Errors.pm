@@ -230,6 +230,90 @@ exception
     RuleRunImproperly => 'run was called without a parser object',
     extends           => ExAWK();
 
+=head2 Related to class rulespec
+
+=head3 C<Text::Parser::Errors::RuleSpecError>
+
+Base class for all RuleSpec errors, generated using the functions of L<Text::Parser::RuleSpec> incorrectly.
+
+=cut
+
+exception
+    RuleSpecError => 'base class for errors from Text::Parser::RuleSpec',
+    extends       => GenericError();
+
+=head3 C<Text::Parser::Errors::SpecMustHaveName>
+
+Thrown when C<L<applies_rule|Text::Parser::RuleSpec/applies_rule>> is called without a rule name.
+
+=cut
+
+exception
+    SpecMustHaveName => 'applies_rule must be called with a name argument',
+    extends          => RuleSpecError(),
+    has              => [
+    package_name => (
+        is  => 'ro',
+        isa => \&_Str,
+    ),
+    ];
+
+=head3 C<Test::Parser::Errors::SpecRequiresHash>
+
+Thrown when C<L<applies_rule|Text::Parser::RuleSpec/applies_rule>> is called with invalid number of options.
+
+=cut
+
+exception
+    SpecRequiresHash =>
+    'applies_rule must be called with required hash argument',
+    extends => RuleSpecError(),
+    has     => [
+    rule_name => (
+        is  => 'ro',
+        isa => \&_Str,
+    ),
+    ];
+
+=head3 C<Text::Parser::Errors::MainCantApplyRule>
+
+This error means that C<L<applies_rule|Text::Parser::RuleSpec/applies_rule>> was called from your C<main> program (which is not right).
+
+=cut
+
+exception
+    MainCantApplyRule => 'applies_rule was called in main',
+    extends           => RuleSpecError(),
+    has               => [
+    rule_name => (
+        is  => 'ro',
+        isa => \&_Str,
+    ),
+    ];
+
+=head3 C<Text::Parser::Errors::NameRuleUniquely>
+
+If the same rule name is used in the same namespace, this error is thrown.
+
+=cut
+
+exception
+    NameRuleUniquely => 'name rules uniquely',
+    extends          => RuleSpecError();
+
+=head2 Miscellaneous
+
+=head3 C<Text::Parser::Errors::SingleParamsToNewMustBeHashRef>
+
+This error is thrown in place of C<Moose::Exception::SingleParamsToNewMustBeHashRef>.
+
+=cut
+
+exception
+    SingleParamsToNewMustBeHashRef =>
+    'single argument to new() must be hashref',
+    extends => GenericError();
+
 =head1 SEE ALSO
 
 =for :list

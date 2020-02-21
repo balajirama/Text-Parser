@@ -8,7 +8,7 @@ Text::Parser - Simplifies text parsing. Easily extensible to parse any text form
 
 =head1 VERSION
 
-version 0.927
+version 0.928
 
 =head1 SYNOPSIS
 
@@ -24,13 +24,22 @@ The above code prints the content of the file (named in the first argument) to C
     $parser->add_rule(do => 'print');
     $parser->read(shift);
 
-This example also dones the same as the earlier one. For more complex examples see the L<manual|Text::Parser::Manual>.
+This example also does the same, but whereas the earlier code prints after reading the whole file, this one prints immediately.
+
+    my $parser = Text::Parser->new();
+    $parser->add_rule(if => '$1 eq "NAME:"', do => 'return ${2+}');
+    $parser->read(shift);
+    for my $name ($parser->get_records) {
+        # do something more complex
+    }
+
+For more complex examples see the L<manual|Text::Parser::Manual>.
 
 =head1 OVERVIEW
 
 The L<need|Text::Parser::Manual/MOTIVATION> for this class stems from the fact that text parsing is the most common thing that programmers do, and yet there is no lean, simple way to do it efficiently. Most programmers still write boilerplate code with a C<while> loop.
 
-Instead C<Text::Parser> allows programmers to parse text with terse, self-explanatory L<rules|Text::Parser::Manual::ExtendedAWKSyntax>, whose structure is very similar to L<AWK|https://books.google.com/books/about/The_AWK_Programming_Language.html?id=53ueQgAACAAJ>, but extends beyond the capability of AWK. Incidentally, AWK is L<one of the ancestors of Perl|http://history.perl.org/PerlTimeline.html>! One would have expected Perl to extend the capabilities of AWK, although that's not really the case. Command-line C<perl -lane> or even C<perl -lan script.pl> are L<very limited|Text::Parser::Manual::ComparingWithNativePerl> in what they can do. Programmers cannot use them for serious projects. And parsing text files in regular Perl involves writing the same C<while> loop again. L<This website|https://perl-begin.org/uses/text-parsing/> summarizes the options available in Perl so far.
+Instead C<Text::Parser> allows programmers to parse text with terse, self-explanatory L<rules|Text::Parser::Manual::ExtendedAWKSyntax>, whose structure is very similar to L<AWK|https://books.google.com/books/about/The_AWK_Programming_Language.html?id=53ueQgAACAAJ>, but extends beyond the capability of AWK. Incidentally, AWK is L<one of the ancestors of Perl|http://history.perl.org/PerlTimeline.html>! One would have expected Perl to do way better than AWK. But while you can use Perl to do what AWK already does, that is usually limited to one-liners like C<perl -lane> or even C<perl -lan script.pl> which are L<very limited|Text::Parser::Manual::ComparingWithNativePerl> in what they can do. They aren't meant for serious projects. And it seems that L<some people still prefer AWK to Perl|https://aplawrence.com/Unixart/awk-vs.perl.html>.
 
 With C<Text::Parser>, a developer can focus on specifying a grammar and then simply C<read> the file. The C<L<read|/read>> method automatically runs each rule collecting records from the text input into an array internally. And finally C<L<get_records|/get_records>> can retrieve the records. Thus the programmer now has the power of Perl to create complex data structures, along with the elegance of AWK to parse text files. The L<manuals|Text::Parser::Manual> illustrate this with L<examples|Text::Parser::Manual::ComparingWithNativePerl>.
 

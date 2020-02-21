@@ -20,13 +20,22 @@ The above code prints the content of the file (named in the first argument) to C
     $parser->add_rule(do => 'print');
     $parser->read(shift);
 
-This example also dones the same as the earlier one. For more complex examples see the L<manual|Text::Parser::Manual>.
+This example also does the same, but whereas the earlier code prints after reading the whole file, this one prints immediately.
+
+    my $parser = Text::Parser->new();
+    $parser->add_rule(if => '$1 eq "NAME:"', do => 'return ${2+}');
+    $parser->read(shift);
+    for my $name ($parser->get_records) {
+        # do something more complex
+    }
+
+For more complex examples see the L<manual|Text::Parser::Manual>.
 
 =head1 OVERVIEW
 
 The L<need|Text::Parser::Manual/MOTIVATION> for this class stems from the fact that text parsing is the most common thing that programmers do, and yet there is no lean, simple way to do it efficiently. Most programmers still write boilerplate code with a C<while> loop.
 
-Instead C<Text::Parser> allows programmers to parse text with terse, self-explanatory L<rules|Text::Parser::Manual::ExtendedAWKSyntax>, whose structure is very similar to L<AWK|https://books.google.com/books/about/The_AWK_Programming_Language.html?id=53ueQgAACAAJ>, but extends beyond the capability of AWK. Incidentally, AWK is L<one of the ancestors of Perl|http://history.perl.org/PerlTimeline.html>! One would have expected Perl to extend the capabilities of AWK, although that's not really the case. Command-line C<perl -lane> or even C<perl -lan script.pl> are L<very limited|Text::Parser::Manual::ComparingWithNativePerl> in what they can do. Programmers cannot use them for serious projects. And parsing text files in regular Perl involves writing the same C<while> loop again. L<This website|https://perl-begin.org/uses/text-parsing/> summarizes the options available in Perl so far.
+Instead C<Text::Parser> allows programmers to parse text with terse, self-explanatory L<rules|Text::Parser::Manual::ExtendedAWKSyntax>, whose structure is very similar to L<AWK|https://books.google.com/books/about/The_AWK_Programming_Language.html?id=53ueQgAACAAJ>, but extends beyond the capability of AWK. Incidentally, AWK is L<one of the ancestors of Perl|http://history.perl.org/PerlTimeline.html>! One would have expected Perl to do way better than AWK. But while you can use Perl to do what AWK already does, that is usually limited to one-liners like C<perl -lane> or even C<perl -lan script.pl> which are L<very limited|Text::Parser::Manual::ComparingWithNativePerl> in what they can do. They aren't meant for serious projects. And it seems that L<some people still prefer AWK to Perl|https://aplawrence.com/Unixart/awk-vs.perl.html>.
 
 With C<Text::Parser>, a developer can focus on specifying a grammar and then simply C<read> the file. The C<L<read|/read>> method automatically runs each rule collecting records from the text input into an array internally. And finally C<L<get_records|/get_records>> can retrieve the records. Thus the programmer now has the power of Perl to create complex data structures, along with the elegance of AWK to parse text files. The L<manuals|Text::Parser::Manual> illustrate this with L<examples|Text::Parser::Manual::ComparingWithNativePerl>.
 
@@ -52,13 +61,20 @@ use Moose::Util::TypeConstraints;
 use String::Util qw(trim ltrim rtrim eqq);
 use Text::Parser::Errors;
 use Text::Parser::Rule;
+use Text::Parser::RuleSpec;
 
 enum 'Text::Parser::Types::MultilineType' => [qw(join_next join_last)];
 enum 'Text::Parser::Types::TrimType'      => [qw(l r b n)];
 
 no Moose::Util::TypeConstraints;
 use FileHandle;
-use Try::Tiny;
+
+has _origclass => (
+    is      => 'ro',
+    isa     => 'Str',
+    lazy    => 1,
+    default => '',
+);
 
 =constr new
 
@@ -74,11 +90,36 @@ Takes optional attributes as in example below. See section L<ATTRIBUTES|/ATTRIBU
 
 =cut
 
+around BUILDARGS => sub {
+    my ( $orig, $class ) = ( shift, shift );
+    return $class->$orig( @_, _origclass => $class ) if @_ > 1 or not @_;
+    my $ptr = shift;
+    die single_params_to_new_must_be_hash_ref() if ref($ptr) ne 'HASH';
+    $class->$orig( %{$ptr}, _origclass => $class );
+};
+
 sub BUILD {
     my $self = shift;
+    $self->_collect_any_class_rules;
     ensure_all_roles $self, 'Text::Parser::AutoSplit' if $self->auto_split;
     return if not defined $self->multiline_type;
     ensure_all_roles $self, 'Text::Parser::Multiline';
+}
+
+sub _collect_any_class_rules {
+    my $self = shift;
+    my $cls  = $self->_origclass;
+    my $h    = Text::Parser::RuleSpec->_class_rule_order;
+    return if not exists $h->{$cls};
+    $self->_find_class_rules_and_set_auto_split( $h, $cls );
+}
+
+sub _find_class_rules_and_set_auto_split {
+    my ( $self, $h, $cls ) = ( shift, shift, shift );
+    my (@r)
+        = map { Text::Parser::RuleSpec->_get_rule($_); } ( @{ $h->{$cls} } );
+    $self->_class_rules( \@r );
+    $self->auto_split(1) if not $self->auto_split;
 }
 
 =head1 ATTRIBUTES
@@ -113,7 +154,7 @@ has auto_split => (
     isa     => 'Bool',
     lazy    => 1,
     default => 0,
-    trigger => \&__newval_auto_split, 
+    trigger => \&__newval_auto_split,
 );
 
 sub __newval_auto_split {
@@ -212,6 +253,18 @@ Calling this method without any arguments will throw an exception. The method in
 
 =cut
 
+has _class_rules => (
+    is      => 'rw',
+    isa     => 'ArrayRef[Text::Parser::Rule]',
+    lazy    => 1,
+    default => sub { [] },
+    traits  => ['Array'],
+    handles => {
+        _has_no_rules => 'is_empty',
+        _get_rules    => 'elements',
+    },
+);
+
 has _obj_rules => (
     is      => 'rw',
     isa     => 'ArrayRef[Text::Parser::Rule]',
@@ -219,9 +272,9 @@ has _obj_rules => (
     default => sub { [] },
     traits  => ['Array'],
     handles => {
-        _push_rule    => 'push',
-        _has_no_rules => 'is_empty',
-        _get_rules    => 'elements',
+        _push_obj_rule    => 'push',
+        _has_no_obj_rules => 'is_empty',
+        _get_obj_rules    => 'elements',
     },
 );
 
@@ -229,7 +282,7 @@ sub add_rule {
     my $self = shift;
     $self->auto_split(1) if not $self->auto_split;
     my $rule = Text::Parser::Rule->new(@_);
-    $self->_push_rule($rule);
+    $self->_push_obj_rule($rule);
 }
 
 =method clear_rules
@@ -564,16 +617,16 @@ B<Note:> Developers may store records in any form - string, array reference, has
 
 sub save_record {
     my ( $self, $record ) = ( shift, shift );
-    $self->_has_no_rules
+    ( $self->_has_no_rules and $self->_has_no_obj_rules )
         ? $self->push_records($record)
         : $self->_run_through_rules;
 }
 
 sub _run_through_rules {
     my $self = shift;
-    foreach my $rule ( $self->_get_rules ) {
+    foreach my $rule ( $self->_get_rules, $self->_get_obj_rules ) {
         next if not $rule->_test($self);
-        $rule->_run($self, 0);
+        $rule->_run( $self, 0 );
         last if not $rule->continue_to_next;
     }
 }
