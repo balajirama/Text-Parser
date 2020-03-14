@@ -633,7 +633,7 @@ sub _run_through_rules {
 
 =head1 USE ONLY IN RULES AND SUBCLASS
 
-Do NOT override these methods. They are valid only within a subclass, inside the user-implementation of methods described under L<OVERRIDE IN SUBCLASS|/"OVERRIDE IN SUBCLASS">. 
+These methods return valid values only within a subclass, inside the user-implementation of methods described under L<OVERRIDE IN SUBCLASS|/"OVERRIDE IN SUBCLASS">. 
 
 =sub_use_method this_line
 

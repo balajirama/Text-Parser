@@ -284,11 +284,10 @@ has continue_to_next => (
 Takes optional attributes described in L<ATTRIBUTES|/ATTRIBUTES> section.
 
     my $rule = Text::Parser::Rule->new(
-        condition => '$1 eq "NAME:"',   # Some condition string
-        action => 'return $2;',         # Some action to do when condition is met
-        dont_record => 1,               # Directive to not record
-        continue_to_next => 1,          # Directive to next rule till another rule
-                                        # passes test condition
+        if               => '$1 eq "NAME:"',      # Some condition string
+        do               => 'return $2;',         # Some action to do when condition is met
+        dont_record      => 1,                    # Directive to not record
+        continue_to_next => 1,                    # Directive to next rule till another rule
     );
 
 =cut
