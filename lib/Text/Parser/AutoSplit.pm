@@ -13,30 +13,14 @@ use English;
 
 =head1 SYNOPSIS
 
-    package MyNewParser;
+    use Text::Parser;
 
-    use parent 'Text::Parser';
-
-    sub new {
-        my $pkg = shift;
-        $pkg->SUPER::new(
-            auto_split => 1,
-            FS => qr/\s+\(*|\s*\)/,
-            @_, 
-        );
-    }
-
-    sub save_record {
-        my $self = shift;
-        return $self->abort_reading if $self->NF > 0 and $self->field(0) eq 'STOP_READING';
-        $self->SUPER::save_record(@_) if $self->NF > 0 and $self->field(0) !~ /^[#]/;
-    }
-
-    package main;
-
-    my $parser = MyNewParser->new();
-    $parser->read(shift);
-    print $parser->get_records(), "\n";
+    my $p1 = Text::Parser->new(auto_split => 1);
+    $p1->read('/path/to/file');
+    my $p2 = Text::Parser->new();
+    $p2->add_rule(do => '$this->field(0);');
+        ## add_rule method automatically sets up auto_split
+    $p2->read('/another/file');
 
 =head1 DESCRIPTION
 
