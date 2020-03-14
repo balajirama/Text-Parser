@@ -12,39 +12,18 @@ use String::Util ':all';
 
 =head1 SYNOPSIS
 
-Users should not use this class directly to create and run rules. See L<Text::Parser::Manual::ExtendedAWKSyntax> for instructions on creating rules in a class. But the example below shows the way this class works for those that intend to improve the class.
+Never use this class directly. See L<Text::Parser::Manual::ExtendedAWKSyntax> for instructions on creating rules.
 
-    use Text::Parser::Rule;
-    use Text::Parser;               # To demonstrate use with Text::Parser
-    use Data::Dumper 'Dumper';      # To print any records
+    use Text::Parser;
 
-    my $rule = Text::Parser::Rule->new( if => '$1 eq "NAME:"', do => '${2+}' );
-
-    # Must have auto_split attribute set - this is automatically done by
-    # the add_rule method of Text::Parser
-    my $parser = Text::Parser->new(auto_split => 1);
-
-    # Example of how internally the $parser would run the $rule
-    # This code below won't really run any rules because rules
-    # have to be applied when the $parser->read() method is called
-    # and not outside of that
-    $rule->run($parser) if $rule->test($parser);
-    print "Continuing to next rule..." if $rule->continue_to_next;
-
-=head1 ATTRIBUTES
-
-The attributes below may be used as options to C<new> constructor. Note that in some cases, the accessor method for the attribute is differently named. Use the attribute name in the constructor and accessor as a method.
-
-=attr condition
-
-Read-write attribute. Set in the constructor with C<if> key. Must be string which after transformation must C<eval> successfully without compilation errors.
-
-    my $rule = Text::Parser::Rule->new( if => 'm//' );
-    print $rule->action, "\n";           # m//
-    $rule->action('m/something/');
-    print $rule->action, "\n";           @ m/something/
-
-During a call to C<L<test|/test>> method, this C<condition> is C<eval>uated and the result is returned as a boolean for further decision-making.
+    my $parser = Text::Parser->new();
+    $parser->add_rule(
+        if               => '$1 eq "NAME:"',      # Some condition string
+        do               => 'return $2;',         # Some action to do when condition is met
+        dont_record      => 1,                    # Directive to not record
+        continue_to_next => 1,                    # Directive to next rule till another rule
+    );
+    $parser->read(shift);
 
 =cut
 
@@ -175,14 +154,6 @@ has _cond_sub => (
     init_arg => undef,
 );
 
-=attr min_nf
-
-Read-only attribute. Gets adjusted automatically.
-
-    print "Rule requires a minimum of ", $rule->min_nf, " fields on the line.\n";
-
-=cut
-
 has min_nf => (
     is       => 'ro',
     isa      => 'Num',
@@ -192,19 +163,6 @@ has min_nf => (
     lazy     => 1,
     handles  => { _set_min_nf => 'set', }
 );
-
-=attr action
-
-Read-write attribute. Set in the constructor with C<do> key. Must be string which after transformation must C<eval> successfully without compilation errors.
-
-    my $rule = Text::Parser->new( do => '' );
-    print $rule->action, "\n";        # :nothing:
-    $rule->action('return $1');
-    print $rule->action, "\n";        # return $1
-
-The C<L<action|/action>> is executed during a call to C<run> when C<condition> (and all preconditions) is true. The return value of the C<eval>uated C<action> is used or discarded based on the C<dont_record> attribute.
-
-=cut
 
 has action => (
     is        => 'rw',
@@ -233,16 +191,6 @@ has _act_sub_str => (
     init_arg => undef,
 );
 
-=attr dont_record
-
-Boolean indicating if return value of the C<action> (when transformed and C<eval>uated) should be stored in the parser as a record.
-
-    print "Will not save records\n" if $rule->dont_record;
-
-The attribute is used in C<L<run|/run>> method. The results of the C<eval>uated C<action> are recorded in the object passed to C<run>. But when this attribute is set to true, then results are not recorded.
-
-=cut
-
 has dont_record => (
     is      => 'rw',
     isa     => 'Bool',
@@ -253,23 +201,9 @@ has dont_record => (
 
 sub _check_continue_to_next {
     my $self = shift;
-    return if not $self->continue_to_next;
+    return                if not $self->continue_to_next;
     die illegal_rule_cont if not $self->dont_record;
 }
-
-=attr continue_to_next
-
-Takes a boolean value. This can be set true only for rules with C<dont_record> attribute set to a true value. This attribute indicates that the rule will proceed to the next rule until some rule passes the C<L<test|/test>>. It is easiest to understand the use of this if you imagine a series of rules to test and execute in sequence:
-
-    # This code is actually used in Text::Parser
-    # to run through the rules specified
-    foreach my $rule (@rules) {
-        next if not $rule->test($parser);
-        $rule->run($parser);
-        last if not $rule->continue_to_next;
-    }
-
-=cut
 
 has continue_to_next => (
     is      => 'rw',
@@ -279,25 +213,12 @@ has continue_to_next => (
     trigger => \&_check_continue_to_next,
 );
 
-=constr new
-
-Takes optional attributes described in L<ATTRIBUTES|/ATTRIBUTES> section.
-
-    my $rule = Text::Parser::Rule->new(
-        if               => '$1 eq "NAME:"',      # Some condition string
-        do               => 'return $2;',         # Some action to do when condition is met
-        dont_record      => 1,                    # Directive to not record
-        continue_to_next => 1,                    # Directive to next rule till another rule
-    );
-
-=cut
-
 sub BUILD {
     my $self = shift;
     die illegal_rule_no_if_no_act
         if not $self->_has_condition and not $self->_has_action;
     $self->action('return $0;') if not $self->_has_action;
-    $self->_constr_condition if not $self->_has_condition;
+    $self->_constr_condition    if not $self->_has_condition;
 }
 
 sub _constr_condition {
@@ -305,21 +226,6 @@ sub _constr_condition {
     $self->condition(1);
     $self->_has_blank_condition(1);
 }
-
-=head1 METHODS
-
-=method add_precondition
-
-Takes a list of rule strings that are similar to the C<condition> string. For example:
-
-    $rule->add_precondition(
-        '$2 !~ /^ln/', 
-        'looks_like_number($3)', 
-    );
-
-During the call to C<L<test|/test>>, these preconditions and the C<condition> will all be combined in the C<and> operation. That means, all the preconditions must be satisfied, and then the C<condition> must be satisfied. If any of them C<eval>uates to a false boolean, C<test> will return false.
-
-=cut
 
 has _preconditions => (
     is       => 'ro',
@@ -372,19 +278,6 @@ has _precond_subroutines => (
     }
 );
 
-=method test
-
-Takes one argument that must be a C<Text::Parser>. Returns a boolean value may be used to decide to call the C<run> method.
-
-If all preconditions and C<condition> C<eval>uate to a boolean true, then C<test> returns true.
-
-    my $parser = Text::Parser->new(auto_split => 1);
-    $rule->test($parser);
-
-The method will always return a boolean false if the C<Text::Parser> object passed does not have the C<auto_split> attribute on.
-
-=cut
-
 sub test {
     my $self = shift;
     return 0 if not _check_parser_arg(@_);
@@ -426,22 +319,10 @@ sub _test_cond_sub {
     defined $val and $val;
 }
 
-=method run
-
-Takes one argument that must be a C<Text::Parser>, and one optional argument which can be C<0> or C<1>. The default for this optional argument is C<1>. The C<0> value is used when calling a special kind of rule that doesn't need to check for valid current line (mainly useful for C<BEGIN> and C<END> rules). Has no return value.
-
-    my $parser = Text::Parser->new(auto_split => 1);
-    $rule->run($parser);
-    $rule->run($parser, 'no_line');
-
-Runs the C<eval>uated C<action>. If C<dont_record> is false, the return value of the C<action> is recorded in C<$parser>. Otherwise, it is ignored.
-
-=cut
-
 sub run {
     my $self = shift;
     die rule_run_improperly if not _check_parser_arg(@_);
-    return if not $_[0]->auto_split;
+    return                  if not $_[0]->auto_split;
     push @_, 1 if @_ < 2;
     $self->_run(@_);
 }

@@ -24,7 +24,9 @@ use English;
 
 =head1 DESCRIPTION
 
-C<Text::Parser::AutoSplit> is a role that gets automatically composed into an object of L<Text::Parser> if the C<auto_split> attribute is set during object construction. It is useful for writing complex parsers as derived classes of L<Text::Parser>, because one has access to the fields. The field separator is controlled by another attribute C<FS>, which can be accessed via an accessor method of the same name. When the C<auto_split> attribute is set to a true value, the object of C<Text::Parser> will be able to use methods described in this role.
+C<Text::Parser::AutoSplit> is a role that is automatically composed into an object of L<Text::Parser> if the C<auto_split> attribute is set during object construction. It is useful for writing complex L<Text::Parser>s. The field separator is controlled by another attribute C<FS>, which can be accessed via an accessor method of the same name. When the C<auto_split> attribute is set to a true value, the object of C<Text::Parser> will be able to use methods described in this role.
+
+C<Text::Parser::AutoSplit> is also automatically composed into a C<Text::Parser> object when L<add_rule|Text::Parser/add_rule> method is called.
 
 =cut
 
