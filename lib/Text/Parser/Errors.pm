@@ -103,7 +103,22 @@ exception
     ],
     extends => GenericError();
 
-=head2 Errors in C<multiline_type> parsers
+=head2 Errors during line-unwrapping
+
+=head3 C<Text::Parser::Errors::BadCustomUnwrapCall>
+
+=head4 Attributes
+
+=for :list
+* B<err> - a string containing the problem
+
+=cut
+
+exception
+    BadCustomUnwrapCall =>
+    'Call to custom_line_unwrap_routines was not right',
+    has     => [ err => ( is => 'rw', isa => \&_Str, ), ],
+    extends => GenericError();
 
 =head3 C<Text::Parser::Errors::UnexpectedEof>
 

@@ -118,7 +118,7 @@ use Text::Parser::RuleSpec;
 
 enum 'Text::Parser::Types::MultilineType' => [qw(join_next join_last)];
 enum 'Text::Parser::Types::LineWrapStyle' =>
-    [qw(trailing_backslash spice just_next_line)];
+    [qw(trailing_backslash spice just_next_line slurp)];
 enum 'Text::Parser::Types::TrimType' => [qw(l r b n)];
 
 no Moose::Util::TypeConstraints;
@@ -252,11 +252,11 @@ has FS => (
     default => sub {qr/\s+/},
 );
 
-=attr line_unwrap
+=attr line_wrap_style
 
 Read-write attribute used as a quick way to select from commonly known line-wrapping styles. If the target text format allows line-wrapping this attribute allows the programmer to write rules as if they were on a single line.
 
-    $parser->line_unwrap('trailing_backslash');
+    $parser->line_wrap_style('trailing_backslash');
 
 Allowed values are:
 
@@ -270,11 +270,11 @@ Allowed values are:
     slurp              - used to "slurp" the whole file into
                          a single line.
 
-Read about L<using common line-unwrapping methods|/"Using common line-unwrapping methods"> to learn more.
+Read more about L<handling the common line-wrapping styles|/"Common line-wrapping styles">.
 
 =cut
 
-has line_unwrap => (
+has line_wrap_style => (
     is      => 'rw',
     isa     => 'Text::Parser::Types::LineWrapStyle|Undef',
     default => undef,
@@ -316,7 +316,7 @@ sub _on_line_unwrap {
 
 =attr multiline_type
 
-Read-write attribute used mainly if the programmer wishes to specify custom line-unwrapping methods. By default, this attribute is C<undef>, i.e., the target text format will not have wrapped lines. It gets automatically changed when C<line_unwrap> is set to one of the known line-wrapping styles.
+Read-write attribute used mainly if the programmer wishes to specify custom line-unwrapping methods. By default, this attribute is C<undef>, i.e., the target text format will not have wrapped lines. It gets automatically changed when C<line_wrap_style> is set to one of the known line-wrapping styles.
 
 Allowed values for C<multiline_type> are described below, but it can also be set back to C<undef>.
 
@@ -330,7 +330,7 @@ Allowed values for C<multiline_type> are described below, but it can also be set
 * If the target format allows line-wrapping I<to the B<next>> line, set C<multiline_type> to C<join_next>.
 * If the target format allows line-wrapping I<from the B<last>> line, set C<multiline_type> to C<join_last>.
 
-To know more about how to use this, read about L<specifying custom line-unwrap methods|/"Specifying custom line-unwrap methods">.
+To know more about how to use this, read about L<specifying custom line-unwrap routines|/"Specifying custom line-unwrap routines">.
 
 =cut
 
@@ -796,15 +796,69 @@ has abort => (
     },
 );
 
-=method set_custom_unwrap_methods
+=method custom_line_unwrap_routines
 
-Takes two arguments that are described below. Returns nothing. Used in setting up L<custom line-unwrapping methods|/"Specifying custom line-unwrap methods">.
+This method should be used only when the line-wrapping supported by the text format is not already among the L<known line-wrapping styles supported|/"Common line-wrapping styles">.
+
+Takes a hash argument with required keys C<is_wrapped> and C<unwrap_routine>. Used in setting up L<custom line-unwrapping routines|/"Specifying custom line-unwrap routines">.
+
+Here is an example of setting custom line-unwrapping routines:
+
+    $parser->multiline_type('join_last');
+    $parser->custom_line_unwrap_routines(
+        is_wrapped => sub {     # A method that detects if this line is wrapped or not
+            my ($self, $this_line) = @_;
+            return 0 if not defined $self->multiline_type;
+            $this_line =~ /^[~]/;
+        }, 
+        unwrap_routine => sub { # A method to unwrap the line by joining it with the last line
+            my ($self, $last_line, $this_line) = @_;
+            chomp $last_line;
+            $last_line =~ s/\s*$//g;
+            $this_line =~ s/^[~]\s*//g;
+            "$last_line $this_line";
+        }, 
+    );
+
+Now you can parse a file with the following content:
+
+    This is a long line that is wrapped around with a custom
+    ~ character - the tilde. It is unusual, but hey, we're
+    ~ showing an example.
+
+When C<$parser> gets to C<read> this, these three lines get unwrapped and processed by the rules, as if it were a single line.
+
+L<Text::Parser::Multiline> shows another example with C<join_next> type.
 
 =cut
 
-sub set_custom_unwrap_methods {
+sub custom_line_unwrap_routines {
     my $self = shift;
+    my ( $is_wrapped, $unwrap_routine ) = _check_custom_unwrap_args(@_);
+    override is_line_continued => $is_wrapped;
+    override join_last_line    => $unwrap_routine;
+}
 
+sub _check_custom_unwrap_args {
+    die bad_custom_unwrap_call( err => 'Need 4 arguments' )
+        if @_ != 4;
+    _test_fields_unwrap_rtn(@_);
+    my (%opt) = (@_);
+    return ( $opt{is_wrapped}, $opt{unwrap_routine} );
+}
+
+sub _test_fields_unwrap_rtn {
+    my (%opt) = (@_);
+    die bad_custom_unwrap_call(
+        err => 'must have keys: is_wrapped, unwrap_routine' )
+        if not( exists $opt{is_wrapped} and exists $opt{unwrap_routine} );
+    _is_arg_a_code( $_, %opt ) for (qw(is_wrapped unwrap_routine));
+}
+
+sub _is_arg_a_code {
+    my ( $arg, %opt ) = (@_);
+    die bad_custom_unwrap_call( err => "$arg key must reference code" )
+        if 'CODE' ne ref( $opt{$arg} );
 }
 
 =head1 USE ONLY IN RULES AND SUBCLASS
@@ -864,11 +918,11 @@ Takes no arguments. Returns C<1>. Aborts C<read>ing any more lines, and C<read> 
 
 These methods are meant to handle target text formats that support line-wrapping (wrapping content of one line into multiple lines). Different text formats sometimes allow line-wrapping to make their content more human-readable.
 
-=head2 Using common line-unwrapping methods
+=head2 Common line-wrapping styles
 
-L<Text::Parser> supports some commonly-used line-unwrapping methods which can be selected using the C<line_unwrap> attribute. When you set the C<line_unwrap> attribute, you automatically set up the parser to handle line-unwrapping.
+L<Text::Parser> supports some commonly-used line-unwrapping routines which can be selected using the C<line_wrap_style> attribute. The C<line_wrap_style> attribute automatically sets up the parser to handle line-unwrapping for that specific text format.
 
-    $parser->line_unwrap('trailing_backslash');
+    $parser->line_wrap_style('trailing_backslash');
     # Now when read runs the rules, all the back-slash
     # line-wrapped lines are auto-unwrapped to a single
     # line, and rules are applied on that single line
@@ -877,22 +931,44 @@ Once this setting is done, a call to C<read> will automatically unwrap the multi
 
     This is a long line wrapped into multiple lines \
     with a back-slash character. This is a very common \
-    way to wrap long lines and can be easier on the \
-    eyes.
+    way to wrap long lines. In general, line-wrapping \
+    can be much easier on the reader's eyes.
 
-Now you may use the C<$parser> to read the above text appears as a single line in C<$_> inside the rules.
+When C<read> runs any rules in C<$parser>, the text above appears as a single line in C<$_>.
 
-=head2 Specifying custom line-unwrap methods
+=cut
+
+=head2 Specifying custom line-unwrap routines
 
 To specify a custom line-unwrapping style:
 
 =for :list
 * Set the C<L<multiline_type|/"multiline_type">> attribute appropriately
-* Call C<L<set_custom_unwrap_methods|/"set_custom_unwrap_methods">> method
+* Call C<L<custom_line_unwrap_routines|/"custom_line_unwrap_routines">> method
+
+=cut
+
+=head2 Line-unwrap feature in a subclass
+
+In a subclass, you may do one of the following:
+
+=for :list
+* Set a default value for C<line_wrap_style>. For example: C<has '+line_wrap_style' => ( default => 'spice', );>. This uses one of the supported common line-unwrap methods.
+* Setup custom line-unwrap routines with C<unwraps_lines> from L<Text::Parser::RuleSpec>.
+
+=cut
 
 =head2 Default line-unwrap methods
 
-While C<Text::Parser> supports some common line-wrapping formats, there may be some new line-wrapping format your file may use. To handle such a case, you need to do the following:
+The default implementation of the C<when> routine:
+
+    multiline_type    |    Return value
+    ------------------+---------------------------------
+    undef             |         0
+    join_last         |    0 for first line, 1 otherwise
+    join_next         |         1
+
+=cut
 
 =head1 OVERRIDE IN SUBCLASS
 
@@ -900,11 +976,9 @@ The following methods should never be called in the C<::main> program. They may 
 
 =inherit save_record
 
-This method may be re-defined in a subclass to parse the target text format. The default implementation takes a single argument, runs any rules, and saves the returned value as a record in an internal array. If nothing is returned from the rule, C<undef> is stored as a record. Note that unlike earlier versions of C<Text::Parser> it is not required to override this method in your derived class. In most cases, you should use the rules.
+The default implementation takes a single argument, runs any rules, and saves the returned value as a record in an internal array. If nothing is returned from the rule, C<undef> is stored as a record.
 
-For a developer re-defining C<save_record>, in addition to C<L<this_line|/"this_line">>, six additional methods become available if the C<auto_split> attribute is set. These methods are described in greater detail in L<Text::Parser::AutoSplit>, and they are accessible only within C<save_record>.
-
-B<Note:> Developers may store records in any form - string, array reference, hash reference, complex data structure, or an object of some class. The program that reads these records using C<L<get_records|/get_records>> has to interpret them. So developers should document the records created by their own implementation of C<save_record>.
+B<Note>: Starting C<0.925> version of C<Text::Parser> it is not required to override this method in your derived class. In most cases, you should use the rules.
 
 =cut
 
@@ -924,20 +998,6 @@ sub _run_through_rules {
     }
 }
 
-=inherit is_line_continued
-
-If the target text format supports line-wrapping, the developer must override and implement this method. Your method should take a string argument and return a boolean indicating if the line is continued or not.
-
-The default implementation returns as follows:
-
-    multiline_type    |    Return value
-    ------------------+---------------------------------
-    undef             |         0
-    join_last         |    0 for first line, 1 otherwise
-    join_next         |         1
-
-=cut
-
 sub is_line_continued {
     my $self = shift;
     return 0 if not defined $self->multiline_type;
@@ -950,13 +1010,13 @@ sub is_line_continued {
 sub _spice_is_line_contd {
     my $self = shift;
     return 0 if not defined $self->multiline_type;
-    substr( $self->this_line, 0, 1 ) eq '+';
+    substr( shift, 0, 1 ) eq '+';
 }
 
 sub _tbs_is_line_contd {
     my $self = shift;
     return 0 if not defined $self->multiline_type;
-    substr( trim( $self->this_line ), -1, 1 ) eq "\\";
+    substr( trim(shift), -1, 1 ) eq "\\";
 }
 
 sub _jnl_is_line_contd {
@@ -964,18 +1024,31 @@ sub _jnl_is_line_contd {
     return 0
         if ( not defined $self->multiline_type )
         or ( $self->lines_parsed == 1 );
-    return length( trim($_) ) > 0;
+    return length( trim(shift) ) > 0;
 }
 
-=inherit join_last_line
-
-Again, the developer should override and implement this method. This method should take two strings, join them while removing any continuation characters, and return the result. The default implementation just concatenates two strings and returns the result without removing anything (not even C<chomp>). See L<Text::Parser::Multiline> for more on this.
-
-=cut
-
 sub join_last_line {
-    my $self = shift;
-    my ( $last, $line ) = ( shift, shift );
+    my ( $self, $last, $line ) = ( shift, shift, shift );
+    return $last . $line;
+}
+
+sub _spice_join_last_line {
+    my ( $self, $last, $line ) = ( shift, shift, shift );
+    chomp $last;
+    $line =~ s/^[+]\s*/ /;
+    $last . $line;
+}
+
+sub _tbs_join_last_line {
+    my ( $self, $last, $line ) = ( shift, shift, shift );
+    chomp $last;
+    $last =~ s/\\\s*$//;
+    rtrim($last) . ' ' . ltrim($line);
+}
+
+sub _jnl_join_last_line {
+    my ( $self, $last, $line ) = ( shift, shift, shift );
+    chomp $last;
     return $last . $line;
 }
 
