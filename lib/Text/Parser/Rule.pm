@@ -12,8 +12,6 @@ use String::Util ':all';
 
 =head1 SYNOPSIS
 
-Never use this class directly. See L<Text::Parser::Manual::ExtendedAWKSyntax> for instructions on creating rules.
-
     use Text::Parser;
 
     my $parser = Text::Parser->new();
@@ -24,6 +22,18 @@ Never use this class directly. See L<Text::Parser::Manual::ExtendedAWKSyntax> fo
         continue_to_next => 1,                    # Directive to next rule till another rule
     );
     $parser->read(shift);
+
+=head1 DESCRIPTION
+
+This class is never used directly. Instead rules are created and managed in one of two ways:
+
+=for :list
+* via the C<L<add_rule|Text::Parser/"add_rule">> method of L<Text::Parser>
+* using C<L<applies_rule|Text::Parser::RuleSpec/"applies_rule">> function from L<Text::Parser::RuleSpec>
+
+In both cases, the options are the same.
+
+=head1 METHODS
 
 =cut
 
@@ -205,6 +215,12 @@ sub _check_continue_to_next {
     die illegal_rule_cont if not $self->dont_record;
 }
 
+=method continue_to_next
+
+Method called internally in L<Text::Parser>. By default, if the C<if> condition passes for a line, then that is the last rule executed for that line. But when C<continue_to_next> is set to a true value, the parser will continue to run the next rule in sequence, even though the C<if> block for this rule passed.
+
+=cut
+
 has continue_to_next => (
     is      => 'rw',
     isa     => 'Bool',
@@ -278,6 +294,12 @@ has _precond_subroutines => (
     }
 );
 
+=method test
+
+Method called internally in L<Text::Parser>. Runs code in C<if> block.
+
+=cut
+
 sub test {
     my $self = shift;
     return 0 if not _check_parser_arg(@_);
@@ -318,6 +340,12 @@ sub _test_cond_sub {
     my $val = $cond->($parser);
     defined $val and $val;
 }
+
+=method run
+
+Method called internally in L<Text::Parser>. Runs code in C<do> block, and saves the result as a record depending on C<dont_record>.
+
+=cut
 
 sub run {
     my $self = shift;
