@@ -9,6 +9,11 @@ use Moose;
 use Text::Parser::Errors;
 use Scalar::Util 'blessed', 'looks_like_number';
 use String::Util ':all';
+use List::Util qw(reduce any all none notall first
+    max maxstr min minstr product sum sum0 pairs
+    unpairs pairkeys pairvalues pairfirst
+    pairgrep pairmap shuffle uniq uniqnum uniqstr
+);
 
 =head1 SYNOPSIS
 
@@ -31,7 +36,7 @@ This class is never used directly. Instead rules are created and managed in one 
 * via the C<L<add_rule|Text::Parser/"add_rule">> method of L<Text::Parser>
 * using C<L<applies_rule|Text::Parser::RuleSpec/"applies_rule">> function from L<Text::Parser::RuleSpec>
 
-In both cases, the options are the same.
+In both cases, the arguments are the same.
 
 =head1 METHODS
 

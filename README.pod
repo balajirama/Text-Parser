@@ -159,20 +159,25 @@ Allowed values are:
                          on a new line after a blank line.
     slurp              - used to "slurp" the whole file into
                          a single line.
+    custom             - user-defined style. User must specify
+                         value of multiline_type when custom is
+                         chosen.
 
 Read more about L<handling the common line-wrapping styles|/"Common line-wrapping styles">.
 
 =head2 multiline_type
 
-Read-write attribute used mainly if the programmer wishes to specify custom line-unwrapping methods. By default, this attribute is C<undef>, i.e., the target text format will not have wrapped lines. It gets automatically changed when C<line_wrap_style> is set to one of the known line-wrapping styles.
+Read-write attribute used mainly if the programmer wishes to specify custom line-unwrapping methods.
 
-Allowed values for C<multiline_type> are described below, but it can also be set back to C<undef>.
+By default, this attribute is C<undef>, i.e., the target text format will not have wrapped lines. It gets automatically changed when C<line_wrap_style> is set to one of the known line-wrapping styles, except if C<line_wrap_style> is set to C<custom>.
 
-    $parser->multiline_type(undef);
+    $parser->line_wrap_style(custom);
     $parser->multiline_type('join_next');
 
     my $mult = $parser->multiline_type;
     print "Parser is a multi-line parser of type: $mult" if defined $mult;
+
+Allowed values for C<multiline_type> are described below, but it can also be set back to C<undef>.
 
 =over 4
 
@@ -460,6 +465,24 @@ The default implementation takes a single argument, runs any rules, and saves th
 
 B<Note>: Starting C<0.925> version of C<Text::Parser> it is not required to override this method in your derived class. In most cases, you should use the rules.
 
+=head2 is_line_continued
+
+The default implementation of this routine:
+
+    multiline_type    |    Return value
+    ------------------+---------------------------------
+    undef             |         0
+    join_last         |    0 for first line, 1 otherwise
+    join_next         |         1
+
+In earlier versions of L<Text::Parser> you had no way but to subclass L<Text::Parser> to change the routine that detects if a line is wrapped. Now you can instead select from a list of known C<line_wrap_style>s, or even set custom methods for this.
+
+=head2 join_last_line
+
+The default implementation of this routine takes two string arguments, joins them without any C<chomp> or any other operation, and returns that result.
+
+In earlier versions of L<Text::Parser> you had no way but to subclass L<Text::Parser> to select a line-unwrapping routine.
+
 =head1 EXAMPLES
 
 You can find example code in L<Text::Parser::Manual::ComparingWithNativePerl>.
@@ -539,16 +562,6 @@ Set a default value for C<line_wrap_style>. For example: C<has '+line_wrap_style
 Setup custom line-unwrap routines with C<unwraps_lines> from L<Text::Parser::RuleSpec>.
 
 =back
-
-=head2 Default line-unwrap methods
-
-The default implementation of the C<when> routine:
-
-    multiline_type    |    Return value
-    ------------------+---------------------------------
-    undef             |         0
-    join_last         |    0 for first line, 1 otherwise
-    join_next         |         1
 
 =head1 SEE ALSO
 

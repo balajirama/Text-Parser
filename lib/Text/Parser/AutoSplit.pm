@@ -231,4 +231,6 @@ B<WARNING:> This is a destructive function. It I<will> remove elements just like
 
 =cut
 
+no Moose::Role;
+
 1;

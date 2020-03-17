@@ -107,6 +107,8 @@ exception
 
 =head3 C<Text::Parser::Errors::BadCustomUnwrapCall>
 
+Generated when user specifies wrong arguments to C<L<custom_line_unwrap_routines|Text::Parser/"custom_line_unwrap_routines">>.
+
 =head4 Attributes
 
 =for :list
@@ -119,6 +121,22 @@ exception
     'Call to custom_line_unwrap_routines was not right',
     has     => [ err => ( is => 'rw', isa => \&_Str, ), ],
     extends => GenericError();
+
+=head3 C<Text::Parser::Errors::UndefLineUnwrapRoutine>
+
+Generated when user forgets to set a custom line-unwrap routine, but says that the C<line_wrap_style> is C<custom>.
+
+=head4 Attributes
+
+=for :list
+* B<name> - name of the method that was not properly defined
+
+=cut
+
+exception
+    UndefLineUnwrapRoutine => 'Forgot to set custom line-unwrap routines?',
+    has                    => [ name => ( is => 'rw', isa => \&_Str, ) ],
+    extends                => GenericError();
 
 =head3 C<Text::Parser::Errors::UnexpectedEof>
 

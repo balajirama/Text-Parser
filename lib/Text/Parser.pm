@@ -118,7 +118,7 @@ use Text::Parser::RuleSpec;
 
 enum 'Text::Parser::Types::MultilineType' => [qw(join_next join_last)];
 enum 'Text::Parser::Types::LineWrapStyle' =>
-    [qw(trailing_backslash spice just_next_line slurp)];
+    [qw(trailing_backslash spice just_next_line slurp custom)];
 enum 'Text::Parser::Types::TrimType' => [qw(l r b n)];
 
 no Moose::Util::TypeConstraints;
@@ -269,6 +269,9 @@ Allowed values are:
                          on a new line after a blank line.
     slurp              - used to "slurp" the whole file into
                          a single line.
+    custom             - user-defined style. User must specify
+                         value of multiline_type when custom is
+                         chosen.
 
 Read more about L<handling the common line-wrapping styles|/"Common line-wrapping styles">.
 
@@ -282,49 +285,35 @@ has line_wrap_style => (
     trigger => \&_on_line_unwrap,
 );
 
-my %IS_LINE_CONTINUED = (
-    default            => \&is_line_continued,
-    spice              => \&_spice_is_line_contd,
-    trailing_backslash => \&_tbs_is_line_contd,
-    just_next_line     => \&_jnl_is_line_contd,
-    slurp              => \&is_line_continued,
-);
-
-my %JOIN_LAST_LINE = (
-    default            => \&join_last_line,
-    spice              => \&_spice_join_last_line,
-    trailing_backslash => \&_tbs_join_last_line,
-    just_next_line     => \&_jnl_join_last_line,
-    slurp              => \&join_last_line,
-);
-
 my %MULTILINE_VAL = (
     default            => undef,
     spice              => 'join_last',
     trailing_backslash => 'join_next',
     just_next_line     => 'join_last',
     slurp              => 'join_last',
+    custom             => undef,
 );
 
 sub _on_line_unwrap {
     my ( $self, $val, $oldval ) = (@_);
+    return if not defined $val and not defined $oldval;
     $val = 'default' if not defined $val;
-    $self->multiline_type( $MULTILINE_VAL{$val} ) if not defined $val;
-    override is_line_continued => $IS_LINE_CONTINUED{$val};
-    override join_last_line    => $JOIN_LAST_LINE{$val};
+    $self->multiline_type( $MULTILINE_VAL{$val} );
 }
 
 =attr multiline_type
 
-Read-write attribute used mainly if the programmer wishes to specify custom line-unwrapping methods. By default, this attribute is C<undef>, i.e., the target text format will not have wrapped lines. It gets automatically changed when C<line_wrap_style> is set to one of the known line-wrapping styles.
+Read-write attribute used mainly if the programmer wishes to specify custom line-unwrapping methods.
 
-Allowed values for C<multiline_type> are described below, but it can also be set back to C<undef>.
+By default, this attribute is C<undef>, i.e., the target text format will not have wrapped lines. It gets automatically changed when C<line_wrap_style> is set to one of the known line-wrapping styles, except if C<line_wrap_style> is set to C<custom>.
 
-    $parser->multiline_type(undef);
+    $parser->line_wrap_style(custom);
     $parser->multiline_type('join_next');
 
     my $mult = $parser->multiline_type;
     print "Parser is a multi-line parser of type: $mult" if defined $mult;
+
+Allowed values for C<multiline_type> are described below, but it can also be set back to C<undef>.
 
 =for :list
 * If the target format allows line-wrapping I<to the B<next>> line, set C<multiline_type> to C<join_next>.
@@ -350,6 +339,7 @@ around multiline_type => sub {
 
 sub __newval_multi_line {
     my ( $orig, $self, $newval ) = ( shift, shift, shift );
+    delete $self->{records};    # Bug W/A: role cannot apply if records exists
     ensure_all_roles( $self, 'Text::Parser::Multiline' )
         if defined $newval;
     return $orig->( $self, $newval );
@@ -750,6 +740,7 @@ has records => (
     auto_deref => 1,
     init_arg   => undef,
     traits     => ['Array'],
+    predicate  => '_has_records_attrib',
     handles    => {
         get_records    => 'elements',
         push_records   => 'push',
@@ -832,11 +823,25 @@ L<Text::Parser::Multiline> shows another example with C<join_next> type.
 
 =cut
 
+has _is_wrapped => (
+    is      => 'rw',
+    isa     => 'CodeRef|Undef',
+    default => undef,
+    lazy    => 1,
+);
+
+has _unwrap_routine => (
+    is      => 'rw',
+    isa     => 'CodeRef|Undef',
+    default => undef,
+    lazy    => 1,
+);
+
 sub custom_line_unwrap_routines {
     my $self = shift;
     my ( $is_wrapped, $unwrap_routine ) = _check_custom_unwrap_args(@_);
-    override is_line_continued => $is_wrapped;
-    override join_last_line    => $unwrap_routine;
+    $self->_is_wrapped($is_wrapped);
+    $self->_unwrap_routine($unwrap_routine);
 }
 
 sub _check_custom_unwrap_args {
@@ -958,18 +963,6 @@ In a subclass, you may do one of the following:
 
 =cut
 
-=head2 Default line-unwrap methods
-
-The default implementation of the C<when> routine:
-
-    multiline_type    |    Return value
-    ------------------+---------------------------------
-    undef             |         0
-    join_last         |    0 for first line, 1 otherwise
-    join_next         |         1
-
-=cut
-
 =head1 OVERRIDE IN SUBCLASS
 
 The following methods should never be called in the C<::main> program. They may be overridden (or re-defined) in a subclass. For the most part, one would never have to override any of these methods at all. But just in case someone wants to...
@@ -998,9 +991,84 @@ sub _run_through_rules {
     }
 }
 
+=inherit is_line_continued
+
+The default implementation of this routine:
+
+    multiline_type    |    Return value
+    ------------------+---------------------------------
+    undef             |         0
+    join_last         |    0 for first line, 1 otherwise
+    join_next         |         1
+
+In earlier versions of L<Text::Parser> you had no way but to subclass L<Text::Parser> to change the routine that detects if a line is wrapped. Now you can instead select from a list of known C<line_wrap_style>s, or even set custom methods for this.
+
+=inherit join_last_line
+
+The default implementation of this routine takes two string arguments, joins them without any C<chomp> or any other operation, and returns that result.
+
+In earlier versions of L<Text::Parser> you had no way but to subclass L<Text::Parser> to select a line-unwrapping routine.
+
+=cut
+
+my %IS_LINE_CONTINUED = (
+    default            => \&_def_is_line_continued,
+    spice              => \&_spice_is_line_contd,
+    trailing_backslash => \&_tbs_is_line_contd,
+    just_next_line     => \&_jnl_is_line_contd,
+    slurp              => \&_def_is_line_continued,
+    custom             => undef,
+);
+
+my %JOIN_LAST_LINE = (
+    default            => \&_def_join_last_line,
+    spice              => \&_spice_join_last_line,
+    trailing_backslash => \&_tbs_join_last_line,
+    just_next_line     => \&_jnl_join_last_line,
+    slurp              => \&_def_join_last_line,
+    custom             => undef,
+);
+
 sub is_line_continued {
     my $self = shift;
     return 0 if not defined $self->multiline_type;
+    my $routine = $self->_get_is_line_contd_routine;
+    die undef_line_unwrap_routine( name => 'is_wrapped' )
+        if not defined $routine;
+    $routine->( $self, @_ );
+}
+
+sub _val_of_line_wrap_style {
+    my $self = shift;
+    defined $self->line_wrap_style ? $self->line_wrap_style : 'default';
+}
+
+sub _get_is_line_contd_routine {
+    my $self = shift;
+    my $val  = $self->_val_of_line_wrap_style;
+    ( $val ne 'custom' )
+        ? $IS_LINE_CONTINUED{$val}
+        : $self->_is_wrapped;
+}
+
+sub join_last_line {
+    my $self    = shift;
+    my $routine = $self->_get_join_last_line_routine;
+    die undef_line_unwrap_routine( name => 'unwrap_routine' )
+        if not defined $routine;
+    $routine->( $self, @_ );
+}
+
+sub _get_join_last_line_routine {
+    my $self = shift;
+    my $val  = $self->_val_of_line_wrap_style;
+    ( $val ne 'custom' )
+        ? $JOIN_LAST_LINE{$val}
+        : $self->_unwrap_routine;
+}
+
+sub _def_is_line_continued {
+    my $self = shift;
     return 0
         if $self->multiline_type eq 'join_last'
         and $self->lines_parsed() == 1;
@@ -1009,25 +1077,21 @@ sub is_line_continued {
 
 sub _spice_is_line_contd {
     my $self = shift;
-    return 0 if not defined $self->multiline_type;
     substr( shift, 0, 1 ) eq '+';
 }
 
 sub _tbs_is_line_contd {
     my $self = shift;
-    return 0 if not defined $self->multiline_type;
     substr( trim(shift), -1, 1 ) eq "\\";
 }
 
 sub _jnl_is_line_contd {
     my $self = shift;
-    return 0
-        if ( not defined $self->multiline_type )
-        or ( $self->lines_parsed == 1 );
+    return 0 if $self->lines_parsed == 1;
     return length( trim(shift) ) > 0;
 }
 
-sub join_last_line {
+sub _def_join_last_line {
     my ( $self, $last, $line ) = ( shift, shift, shift );
     return $last . $line;
 }

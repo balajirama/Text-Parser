@@ -101,7 +101,7 @@ The programmer has to still specify how to extract data, but:
 * the results can be used in a more complex program - not just a one-liner
 * parsing files has never been this intuiive, especially with shortcuts like C<${2+}>
 
-Besides, did you notice the bug in the C<while> loop of the native Perl script above? Hint: What happens if we C<split> a string with leading and trailing spaces?
+Besides, did you notice the bug in the C<while> loop of the native Perl script above?
 
 =head1 ANOTHER SIMPLE EXAMPLE
 
@@ -292,3 +292,4 @@ That's it!
 By now, you I<should> have concluded that the L<Text::Parser> way is much better. If not, you must know a better solution and perhaps you should make a Perl module (or feel free to contact me and contribute if you like this project).
 
 L<Table of contents|Text::Parser::Manual> | L<Next|Text::Parser::Manual::ExtendedAWKSyntax>
+
