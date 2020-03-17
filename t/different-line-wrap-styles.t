@@ -169,6 +169,13 @@ lives_ok {
 
 lives_ok {
     my $parser = Text::Parser->new();
+    $parser->line_wrap_style(undef);
+    isa_ok $parser, 'Text::Parser';
+    is $parser->line_wrap_style, undef, 'Stays undef if nothing is set';
+} 'Just bring coverage to 100% for the branch';
+
+lives_ok {
+    my $parser = Text::Parser->new();
     $parser->custom_line_unwrap_routines(
         is_wrapped     => $is_wrapped_routine,
         unwrap_routine => $unwrap_routine,
