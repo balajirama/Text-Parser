@@ -36,6 +36,12 @@ The code required to unwrap this:
 
 When C<$parser> gets to C<read> the input text, those three lines get unwrapped and processed by the rules as if it were a single line.
 
+=head1 DESCRIPTION
+
+You should not use this module. Instead simply use L<Text::Parser>.
+
+The purpose of this L<role|Moose::Role> is to enable L<Text::Parser> objects to unwrap line-wrapped text input, and allow the rest of the text parsing / processing to proceed.
+
 =cut
 
 requires(

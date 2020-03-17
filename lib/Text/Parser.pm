@@ -16,13 +16,14 @@ The following prints the content of the file (named in the first argument) to C<
     $parser->read(shift);
     print $parser->get_records, "\n";
 
-The earlier code prints after reading the whole file, this one prints immediately.
+The earlier code prints after reading the whole file, this one prints immediately. Also, the third line there allows this program to read from a file name specified on command-line, or C<STDIN>. In effect, this makes this Perl code a good replica of the UNIX C<cat>.
 
     my $parser = Text::Parser->new();
     $parser->add_rule(do => 'print', dont_record => 1);
-    $parser->read(shift);       # Runs the rule for each line of input file
+    ($#ARGV > 0) ? $parser->filename(shift) : $parser->filehandle(\*STDIN);
+    $parser->read();       # Runs the rule for each line of input file
 
-Here is a more common example:
+Here is an example with a simple rule that extracts the first error in the logfile and aborts reading further:
 
     my $parser = Text::Parser->new();
     $parser->add_rule(
@@ -41,7 +42,7 @@ Here is a more common example:
     # Print a message if ...
     print "Some errors were found:\n" if $parser->get_records();
 
-Much more complex file-formats can be read and data in it could be stored in a data-structure:
+Much more complex file-formats can be read and contents stored in a data-structure:
 
     use strict;
     use warnings;
@@ -78,19 +79,21 @@ Much more complex file-formats can be read and data in it could be stored in a d
     my $p = ComplexFormatParser->new();
     $p->read('myfile.complex.fmt');
 
-=head1 OVERVIEW
+=head1 RATIONALTE
 
-The L<need|Text::Parser::Manual/MOTIVATION> for this class stems from the fact that text parsing is the most common thing that programmers do, and yet there is no lean, simple way to do it efficiently. Most programmers still write boilerplate code with a C<while> loop.
+The L<motivation|Text::Parser::Manual/MOTIVATION> for this class stems from the fact that text parsing is the most common thing that programmers do, and yet there is no lean, simple way to do it efficiently. Most programmers still write boilerplate code with a C<while> loop.
 
 Instead C<Text::Parser> allows programmers to parse text with simple, self-explanatory L<rules|Text::Parser::Manual::ExtendedAWKSyntax>, whose structure is very similar to L<AWK|https://books.google.com/books/about/The_AWK_Programming_Language.html?id=53ueQgAACAAJ>, but extends beyond the capability of AWK.
 
 I<B<Sidenote:>> Incidentally, AWK is L<one of the ancestors of Perl|http://history.perl.org/PerlTimeline.html>! One would have expected Perl to do way better than AWK. But while you can use Perl to do what AWK already does, that is usually limited to one-liners like C<perl -lane>. Even C<perl -lan script.pl> is not meant for serious projects. And it seems that L<some people still prefer AWK to Perl|https://aplawrence.com/Unixart/awk-vs.perl.html>. This is not looking good.
 
-With C<Text::Parser>, a developer can focus on specifying a grammar and then simply C<read> the file. The C<L<read|/read>> method automatically runs each rule collecting records from the text input into an internal array. Once read, C<L<get_records|/get_records>> can retrieve the records.
+=head1 OVERVIEW
 
-Since C<Text::Parser> is a class, a programmer can subclass it to parses very complex file formats. L<Text::Parser::RuleSpec> provides intuitive rule sugar. Use of L<Moose> is encouraged. And data from parsed files can be turned into very complex data-structures or even objects.
+With C<Text::Parser>, you focus on just specifying a grammar in intuitive rules. C<Text::Parser> handles the rest. The C<L<read|/read>> method automatically runs the rules for each line, collecting records from the text input into an internal array. And then, you may use C<L<get_records|/get_records>> to retrieve the records.
 
-With B<L<Text::Parser>> programmers have the power of Perl combined with the elegance of AWK to parse any text file they wish.
+Since C<Text::Parser> is a class, you may subclass it to parse very complex file formats. L<Text::Parser::RuleSpec> provides intuitive syntax sugar to specify rules in a subclass. Use of L<Moose> is encouraged. Data from parsed files can be turned into very complex data-structures or even objects.
+
+With B<L<Text::Parser>> you have the power of Perl combined with the elegance of AWK.
 
 =head1 THINGS TO DO FURTHER
 
@@ -262,16 +265,22 @@ Allowed values are:
 
     trailing_backslash - very common style ending lines with \
                          and continuing on the next line
+
     spice              - used for SPICE syntax, where on the
                          + next line the (+) continues previous line
+
     just_next_line     - used in simple text files written to be
                          humanly-readable. New paragraphs start
                          on a new line after a blank line.
+
     slurp              - used to "slurp" the whole file into
                          a single line.
+
     custom             - user-defined style. User must specify
-                         value of multiline_type when custom is
-                         chosen.
+                         value of multiline_type and define
+                         two custom unwrap routines using the
+                         custom_line_unwrap_routines method
+                         when custom is chosen.
 
 Read more about L<handling the common line-wrapping styles|/"Common line-wrapping styles">.
 
@@ -418,7 +427,7 @@ Takes a hash input like C<add_rule>, but C<if> and C<continue_to_next> keys will
 
 =for :list
 * Since any C<if> key is ignored, the C<do> key is required. Multiple calls to C<BEGIN_rule> will append to the previous calls; meaning, the actions of previous calls will be included.
-* The C<BEGIN> block is mainly used to initialize some variables.
+* The C<BEGIN_rule> is mainly used to initialize some variables.
 * By default C<dont_record> is set true. User I<can> change this and set C<dont_record> as false, thus forcing a record to be saved even before reading the first line of text.
 
 =cut
@@ -467,7 +476,7 @@ Takes a hash input like C<add_rule>, but C<if> and C<continue_to_next> keys will
 
 =for :list
 * Since any C<if> key is ignored, the C<do> key is required. Multiple calls to C<END_rule> will append to the previous calls; meaning, the actions of previous calls will be included.
-* The C<END> block is mainly used to do final processing of collected records.
+* The C<END_rule> is mainly used to do final processing of collected records.
 * By default C<dont_record> is set true. User I<can> change this and set C<dont_record> as false, thus forcing a record to be saved after the end rule is processed.
 
 =cut
@@ -868,19 +877,29 @@ sub _is_arg_a_code {
 
 =head1 USE ONLY IN RULES AND SUBCLASS
 
-These methods can be used only inside rules, or methods of a subclass. One class of these methods are available only when C<auto_split> is on:
+These methods can be used only inside rules, or methods of a subclass. Some of these methods are available only when C<auto_split> is on. They are listed as follows:
 
 =for :list
-* L<NF|Text::Parser::AutoSplit/NF>
-* L<fields|Text::Parser::AutoSplit/fields>
-* L<field|Text::Parser::AutoSplit/field>
-* L<field_range|Text::Parser::AutoSplit/field_range>
-* L<join_range|Text::Parser::AutoSplit/join_range>
-* L<find_field|Text::Parser::AutoSplit/find_field>
-* L<find_field_index|Text::Parser::AutoSplit/find_field_index>
-* L<splice_fields|Text::Parser::AutoSplit/splice_fields>
+* L<NF|Text::Parser::AutoSplit/NF> - number of fields on this line
+* L<fields|Text::Parser::AutoSplit/fields> - all the fields as an array of strings ; trailing C<\n> removed
+* L<field|Text::Parser::AutoSplit/field> - access individual elements of the array above ; negative arguments count from back
+* L<field_range|Text::Parser::AutoSplit/field_range> - array of fields in the given range of indices ; negative arguments allowed
+* L<join_range|Text::Parser::AutoSplit/join_range> - join the fields in the range of indices ; negative arguments allowed
+* L<find_field|Text::Parser::AutoSplit/find_field> - returns field for which a given subroutine is true ; each field is passed to the subroutine in C<$_>
+* L<find_field_index|Text::Parser::AutoSplit/find_field_index> - similar to above, except it returns the index of the field instead of the field itself
+* L<splice_fields|Text::Parser::AutoSplit/splice_fields> - like the native Perl C<splice>
 
-The other methods described below may also be used inside a rule, or inside methods called by the rules.
+Other methods described below are also to be used only inside a rule, or inside methods called by the rules.
+
+=sub_use_method abort_reading
+
+Takes no arguments. Returns C<1>. Aborts C<read>ing any more lines, and C<read> method exits gracefully as if nothing unusual happened.
+
+    $parser->add_rule(
+        do          => '$this->abort_reading;',
+        if          => '$1 eq "EOF"', 
+        dont_record => 1, 
+    );
 
 =sub_use_method this_line
 
@@ -909,59 +928,50 @@ has _current_line => (
     default  => undef,
 );
 
-=sub_use_method abort_reading
-
-Takes no arguments. Returns C<1>. Aborts C<read>ing any more lines, and C<read> method exits gracefully as if nothing unusual happened.
-
-    $parser->add_rule(
-        do          => '$this->abort_reading;',
-        if          => '$1 eq "EOF"', 
-        dont_record => 1, 
-    );
-
 =head1 HANDLING LINE-WRAPPING
 
-These methods are meant to handle target text formats that support line-wrapping (wrapping content of one line into multiple lines). Different text formats sometimes allow line-wrapping to make their content more human-readable.
+Different text formats sometimes allow line-wrapping to make their content more human-readable. Handling this can be rather complicated if you use native Perl, but extremely easy with L<Text::Parser>.
 
 =head2 Common line-wrapping styles
 
-L<Text::Parser> supports some commonly-used line-unwrapping routines which can be selected using the C<line_wrap_style> attribute. The C<line_wrap_style> attribute automatically sets up the parser to handle line-unwrapping for that specific text format.
+L<Text::Parser> supports a range of commonly-used line-unwrapping routines which can be selected using the C<L<line_wrap_style|Text::Parser/"line_wrap_style">> attribute. The attribute automatically sets up the parser to handle line-unwrapping for that specific text format.
 
     $parser->line_wrap_style('trailing_backslash');
     # Now when read runs the rules, all the back-slash
     # line-wrapped lines are auto-unwrapped to a single
     # line, and rules are applied on that single line
 
-Once this setting is done, a call to C<read> will automatically unwrap the multiple lines with trailing back-slashes (i.e., join them) and then apply the rules. So say the content of a line is like this:
+When C<read> reads each line of text, it looks for any trailing backslash and unwraps the line. The next line may have a trailing back-slash too, and that too is unwrapped. Once the fully-unwrapped line has been identified, the rules are run on that unwrapped line, as if the file had no line-wrapping at all. So say the content of a line is like this:
 
     This is a long line wrapped into multiple lines \
     with a back-slash character. This is a very common \
     way to wrap long lines. In general, line-wrapping \
     can be much easier on the reader's eyes.
 
-When C<read> runs any rules in C<$parser>, the text above appears as a single line in C<$_>.
+When C<read> runs any rules in C<$parser>, the text above appears as a single line in C<$_> to each rule in C<$parser>.
 
 =cut
 
 =head2 Specifying custom line-unwrap routines
 
-To specify a custom line-unwrapping style:
+I have included the common types of line-wrapping styles known to me. But obviously there can be more. To specify a custom line-unwrapping style follow these steps:
 
 =for :list
-* Set the C<L<multiline_type|/"multiline_type">> attribute appropriately
-* Call C<L<custom_line_unwrap_routines|/"custom_line_unwrap_routines">> method
+* Set C<L<line_wrap_style|/"line_wrap_style">> to C<custom>. If you don't set this, the custom unwrapping routines will never be called.
+* Set the C<L<multiline_type|/"multiline_type">> attribute appropriately. If you do not set this, and leave it as default, your custom unwrapping routines won't get called.
+* Call C<L<custom_line_unwrap_routines|/"custom_line_unwrap_routines">> method. If you forget to call this method, or if you don't provide appropriate arguments, then an exception is thrown.
+
+L<Here|/"custom_line_unwrap_routines"> is an example with C<join_last> value for C<multiline_type>. And L<here|Text::Parser::Multiline/"SYNOPSIS"> is an example using C<join_next>. You'll notice that in both examples, you need to specify both routines. In fact, if you don't 
 
 =cut
 
-=head2 Line-unwrap feature in a subclass
+=head2 Line-unwrapping in a subclass
 
-In a subclass, you may do one of the following:
+You may subclass C<Text::Paser> to parse your specific text format. And that format may support some line-wrapping. To simplify this do one of the following:
 
 =for :list
 * Set a default value for C<line_wrap_style>. For example: C<has '+line_wrap_style' => ( default => 'spice', );>. This uses one of the supported common line-unwrap methods.
-* Setup custom line-unwrap routines with C<unwraps_lines> from L<Text::Parser::RuleSpec>.
-
-=cut
+* Setup custom line-unwrap routines. Read more in L<Text::Parser::RuleSpec>
 
 =head1 OVERRIDE IN SUBCLASS
 
@@ -1007,7 +1017,7 @@ In earlier versions of L<Text::Parser> you had no way but to subclass L<Text::Pa
 
 The default implementation of this routine takes two string arguments, joins them without any C<chomp> or any other operation, and returns that result.
 
-In earlier versions of L<Text::Parser> you had no way but to subclass L<Text::Parser> to select a line-unwrapping routine.
+In earlier versions of L<Text::Parser> you had no way but to subclass L<Text::Parser> to select a line-unwrapping routine. Now you can instead select from a list of known C<line_wrap_style>s, or even set custom methods for this.
 
 =cut
 
