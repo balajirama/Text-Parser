@@ -307,6 +307,7 @@ sub _on_line_unwrap {
     my ( $self, $val, $oldval ) = (@_);
     return if not defined $val and not defined $oldval;
     $val = 'default' if not defined $val;
+    return if $val eq 'custom' and defined $self->multiline_type;
     $self->multiline_type( $MULTILINE_VAL{$val} );
 }
 
@@ -808,7 +809,6 @@ Here is an example of setting custom line-unwrapping routines:
     $parser->custom_line_unwrap_routines(
         is_wrapped => sub {     # A method that detects if this line is wrapped or not
             my ($self, $this_line) = @_;
-            return 0 if not defined $self->multiline_type;
             $this_line =~ /^[~]/;
         }, 
         unwrap_routine => sub { # A method to unwrap the line by joining it with the last line
@@ -848,31 +848,19 @@ has _unwrap_routine => (
 
 sub custom_line_unwrap_routines {
     my $self = shift;
-    my ( $is_wrapped, $unwrap_routine ) = _check_custom_unwrap_args(@_);
+    my ( $is_wrapped, $unwrap_routine )
+        = Text::Parser::RuleSpec::_check_custom_unwrap_args(@_);
+    $self->_prep_for_custom_unwrap_routines;
     $self->_is_wrapped($is_wrapped);
     $self->_unwrap_routine($unwrap_routine);
 }
 
-sub _check_custom_unwrap_args {
-    die bad_custom_unwrap_call( err => 'Need 4 arguments' )
-        if @_ != 4;
-    _test_fields_unwrap_rtn(@_);
-    my (%opt) = (@_);
-    return ( $opt{is_wrapped}, $opt{unwrap_routine} );
-}
-
-sub _test_fields_unwrap_rtn {
-    my (%opt) = (@_);
-    die bad_custom_unwrap_call(
-        err => 'must have keys: is_wrapped, unwrap_routine' )
-        if not( exists $opt{is_wrapped} and exists $opt{unwrap_routine} );
-    _is_arg_a_code( $_, %opt ) for (qw(is_wrapped unwrap_routine));
-}
-
-sub _is_arg_a_code {
-    my ( $arg, %opt ) = (@_);
-    die bad_custom_unwrap_call( err => "$arg key must reference code" )
-        if 'CODE' ne ref( $opt{$arg} );
+sub _prep_for_custom_unwrap_routines {
+    my $self = shift;
+    die already_set_line_wrap_style( value => $self->line_wrap_style )
+        if defined $self->line_wrap_style
+        and 'custom' ne $self->line_wrap_style;
+    $self->line_wrap_style('custom');
 }
 
 =head1 USE ONLY IN RULES AND SUBCLASS
@@ -957,7 +945,6 @@ When C<read> runs any rules in C<$parser>, the text above appears as a single li
 I have included the common types of line-wrapping styles known to me. But obviously there can be more. To specify a custom line-unwrapping style follow these steps:
 
 =for :list
-* Set C<L<line_wrap_style|/"line_wrap_style">> to C<custom>. If you don't set this, the custom unwrapping routines will never be called.
 * Set the C<L<multiline_type|/"multiline_type">> attribute appropriately. If you do not set this, and leave it as default, your custom unwrapping routines won't get called.
 * Call C<L<custom_line_unwrap_routines|/"custom_line_unwrap_routines">> method. If you forget to call this method, or if you don't provide appropriate arguments, then an exception is thrown.
 
@@ -967,11 +954,33 @@ L<Here|/"custom_line_unwrap_routines"> is an example with C<join_last> value for
 
 =head2 Line-unwrapping in a subclass
 
-You may subclass C<Text::Paser> to parse your specific text format. And that format may support some line-wrapping. To simplify this do one of the following:
+You may subclass C<Text::Paser> to parse your specific text format. And that format may support some line-wrapping. To handle the known common line-wrapping styles, set a default value for C<line_wrap_style>. For example: 
 
-=for :list
-* Set a default value for C<line_wrap_style>. For example: C<has '+line_wrap_style' => ( default => 'spice', );>. This uses one of the supported common line-unwrap methods.
-* Setup custom line-unwrap routines. Read more in L<Text::Parser::RuleSpec>
+    package MyParser;
+
+    use Text::Parser::RuleSpec;
+    extends 'Text::Parser';
+
+    has '+line_wrap_style' => ( default => 'slurp', is => 'ro');
+
+Of course, you don't I<have> to make it read-only, but you can do so to ensure nobody changes this.
+
+To setup custom line-unwrapping routines in a subclass, you can use the syntax sugar from L<Text::Parser::RuleSpec>. For example:
+
+    package MyParser;
+
+    use Text::Parser::RuleSpec;
+    extends 'Text::Parser';
+
+    has '+multiline_type' => (
+        default => 'join_next',
+        is => 'ro', 
+    );
+
+    unwrap_routines(
+        is_wrapped     => \&_my_is_wrapped_routine, 
+        unwrap_routine => \&_my_unwrap_routine, 
+    );
 
 =head1 OVERRIDE IN SUBCLASS
 

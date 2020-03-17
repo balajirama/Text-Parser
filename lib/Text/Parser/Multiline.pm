@@ -23,7 +23,6 @@ The code required to unwrap this:
     $parser->custom_line_unwrap_routines(
         is_wrapped => sub {  # A method to detect if this line is wrapped
             my ($self, $this_line) = @_;
-            return 0 if not defined $self->multiline_type;
             $this_line =~ /\%\s*$/;
         }, 
         unwrap_routine => sub { # Method to unwrap line, gets called only on line after % sign

@@ -122,6 +122,23 @@ exception
     has     => [ err => ( is => 'rw', isa => \&_Str, ), ],
     extends => GenericError();
 
+=head3 C<Text::Parser::Errors::AlreadySetLineWrapStyle>
+
+Generated when C<L<line_wrap_style|Text::Parser/"line_wrap_style">> is set to a value other than C<custom> and yet, a call to C<L<custom_line_unwrap_routines|Text::Parser/"custom_line_unwrap_routines">> is made.
+
+=head4 Attributes
+
+=for :list
+* B<value> - the value of C<line_wrap_style> attribute at the time of calling
+
+=cut
+
+exception
+    AlreadySetLineWrapStyle =>
+    'Called custom_line_unwrap_routines even though line_wrap_style is defined and not custom',
+    has     => [ value => ( is => 'ro', isa => \&_Str ) ],
+    extends => GenericError();
+
 =head3 C<Text::Parser::Errors::UndefLineUnwrapRoutine>
 
 Generated when user forgets to set a custom line-unwrap routine, but says that the C<line_wrap_style> is C<custom>.
