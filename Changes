@@ -1,7 +1,10 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
-  - New module Text::Parser::RuleSpec is meant to simplify the way rules can be specified in classes
+  - Text::Parser::RuleSpec provides syntactical sugar to subclass Text::Parser
+  - New attribute line_wrap_style, new method custom_line_unwrap_routines
+  - Removed confusing POD documentation
+  - Improved POD documentation to reflect latest features
 
 0.927     2019-06-22 20:35:56-07:00 America/Los_Angeles
   - Speed improvement: reduced runtime of read() calls to about 50% of original runtime.

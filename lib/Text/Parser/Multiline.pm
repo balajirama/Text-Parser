@@ -3,70 +3,38 @@ use warnings;
 
 package Text::Parser::Multiline;
 
-# ABSTRACT: Adds multi-line support to the Text::Parser object.
+# ABSTRACT: To be used to add custom line-unwrapping routines to the Text::Parser object.
 
 use Moose::Role;
 
 =head1 SYNOPSIS
 
+Input text file:
+
+    This is a line that is wrapped with a trailing percent sign %
+    like the last one. This may seem unusual, but hey, it's an %
+    example.
+
+The code required to unwrap this:
+
     use Text::Parser;
 
-    my $parser = Text::Parser->new(multiline_type => 'join_last');
-    $parser->read('filename.txt');
-    print $parser->get_records();
-    print scalar($parser->get_records()), " records were read although ",
-        $parser->lines_parsed(), " lines were parsed.\n";
+    my $parser = Text::Parser->new(multiline_type => 'join_next');
+    $parser->custom_line_unwrap_routines(
+        is_wrapped => sub {  # A method to detect if this line is wrapped
+            my ($self, $this_line) = @_;
+            return 0 if not defined $self->multiline_type;
+            $this_line =~ /\%\s*$/;
+        }, 
+        unwrap_routine => sub { # Method to unwrap line, gets called only on line after % sign
+            my ($self, $last_line, $this_line) = @_;
+            chomp $last_line;
+            $last_line =~ s/\%\s*$//g;
+            "$last_line $this_line";
+        }, 
+    );
 
-=head1 RATIONALE
-
-Some text formats allow line-wrapping with a continuation character, usually to improve human readability. To handle these types of text formats with the native L<Text::Parser> class, the derived class would need to have a C<save_record> method that would:
-
-=for :list
-* Detect if the line is wrapped or is part of a wrapped line. To do this the developer has to implement a function named C<L<is_line_continued|Text::Parser/is_line_continued>>.
-* Join any wrapped lines to form a single line. For this, the developer has to implement a function named C<L<join_last_line|Text::Parser/join_last_line>>.
-
-With these two things, the developer can implement their C<L<save_record|Text::Parser/save_record>> assuming that the line is already unwrapped.
-
-=head1 OVERVIEW
-
-This role may be composed into an object of the L<Text::Parser> class. To use this role, just set the C<L<multiline_type|Text::Parser/multiline_type>> attribute. A derived class may set this in their constructor (or C<BUILDARGS> if you use L<Moose>). If this option is set, the developer should re-define the C<is_line_continued> and C<join_last_line> methods.
-
-=head1 ERRORS AND EXCEPTIONS
-
-It should also look for the following error conditions (see L<Text::Parser::Errors>):
-
-=for :list
-* If the end of file is reached, and the line is expected to be still continued, an exception of C<L<Text::Parser::Errors::UnexpectedEof|Text::Parser::Errors/"Text::Parser::Errors::UnexpectedEof">> is thrown.
-* It is impossible for the first line in a text input to be wrapped from a previous line. So if this condition occurs, an exception of C<L<Text::Parser::Errors::UnexpectedCont|Text::Parser::Errors/"Text::Parser::Errors::UnexpectedCont">> is thrown.
-
-=head1 METHODS TO BE IMPLEMENTED
-
-These methods must be implemented by the developer in the derived class. There are default implementations provided in L<Text::Parser> but they may not handle your target text format.
-
-=head2 C<< $parser->is_line_continued($line) >>
-
-Takes a string argument containing the current line (also available through the C<this_line> method) as input. Your implementation should return a boolean that indicates if the current line is wrapped.
-
-    sub is_line_continued {
-        my ($self, $line) = @_;
-        chomp $line;
-        $line =~ /\\\s*$/;
-    }
-
-The above example method checks if a line is being continued by using a back-slash character (C<\>).
-
-=head2 C<< $parser->join_last_line($last_line, $current_line) >>
-
-Takes two string arguments. The first is the previously read line which is wrapped in the next line (the second argument). The second argument should be identical to the return value of C<L<this_line|Text::Parser/"this_line">>. Neither argument will be C<undef>. Your implementation should join the two strings stripping any continuation character(s), and return the resultant string.
-
-Here is an example implementation that joins the previous line terminated by a back-slash (C<\>) with the present line:
-
-    sub join_last_line {
-        my $self = shift;
-        my ($last, $line) = (shift, shift);
-        $last =~ s/\\\s*$//g;
-        return "$last $line";
-    }
+When C<$parser> gets to C<read> the input text, those three lines get unwrapped and processed by the rules as if it were a single line.
 
 =cut
 

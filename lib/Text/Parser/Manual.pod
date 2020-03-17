@@ -3,6 +3,10 @@
 
 # ABSTRACT: A manual for the Text::Parser class
 
+=head1 QUICK START
+
+L<Jump right here|Text::Parser::Manual::ExtendedAWKSyntax> for a quickstart!
+
 =head1 MOTIVATION
 
 Text parsing is perhaps the single most common thing that almost every Perl program does. Yet we don't have a lean, flexible, text parsing utility. Ideally, the developer should only have to specify the "grammar" of the text file she intends to parse. Everything else, like C<open>ing a file handle, C<close>ing the file handle, tracking line-count, joining continued lines into one, reporting any errors in line continuation, trimming white space, splitting each line into fields, etc., should be automatic.
@@ -47,22 +51,19 @@ There are several problems with this sort of code. For starters, it is:
 What if:
 
 =for :list
-* a utility took care of all the "mundane" boilerplate like C<open>, C<close> etc.?
-* parsing line-wrapped files were as simple as writing a small function that joins lines to unwrap?
-* data extraction could be done with a set of self-explanatory rules that don't need to be documented?
+* a utility took care of all the "mundane" boilerplate like checking if it is a text file, (potentially uncompressing content), calling C<open>, C<close> etc.?
+* parsing line-wrapped files were as simple as setting an attribute, or writing two small routines to unwrap them?
+* data extraction could be done with a set of intuitively written, self-explanatory rules that don't need to be documented?
+* the code could be re-used for other text formats with same/similar syntax with minor modifications, instead of re-writing the whole thing?
 * the resulting code "reads like well-written prose"?
-* developers could easily extend a text parser written by another developer?
 
-L<Text::Parser> can help you accomplish all of these and more!
-
-The programmer needs to specify a set of parsing rules which look quite like AWK. And the rest is all taken care of. So now, a programmer need only focus on the grammar of the file they intend to parse.
+L<Text::Parser> accomplishes all of these and more! The programmer needs to specify a set of parsing rules, and the rest is all taken care of.
 
 =head1 CHAPTERS
 
 This manual is divided into chapters:
 
 =for :list
-* L<Comparing with native Perl|Text::Parser::Manual::ComparingWithNativePerl> - this chapter should explain why one should consider using L<Text::Parser> instead of native Perl.
+* L<Comparing with native Perl|Text::Parser::Manual::ComparingWithNativePerl> - compares native Perl solutions against L<Text::Parser> lists some of the pros and cons of both.
 * L<The Extended AWK Syntax|Text::Parser::Manual::ExtendedAWKSyntax> - this chapter outlines the syntax for the rules
-
-You can L<jump here|Text::Parser::Manual::ExtendedAWKSyntax> for a quickstart.
+* L<Using the class|Text::Parser::Manual::UsingTheClass> - a good summary of the way to use L<Text::Parser>
