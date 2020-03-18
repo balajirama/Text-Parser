@@ -25,6 +25,7 @@ package main;
 
 use Test::More;    # last test to print
 use Test::Exception;
+use Text::Parser::Errors;
 
 lives_ok {
     my $parser = MyParser->new();
@@ -60,5 +61,13 @@ lives_ok {
         'Custom unwrapping enabled because multiline_type is set by the user';
 }
 'Everything works when you set multiline_type';
+
+BEGIN {
+    use_ok('Text::Parser::RuleSpec');
+}
+throws_ok {
+    unwraps_lines_using is_wrapped => sub {0}, unwrap_routine => {''};
+}
+MainCantUnwrapLines(), 'Main cannot call this function';
 
 done_testing;

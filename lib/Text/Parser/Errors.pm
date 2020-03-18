@@ -296,6 +296,11 @@ exception
 
 Thrown when C<L<applies_rule|Text::Parser::RuleSpec/applies_rule>> is called without a rule name.
 
+=head4 Attributes
+
+=for :list
+* B<package_name> - specifies the name of the package where this error occurred
+
 =cut
 
 exception
@@ -311,6 +316,11 @@ exception
 =head3 C<Test::Parser::Errors::SpecRequiresHash>
 
 Thrown when C<L<applies_rule|Text::Parser::RuleSpec/applies_rule>> is called with invalid number of options.
+
+=head4 Attributes
+
+=for :list
+* B<rule_name> - specifies the name of the rule where error occured
 
 =cut
 
@@ -329,6 +339,11 @@ exception
 
 This error means that C<L<applies_rule|Text::Parser::RuleSpec/applies_rule>> was called from your C<main> program (which is not right).
 
+=head4 Attributes
+
+=for :list
+* B<rule_name> - specifies the name of the rule where error occured
+
 =cut
 
 exception
@@ -340,6 +355,16 @@ exception
         isa => \&_Str,
     ),
     ];
+
+=head3 C<Text::Parser::Errors::MainCantUnwrapLines>
+
+This means C<L<unwraps_lines_using|Text::Parser::RuleSpec/"unwraps_lines_using">> was called from C<main> and that is not right.
+
+=cut
+
+exception
+    MainCantUnwrapLines => 'unwraps_lines_using was called in main',
+    extends             => RuleSpecError();
 
 =head3 C<Text::Parser::Errors::NameRuleUniquely>
 

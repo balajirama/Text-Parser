@@ -48,6 +48,9 @@ The following methods are exported into the C<use>r's namespace by default:
 
 =for :list
 * C<L<applies_rule|/applies_rule>>
+* C<L<unwraps_lines_using|/unwraps_lines_using>>
+
+All of the above functions may be called only outside the C<main> namespace. 
 
 =cut
 
@@ -84,7 +87,7 @@ class_has _class_rule_order => (
 
 =func applies_rule
 
-May be called only outside the C<main> namespace. Takes one mandatory string argument which is a rule name, followed by the options to create a rule. These are the same as the arguments to the C<L<add_rule|Text::Parser/"add_rule">> method. Returns nothing. Exceptions will be thrown if any of the required arguments are not provided.
+Takes one mandatory string argument which is a rule name, followed by the options to create a rule. These are the same as the arguments to the C<L<add_rule|Text::Parser/"add_rule">> method. Returns nothing. Exceptions will be thrown if any of the required arguments are not provided.
 
     applies_rule print_emails => (
         if               => '$1 eq "EMAIL:"', 
@@ -141,10 +144,23 @@ sub _init_class_rule_order {
 
 =func unwraps_lines_using
 
+This function may be used if one wants to specify a custom line-unwrapping routine. Takes mandatory arguments as follows:
+
+    unwraps_lines_using(
+        is_wrapped     => sub { # Should return a boolean for each $line
+            1;
+        }, 
+        unwrap_routine => sub { # Should return a string for each $last and $line
+            my ($self, $last, $line) = @_;
+            $last.$line;
+        }, 
+    );
+
 =cut
 
 sub unwraps_lines_using {
     my $meta = shift;
+    die main_cant_unwrap_lines if $meta->name eq 'main';
     my ( $is_wr, $unwr ) = _check_custom_unwrap_args(@_);
     _set_default_of_attribute( $meta, line_wrap_style => 'custom' );
     _set_default_of_attribute( $meta, _is_wrapped     => sub { $is_wr; } );
