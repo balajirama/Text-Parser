@@ -13,6 +13,8 @@ my $fname = 'text-simple.txt';
 my $pars;
 throws_ok { $pars = Text::Parser->new('balaji'); }
 SingleParamsToNewMustBeHashRef(), 'single non-hashref arg';
+throws_ok { $pars = Text::Parser->new('balaji'); }
+'Moose::Exception::SingleParamsToNewMustBeHashRef', 'single non-hashref arg';
 throws_ok { $pars = Text::Parser->new( balaji => 1 ); }
 'Moose::Exception::Legacy', 'Throws an exception for bad keys';
 throws_ok { $pars = Text::Parser->new( multiline_type => 'balaji' ); }

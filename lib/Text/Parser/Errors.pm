@@ -61,7 +61,7 @@ sub _Num {
 
 =head3 C<Text::Parser::Errors::GenericError> - C<GenericError()>
 
-All exceptions in this package are subclasses of this exception class.
+This is the base class for all the exceptions thrown by L<Text::Parser> code.
 
 =cut
 
@@ -433,6 +433,20 @@ Child of C<Text::Parser::Errors::NameRuleUniquely>. If the same rule name is use
 exception
     NameRuleUniquely => 'name rules uniquely',
     extends          => RuleSpecError();
+
+=head2 Miscellaneous
+
+=head3 C<Text::Parser::Errors::SingleParamsToNewMustBeHashRef> - C<SingleParamsToNewMustBeHashRef()>
+
+Child of both C<Text::Parser::Errors::GenericError> and C<Moose::Exception::SingleParamsToNewMustBeHashRef>. This error is thrown when the constructor of L<Text::Parser> is called with a single argument which is not a C<HashRef>.
+
+=cut
+
+exception
+    SingleParamsToNewMustBeHashRef =>
+    'single argument to new() must be hashref',
+    extends => GenericError(),
+    extends => 'Moose::Exception::SingleParamsToNewMustBeHashRef';
 
 =head1 SEE ALSO
 
