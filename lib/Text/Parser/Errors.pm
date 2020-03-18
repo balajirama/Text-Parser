@@ -35,7 +35,7 @@ use Scalar::Util 'looks_like_number';
 
 =head1 DESCRIPTION
 
-L<Text::Parser> uses exceptions, like all good programming strategies. You can write an exception handler in your code and call your handler. This package contains functions that can be used to identify all the exception classes thrown by L<Text::Parser>. For example, the exception with the name C<'Text::Parser::Errors::InvalidFilename'> can be simply identified by the function C<InvalidFilename()>. Each exception class has a number of attributes, and you can access their values to print a pretty error message.
+L<Text::Parser> uses exceptions, like all good programming strategies. You can write an exception handler in your code and call your handler. This package contains functions that can be used to identify all the exception classes thrown by L<Text::Parser>. For example, the exception with the name C<'Text::Parser::Errors::InvalidFilename'> can be simply identified by the function C<InvalidFilename()>. Each exception class has a number of attributes described under their section below, and you can access their values to print a pretty error message.
 
 =head1 EXCEPTION CLASSES
 
