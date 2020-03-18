@@ -65,8 +65,9 @@ lives_ok {
 BEGIN {
     use_ok('Text::Parser::RuleSpec');
 }
+
 throws_ok {
-    unwraps_lines_using is_wrapped => sub {0}, unwrap_routine => {''};
+    unwraps_lines_using is_wrapped => sub { 0; }, unwrap_routine => sub {'';};
 }
 MainCantUnwrapLines(), 'Main cannot call this function';
 
