@@ -12,7 +12,6 @@ package Text::Parser::RuleSpec;
     use Text::Parser::RuleSpec;
     extends 'Text::Parser';
 
-    has '+line_wrap_style' => (default => 'custom');
     has '+multiline_type'  => (default => 'join_next');
 
     unwraps_lines_using (
@@ -144,7 +143,7 @@ sub _init_class_rule_order {
 
 =func unwraps_lines_using
 
-This function may be used if one wants to specify a custom line-unwrapping routine. Takes mandatory arguments as follows:
+This function may be used if one wants to specify a custom line-unwrapping routine. Takes a hash argument with mandatory keys as follows:
 
     unwraps_lines_using(
         is_wrapped     => sub { # Should return a boolean for each $line
@@ -156,15 +155,15 @@ This function may be used if one wants to specify a custom line-unwrapping routi
         }, 
     );
 
+For the pair of routines to not cause unexpected C<undef> results, they should return defined values always. To effectively unwrap lines, the C<is_wrapped> routine should return a boolean C<1> when it encounters the continuation character, and C<unwrap_routine> should return a string that appropriately joins the last and current line together.
+
 =cut
 
 sub unwraps_lines_using {
     my $meta = shift;
     die main_cant_unwrap_lines if $meta->name eq 'main';
     my ( $is_wr, $unwr ) = _check_custom_unwrap_args(@_);
-    _set_default_of_attribute( $meta, line_wrap_style => 'custom' );
-    _set_default_of_attribute( $meta, _is_wrapped     => sub { $is_wr; } );
-    _set_default_of_attribute( $meta, _unwrap_routine => sub { $unwr; } );
+    _set_lws_and_routines($meta, $is_wr, $unwr);
 }
 
 sub _check_custom_unwrap_args {
@@ -187,6 +186,13 @@ sub _is_arg_a_code {
     my ( $arg, %opt ) = (@_);
     die bad_custom_unwrap_call( err => "$arg key must reference code" )
         if 'CODE' ne ref( $opt{$arg} );
+}
+
+sub _set_lws_and_routines {
+    my ($meta, $is_wr, $unwr) = @_;
+    _set_default_of_attribute( $meta, line_wrap_style => 'custom' );
+    _set_default_of_attribute( $meta, _is_wrapped     => sub { $is_wr; } );
+    _set_default_of_attribute( $meta, _unwrap_routine => sub { $unwr; } );
 }
 
 sub _set_default_of_attribute {
