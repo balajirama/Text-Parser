@@ -71,7 +71,6 @@ lives_ok {
 
 my $is_wrapped_routine = sub {
     my ( $self, $this_line ) = @_;
-    return 0 if not defined $self->multiline_type;
     $this_line =~ /^[~]/;
 };
 my $unwrap_routine = sub {
@@ -188,6 +187,6 @@ lives_ok {
         "~ showing an example.\n",
         ],
         'Line-unwrapping is not enabled unless multiline_type is set by the user';
-};
+} 'Everything works even if you forget to set multiline_type';
 
 done_testing;

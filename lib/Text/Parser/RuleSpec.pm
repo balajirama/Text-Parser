@@ -146,8 +146,9 @@ sub _init_class_rule_order {
 sub unwrap_routines {
     my $meta = shift;
     my ( $is_wr, $unwr ) = _check_custom_unwrap_args(@_);
-    my $lws = $meta->find_attribute_by_name('line_wrap_style');
-    $lws->set_value('custom');
+    _set_default_of_attribute( $meta, line_wrap_style => 'custom' );
+    _set_default_of_attribute( $meta, _is_wrapped     => sub { $is_wr; } );
+    _set_default_of_attribute( $meta, _unwrap_routine => sub { $unwr; } );
 }
 
 sub _check_custom_unwrap_args {
@@ -170,6 +171,15 @@ sub _is_arg_a_code {
     my ( $arg, %opt ) = (@_);
     die bad_custom_unwrap_call( err => "$arg key must reference code" )
         if 'CODE' ne ref( $opt{$arg} );
+}
+
+sub _set_default_of_attribute {
+    my ( $meta, %val ) = @_;
+    foreach my $k ( keys %val ) {
+        my $old = $meta->find_attribute_by_name($k);
+        my $new = $old->clone_and_inherit_options( default => $val{$k} );
+        $meta->add_attribute($new);
+    }
 }
 
 __PACKAGE__->meta->make_immutable;
