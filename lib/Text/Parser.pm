@@ -282,7 +282,7 @@ Allowed values are:
                          custom_line_unwrap_routines method
                          when custom is chosen.
 
-Read more about L<handling the common line-wrapping styles|/"Common line-wrapping styles">.
+When C<line_wrap_style> is set to one of these values, the value of C<multiline_type> is automatically set to an appropriate value. Read more about L<handling the common line-wrapping styles|/"Common line-wrapping styles">.
 
 =cut
 
@@ -313,9 +313,7 @@ sub _on_line_unwrap {
 
 =attr multiline_type
 
-Read-write attribute used mainly if the programmer wishes to specify custom line-unwrapping methods.
-
-By default, this attribute is C<undef>, i.e., the target text format will not have wrapped lines. It gets automatically changed when C<line_wrap_style> is set to one of the known line-wrapping styles, except if C<line_wrap_style> is set to C<custom>.
+Read-write attribute used mainly if the programmer wishes to specify custom line-unwrapping methods. By default, this attribute is C<undef>, i.e., the target text format will not have wrapped lines.
 
     $parser->line_wrap_style(custom);
     $parser->multiline_type('join_next');
@@ -945,7 +943,7 @@ When C<read> runs any rules in C<$parser>, the text above appears as a single li
 I have included the common types of line-wrapping styles known to me. But obviously there can be more. To specify a custom line-unwrapping style follow these steps:
 
 =for :list
-* Set the C<L<multiline_type|/"multiline_type">> attribute appropriately. If you do not set this, and leave it as default, your custom unwrapping routines won't get called.
+* Set the C<L<multiline_type|/"multiline_type">> attribute appropriately. If you do not set this, your custom unwrapping routines won't have any effect.
 * Call C<L<custom_line_unwrap_routines|/"custom_line_unwrap_routines">> method. If you forget to call this method, or if you don't provide appropriate arguments, then an exception is thrown.
 
 L<Here|/"custom_line_unwrap_routines"> is an example with C<join_last> value for C<multiline_type>. And L<here|Text::Parser::Multiline/"SYNOPSIS"> is an example using C<join_next>. You'll notice that in both examples, you need to specify both routines. In fact, if you don't 
@@ -962,8 +960,9 @@ You may subclass C<Text::Paser> to parse your specific text format. And that for
     extends 'Text::Parser';
 
     has '+line_wrap_style' => ( default => 'slurp', is => 'ro');
+    has '+multiline_type'  => ( is => 'ro' );
 
-Of course, you don't I<have> to make it read-only, but you can do so to ensure nobody changes this.
+Of course, you don't I<have> to make them read-only, but you I<can> do so to ensure the line-unwrapping can't be turned off.
 
 To setup custom line-unwrapping routines in a subclass, you can use the syntax sugar from L<Text::Parser::RuleSpec>. For example:
 
