@@ -37,9 +37,7 @@ When C<$parser> gets to C<read> the input text, those three lines get unwrapped 
 
 =head1 DESCRIPTION
 
-You should not use this module. Instead simply use L<Text::Parser>.
-
-The purpose of this L<role|Moose::Role> is to enable L<Text::Parser> objects to unwrap line-wrapped text input, and allow the rest of the text parsing / processing to proceed.
+You should not C<use> this module directly in your code. The functionality of this L<role|Moose::Role> is accessed through L<Text::Parser>. The purpose of this L<role|Moose::Role> is to write custom routines to unwrap line-wrapped text input, using an object of L<Text::Parser>.
 
 =cut
 
