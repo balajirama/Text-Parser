@@ -962,9 +962,9 @@ You may subclass C<Text::Paser> to parse your specific text format. And that for
     has '+line_wrap_style' => ( default => 'slurp', is => 'ro');
     has '+multiline_type'  => ( is => 'ro' );
 
-Of course, you don't I<have> to make them read-only, but you I<can> do so to ensure the line-unwrapping can't be turned off.
+Of course, you don't I<have> to make them read-only.
 
-To setup custom line-unwrapping routines in a subclass, you can use the syntax sugar from L<Text::Parser::RuleSpec>. For example:
+To setup custom line-unwrapping routines in a subclass, you can use the C<L<unwraps_lines_using|Text::Parser::RuleSpec/"unwraps_lines_using">> syntax sugar from L<Text::Parser::RuleSpec>. For example:
 
     package MyParser;
 
@@ -976,7 +976,7 @@ To setup custom line-unwrapping routines in a subclass, you can use the syntax s
         is => 'ro', 
     );
 
-    unwrap_routines(
+    unwraps_lines_using(
         is_wrapped     => \&_my_is_wrapped_routine, 
         unwrap_routine => \&_my_unwrap_routine, 
     );
