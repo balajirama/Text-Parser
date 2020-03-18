@@ -15,7 +15,7 @@ package Text::Parser::RuleSpec;
     has '+line_wrap_style' => (default => 'custom');
     has '+multiline_type'  => (default => 'join_next');
 
-    unwraps_lines_with (
+    unwraps_lines_using (
         is_wrapped     => sub {
             my $self = shift;
             $_ = shift;
@@ -58,7 +58,7 @@ use Text::Parser::Errors;
 use Text::Parser::Rule;
 
 Moose::Exporter->setup_import_methods(
-    with_meta => [ 'applies_rule', 'unwraps_lines_with' ],
+    with_meta => [ 'applies_rule', 'unwraps_lines_using' ],
     also      => 'Moose'
 );
 
@@ -139,11 +139,11 @@ sub _init_class_rule_order {
         for (@_);
 }
 
-=func unwraps_lines_with
+=func unwraps_lines_using
 
 =cut
 
-sub unwraps_lines_with {
+sub unwraps_lines_using {
     my $meta = shift;
     my ( $is_wr, $unwr ) = _check_custom_unwrap_args(@_);
     _set_default_of_attribute( $meta, line_wrap_style => 'custom' );

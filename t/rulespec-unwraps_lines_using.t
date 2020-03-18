@@ -7,7 +7,7 @@ package MyParser;
 use Text::Parser::RuleSpec;
 extends 'Text::Parser';
 
-unwraps_lines_with(
+unwraps_lines_using(
     is_wrapped => sub {
         my ( $self, $line ) = @_;
         $line =~ /^[~]/;
