@@ -139,16 +139,6 @@ Note that C<@numbers> above is accessible only within that rule task. It is not 
 
 Use any variable other than C<$this>.
 
-=head2 Shared variables
-
-If you want to create variables that are initialized or assigned in one rule, but accessed in another rule, you need to use a I<"shared variable">. A shared variable can be a scalar, or a hash reference, or an array reference. It cannot be a hash or an array itself. All shared variables must begin with the tilde (C<~>) character, whether scalar, arrayref, or hashref. And all of them must begin with an alphabet or underscore (C<_>).
-
-    if => '$1 eq "MARKER:"', do => '~info = $2;'
-
-In the above rule, C<~info> is a shared variable, and will be accessible in other rules.
-
-All shared variables created during the parsing of a text input exist only for the duration of the C<read> method call. They are not accessible outside the C<Text::Parser> class.
-
 =head3 Suite of string and array utility functions
 
 Perl anyway has more built-in functions that are very useful and better than their AWK counterparts. But in addition, L<CPAN|http://www.cpan.org> has a lot of great modules with utility functions. ExAWK gives the programmer adds a few good utility functions, but also makes it very easy to add any other functions:
@@ -173,7 +163,7 @@ Suppose you know of a very useful package (fictitiously named) C<Useful::Package
 
 This means that the power of any new package on CPAN can be harnessed very easily.
 
-=head1 MORE FUN FEATURES
+=head1 THE FUN FEATURES
 
 If you could use the parser object itself to store data, this would open up many possibilities. And that is precisely what this section is about.
 
@@ -190,6 +180,29 @@ So now you can access specific attributes of your parser class, or maybe you wan
 
 B<Important Note:> C<$this> is a real variable. If you modify its value, it will change. So be careful what you do with C<$this>. If you save the C<$this> to another variable in the hope that you can retrieve it later, remember that all positional field indicators and range shortcuts are entirely dependent on the C<this> variable. If this variable is tampered with, you could get garbage results. You have been forewarned.
 
+=head2 Stashed variables
+
+The idea of storing data in the C<$this> variable is so cool that I had to make it easier to use. So you get what are called I<"stashed variable">s. Internally these variables are just stored in a hash, but it is as if you are stashing away useful data. You can store any scalar, hashref or arrayref. Notice that all of them must be references.
+
+Stashed variables begin with the tilde (C<~>) character, followed by an alphabet or underscore (C<_>. So for example:
+
+    if => '$1 eq "MARKER:"', do => '~info = $2; ~_secret = $3;'
+
+In the above rule, C<~info> and C<~_secret> are stashed variables, which are accessible in other rules. You can set stashed variables in a C<BEGIN_rule>, and access it in later rules. Here is an obvious example:
+
+    my $parser = Text::Parser->new();
+    $parser->BEGIN_rule( do => '~count = 0;' );
+    $parser->add_rule( if => '$1 eq "ERROR:"', do => '~count++;' );
+    $parser->read('/path/to/logfile.log');
+    print "Found ", $parser->stashed('count'), " errors in your logfile\n";
+
+You may C<forget> a stashed variable, and it will be lost for ever. Or you can simply clear the whole stash of variables by using C<clear_stash> method.
+
+All stashed variables are forgotten right before C<read> starts reading the input. So you have a clean stash each time you call C<read>.
+
+    $parser->read('/another/logfile.log');
+    print "Whereas, the other one had ", $parser->stashed('count'), " errors\n";
+
 =head1 SUMMARY
 
 =for :list
@@ -197,7 +210,7 @@ B<Important Note:> C<$this> is a real variable. If you modify its value, it will
 * In AWK every rule will be tested and executed, even if conditions of previous rules are true. In ExAWK, by default only the first rule where the condition is true, runs. But C<continue_to_next> allows the execution to continue to the next rule.
 * In the UNIX implementation of AWK, the positional variables are limited to C<$9>. In POSIX implementations this limitation has already been removed. Following POSIX, we also remove this limit.
 * In AWK there are no reverse positional variables for positions counted from the end. In ExAWK, you have C<${-1}>, C<${-2}>, C<${-3}> etc.
-* In AWK if you use a positional variable like C<$8> when there are only 7 fields on a line, it evaluates to empty string. In ExAWK, if you use C<$8> in any of the strings, an automatic pre-condition is generated to check that there must be at least 8 fields on the input line.
+* In AWK if you use a positional identifier like C<$8> when there are only 7 fields on a line, it evaluates to empty string. In ExAWK, if you use C<$8> in either the condition or task strings, an automatic pre-condition is generated to check that there must be at least 8 fields on the input line.
 
-L<Table of contents|Text::Parser::Manual> | L<Previous|Text::Parser::Manual::ComparingWithNativePerl> | L<Next|Text::Parser::Manual::UsingTheClass>
+L<Table of contents|Text::Parser::Manual> | L<Previous|Text::Parser::Manual::ComparingWithNativePerl> | L<Next|Text::Parser::Manual::CollectedExamples>
 

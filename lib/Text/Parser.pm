@@ -203,7 +203,7 @@ has auto_chomp => (
 
 Read-write boolean attribute. Defaults to C<0> (false). Indicates if the parser will automatically split every line into fields.
 
-If it is set to a true value, each line will be split into fields, and L<a set of methods|/"USE ONLY IN RULES AND SUBCLASS"> become accessible to C<L<save_record|/save_record>> or the rules.
+If it is set to a true value, each line will be split into fields, and L<a set of methods|/"METHODS USED ONLY IN RULES AND SUBCLASSES"> become accessible to C<L<save_record|/save_record>> or the rules.
 
 =cut
 
@@ -353,11 +353,11 @@ sub __newval_multi_line {
     return $orig->( $self, $newval );
 }
 
-=head1 METHODS
+=head1 METHODS FOR SPECIFYING RULES
 
 These are meant to be called from the C<::main> program or within subclasses.
 
-=method add_rule
+=rules_meth add_rule
 
 Takes a hash as input. The keys of this hash must be the attributes of the L<Text::Parser::Rule> class constructor and the values should also meet the requirements of that constructor.
 
@@ -401,7 +401,7 @@ sub add_rule {
     $self->_push_obj_rule($rule);
 }
 
-=method clear_rules
+=rules_meth clear_rules
 
 Takes no arguments, returns nothing. Clears the rules that were added to the object.
 
@@ -418,7 +418,7 @@ sub clear_rules {
     $self->_clear_end_rule;
 }
 
-=method BEGIN_rule
+=rules_meth BEGIN_rule
 
 Takes a hash input like C<add_rule>, but C<if> and C<continue_to_next> keys will be ignored.
 
@@ -467,7 +467,7 @@ sub _append_rule_lines {
     $opt->{do} = $old->action . $opt->{do};
 }
 
-=method END_rule
+=rules_meth END_rule
 
 Takes a hash input like C<add_rule>, but C<if> and C<continue_to_next> keys will be ignored. Similar to C<BEGIN_rule>, but the actions in the C<END_rule> will be executed at the end of the C<read> method.
 
@@ -494,112 +494,62 @@ sub END_rule {
     $self->_modify_rule( '_end_rule', %opt );
 }
 
-=method read
+=head1 METHODS USED ONLY IN RULES AND SUBCLASSES
 
-Takes a single optional argument that can be either a string containing the name of the file, or a filehandle reference (a C<GLOB>) like C<\*STDIN> or an object of the C<L<FileHandle>> class.
+These methods can be used only inside rules, or methods of a subclass. Some of these methods are available only when C<auto_split> is on. They are listed as follows:
 
-    $parser->read($filename);         # Read the file
-    $parser->read(\*STDIN);           # Read the filehandle
+=for :list
+* L<NF|Text::Parser::AutoSplit/NF> - number of fields on this line
+* L<fields|Text::Parser::AutoSplit/fields> - all the fields as an array of strings ; trailing C<\n> removed
+* L<field|Text::Parser::AutoSplit/field> - access individual elements of the array above ; negative arguments count from back
+* L<field_range|Text::Parser::AutoSplit/field_range> - array of fields in the given range of indices ; negative arguments allowed
+* L<join_range|Text::Parser::AutoSplit/join_range> - join the fields in the range of indices ; negative arguments allowed
+* L<find_field|Text::Parser::AutoSplit/find_field> - returns field for which a given subroutine is true ; each field is passed to the subroutine in C<$_>
+* L<find_field_index|Text::Parser::AutoSplit/find_field_index> - similar to above, except it returns the index of the field instead of the field itself
+* L<splice_fields|Text::Parser::AutoSplit/splice_fields> - like the native Perl C<splice>
 
-The above could also be done in two steps if the developer so chooses.
+Other methods described below are also to be used only inside a rule, or inside methods called by the rules.
 
-    $parser->filename($filename);
-    $parser->read();                  # equiv: $parser->read($filename)
+=sub_use_method abort_reading
 
-    $parser->filehandle(\*STDIN);
-    $parser->read();                  # equiv: $parser->read(\*STDIN)
+Takes no arguments. Returns C<1>. Aborts C<read>ing any more lines, and C<read> method exits gracefully as if nothing unusual happened.
 
-The method returns once all records have been read, or if an exception is thrown, or if reading has been aborted with the C<L<abort_reading|/abort_reading>> method.
+    $parser->add_rule(
+        do          => '$this->abort_reading;',
+        if          => '$1 eq "EOF"', 
+        dont_record => 1, 
+    );
 
-Any C<close> operation will be handled (even if any exception is thrown), as long as C<read> is called with a file name parameter - not if you call with a file handle or C<GLOB> parameter.
+=sub_use_method this_line
 
-    $parser->read('myfile.txt');      # Will close file automatically
+Takes no arguments, and returns the current line being parsed. For example:
 
-    open MYFH, "<myfile.txt" or die "Can't open file myfile.txt at ";
-    $parser->read(\*MYFH);            # Will not close MYFH
-    close MYFH;
+    $parser->add_rule(
+        if => 'length($this->this_line) > 256', 
+    );
+    ## Saves all lines longer than 256 characters
+
+Inside rules, instead of using this method, one may also use C<$_>:
+
+    $parser->add_rule(
+        if => 'length($_) > 256', 
+    );
 
 =cut
 
-sub read {
-    my $self = shift;
-    return if not defined $self->_handle_read_inp(@_);
-    $self->_run_begin_end_block('_begin_rule');
-    $self->__read_and_close_filehandle;
-    $self->_run_begin_end_block('_end_rule');
-    $self->_ExAWK_symbol_table( {} );
-}
-
-sub _handle_read_inp {
-    my $self = shift;
-    return $self->filehandle   if not @_;
-    return                     if not ref( $_[0] ) and not $_[0];
-    return $self->filename(@_) if not ref( $_[0] );
-    return $self->filehandle(@_);
-}
-
-has _ExAWK_symbol_table => (
-    is      => 'rw',
-    isa     => 'HashRef[Any]',
-    default => sub { {} },
-    lazy    => 1,
+has _current_line => (
+    is       => 'ro',
+    isa      => 'Str|Undef',
+    init_arg => undef,
+    writer   => '_set_this_line',
+    reader   => 'this_line',
+    clearer  => '_clear_this_line',
+    default  => undef,
 );
 
-sub _run_begin_end_block {
-    my ( $self, $func ) = ( shift, shift );
-    my $pred = '_has' . $func;
-    return if not $self->$pred();
-    my $rule = $self->$func();
-    $rule->_run( $self, 0 );
-}
+=head1 METHODS FOR READING INPUT
 
-sub __read_and_close_filehandle {
-    my $self = shift;
-    $self->_prep_to_read_file;
-    $self->__read_file_handle;
-    $self->_close_filehandles if $self->_has_filename;
-    $self->_clear_this_line;
-}
-
-sub _prep_to_read_file {
-    my $self = shift;
-    $self->_reset_line_count;
-    $self->_empty_records;
-    $self->_clear_abort;
-}
-
-sub __read_file_handle {
-    my $self = shift;
-    my $fh   = $self->filehandle();
-    while (<$fh>) {
-        last if not $self->__parse_line($_);
-    }
-}
-
-sub __parse_line {
-    my ( $self, $line ) = ( shift, shift );
-    $self->_next_line_parsed();
-    $line = $self->_def_line_manip($line);
-    $self->_set_this_line($line);
-    $self->save_record($line);
-    return not $self->has_aborted;
-}
-
-sub _def_line_manip {
-    my ( $self, $line ) = ( shift, shift );
-    chomp $line if $self->auto_chomp;
-    return $self->_trim_line($line);
-}
-
-sub _trim_line {
-    my ( $self, $line ) = ( shift, shift );
-    return $line        if $self->auto_trim eq 'n';
-    return trim($line)  if $self->auto_trim eq 'b';
-    return ltrim($line) if $self->auto_trim eq 'l';
-    return rtrim($line);
-}
-
-=method filename
+=read_meth filename
 
 Takes an optional string argument containing the name of a file. Returns the name of the file that was last opened if any. Returns C<undef> if no file has been opened.
 
@@ -663,7 +613,7 @@ sub _throw_invalid_file_exception {
     die file_not_plain_text( name => $fname );
 }
 
-=method filehandle
+=read_meth filehandle
 
 Takes an optional argument, that is a filehandle C<GLOB> (such as C<\*STDIN>) or an object of the C<FileHandle> class. Returns the filehandle last saved, or C<undef> if none was saved.
 
@@ -696,34 +646,107 @@ sub filehandle {
     return $self->_get_filehandle;
 }
 
-=method lines_parsed
+=read_meth read
 
-Takes no arguments. Returns the number of lines last parsed. Every call to C<read>, causes the value to be auto-reset.
+Takes a single optional argument that can be either a string containing the name of the file, or a filehandle reference (a C<GLOB>) like C<\*STDIN> or an object of the C<L<FileHandle>> class.
 
-    print $parser->lines_parsed, " lines were parsed\n";
+    $parser->read($filename);         # Read the file
+    $parser->read(\*STDIN);           # Read the filehandle
+
+The above could also be done in two steps if the developer so chooses.
+
+    $parser->filename($filename);
+    $parser->read();                  # equiv: $parser->read($filename)
+
+    $parser->filehandle(\*STDIN);
+    $parser->read();                  # equiv: $parser->read(\*STDIN)
+
+The method returns once all records have been read, or if an exception is thrown, or if reading has been aborted with the C<L<abort_reading|/abort_reading>> method.
+
+Any C<close> operation will be handled (even if any exception is thrown), as long as C<read> is called with a file name parameter - not if you call with a file handle or C<GLOB> parameter.
+
+    $parser->read('myfile.txt');      # Will close file automatically
+
+    open MYFH, "<myfile.txt" or die "Can't open file myfile.txt at ";
+    $parser->read(\*MYFH);            # Will not close MYFH
+    close MYFH;
 
 =cut
 
-has lines_parsed => (
-    is       => 'ro',
-    isa      => 'Int',
-    lazy     => 1,
-    init_arg => undef,
-    default  => 0,
-    traits   => ['Counter'],
-    handles  => {
-        _next_line_parsed => 'inc',
-        _reset_line_count => 'reset',
+sub read {
+    my $self = shift;
+    return if not defined $self->_handle_read_inp(@_);
+    $self->clear_stash;
+    $self->_run_begin_end_block('_begin_rule');
+    $self->__read_and_close_filehandle;
+    $self->_run_begin_end_block('_end_rule');
+}
+
+sub _handle_read_inp {
+    my $self = shift;
+    return $self->filehandle   if not @_;
+    return                     if not ref( $_[0] ) and not $_[0];
+    return $self->filename(@_) if not ref( $_[0] );
+    return $self->filehandle(@_);
+}
+
+sub _run_begin_end_block {
+    my ( $self, $func ) = ( shift, shift );
+    my $pred = '_has' . $func;
+    return if not $self->$pred();
+    my $rule = $self->$func();
+    $rule->_run( $self, 0 );
+}
+
+sub __read_and_close_filehandle {
+    my $self = shift;
+    $self->_prep_to_read_file;
+    $self->__read_file_handle;
+    $self->_close_filehandles if $self->_has_filename;
+    $self->_clear_this_line;
+}
+
+sub _prep_to_read_file {
+    my $self = shift;
+    $self->_reset_line_count;
+    $self->_empty_records;
+    $self->_clear_abort;
+}
+
+sub __read_file_handle {
+    my $self = shift;
+    my $fh   = $self->filehandle();
+    while (<$fh>) {
+        last if not $self->__parse_line($_);
     }
-);
+}
 
-=method push_records
+sub __parse_line {
+    my ( $self, $line ) = ( shift, shift );
+    $self->_next_line_parsed();
+    $line = $self->_def_line_manip($line);
+    $self->_set_this_line($line);
+    $self->save_record($line);
+    return not $self->has_aborted;
+}
 
-Takes an array as input, and stores each element as a separate record. Returns the number of elements in the new array.
+sub _def_line_manip {
+    my ( $self, $line ) = ( shift, shift );
+    chomp $line if $self->auto_chomp;
+    return $self->_trim_line($line);
+}
 
-    $parser->push_records(qw(insert these as separate records));
+sub _trim_line {
+    my ( $self, $line ) = ( shift, shift );
+    return $line        if $self->auto_trim eq 'n';
+    return trim($line)  if $self->auto_trim eq 'b';
+    return ltrim($line) if $self->auto_trim eq 'l';
+    return rtrim($line);
+}
 
-=method get_records
+=head1 METHODS FOR HANDLING RECORDS
+
+=records_meth get_records
 
 Takes no arguments. Returns an array containing all the records saved by the parser.
 
@@ -732,11 +755,32 @@ Takes no arguments. Returns an array containing all the records saved by the par
         print "Record: $i: ", $record, "\n";
     }
 
-=method pop_record
+=records_meth last_record
+
+Takes no arguments and returns the last saved record. Leaves the saved records untouched.
+
+    my $last_rec = $parser->last_record;
+
+=cut
+
+sub last_record {
+    my $self  = shift;
+    my $count = $self->_num_records();
+    return if not $count;
+    return $self->_access_record( $count - 1 );
+}
+
+=records_meth pop_record
 
 Takes no arguments and pops the last saved record.
 
     my $last_rec = $parser->pop_record;
+
+=records_meth push_records
+
+Takes an array as input, and stores each element as a separate record. Returns the number of elements in the new array.
+
+    $parser->push_records(qw(insert these as separate records));
 
 =cut
 
@@ -759,22 +803,114 @@ has records => (
     },
 );
 
-=method last_record
+=head1 METHODS FOR ACCESSING STASHED VARIABLES
 
-Takes no arguments and returns the last saved record. Leaves the saved records untouched.
+Stashed variables can be data structures or simple scalar variables stored as elements in the parser object. Hence they are accessible across different rules. Stashed variables start with a tilde (~). So you could set up rules like these:
 
-    my $last_rec = $parser->last_record;
+    $parser->BEGIN_rule( do => '~count=0;' );
+    $parser->add_rule( if => '$1 eq "SECTION"', do => '~count++;' );
+    $pasrer->read('some_text_file.txt');
+    print "Found ", $parser->stashed('count'), " sections in file.\n";
+
+=stash_meth clear_stash
+
+Takes no arguments, and returns nothing. Clears the stash of variables, or forgets all previously recorded stashed variables, if any.
+
+    $parser->clear_stash;
+
+This method is automatically called right before C<read> starts reading the text input.
+
+=stash_meth forget
+
+Takes a list of string arguments which must be the names of stashed variables. This method forgets those stashed variables for ever. So be sure you really intend to do this.
+
+    $parser->forget('forget_me');
+
+=stash_meth has_empty_stash
+
+Takes no arguments and returns a true value if the stash of variables is empty (i.e., no stashed variables are present). If not, it returns a boolean false.
+
+    if ( not $parser->has_empty_stash ) {
+        my $myvar = $parser->stashed('myvar');
+        print "myvar = $myvar\n";
+    }
+
+=stash_meth has_stashed
+
+Takes a single string argument and returns a boolean indicating if there is a stashed variable with that name or not:
+
+    if ( $parser->has_stashed('stashed_var') ) {
+        print "Here is what stashed_var contains: ", $parser->stashed('stashed_var');
+    }
+
+=stash_meth stashed
+
+Takes an optional list of string arguments each with the name of a stashed variable you want to query, i.e., get the value of. In list context, it returns their values in the same order as the queried variables, and in scalar context it returns the value of the last variable queried.
+
+    my (%var_vals) = $parser->stashed;
+    my (@vars)     = $parser->stashed( qw(first second third) );
+    my $third      = $parser->stashed( qw(first second third) ); # returns only the value of third
+    my $myvar      = $parser->stashed('myvar');
+
+Or you could do this:
+
+    use Data::Dumper 'Dumper';
+
+    if ( $parser->has_empty_stash ) {
+        print "Nothing on my stash\n";
+    } else {
+        my %stash = $parser->stashed;
+        print Dumper(\%stash), "\n";
+    }
 
 =cut
 
-sub last_record {
-    my $self  = shift;
-    my $count = $self->_num_records();
-    return if not $count;
-    return $self->_access_record( $count - 1 );
+has _ExAWK_symbol_table => (
+    is      => 'ro',
+    isa     => 'HashRef[Any]',
+    default => sub { {} },
+    lazy    => 1,
+    traits  => ['Hash'],
+    handles => {
+        clear_stash     => 'clear',
+        _stashed        => 'elements',
+        has_stashed     => 'exists',
+        forget          => 'delete',
+        has_empty_stash => 'is_empty',
+        _get_vars       => 'get',
+    }
+);
+
+sub stashed {
+    my $self = shift;
+    return $self->_get_vars(@_) if @_;
+    return $self->_stashed;
 }
 
-=method has_aborted
+=head1 MISCELLANEOUS METHODS
+
+=misc_meth lines_parsed
+
+Takes no arguments. Returns the number of lines last parsed. Every call to C<read>, causes the value to be auto-reset.
+
+    print $parser->lines_parsed, " lines were parsed\n";
+
+=cut
+
+has lines_parsed => (
+    is       => 'ro',
+    isa      => 'Int',
+    lazy     => 1,
+    init_arg => undef,
+    default  => 0,
+    traits   => ['Counter'],
+    handles  => {
+        _next_line_parsed => 'inc',
+        _reset_line_count => 'reset',
+    }
+);
+
+=misc_meth has_aborted
 
 Takes no arguments, returns a boolean to indicate if text reading was aborted in the middle.
 
@@ -795,7 +931,7 @@ has abort => (
     },
 );
 
-=method custom_line_unwrap_routines
+=misc_meth custom_line_unwrap_routines
 
 This method should be used only when the line-wrapping supported by the text format is not already among the L<known line-wrapping styles supported|/"Common line-wrapping styles">.
 
@@ -860,59 +996,6 @@ sub _prep_for_custom_unwrap_routines {
         and 'custom' ne $self->line_wrap_style;
     $self->line_wrap_style('custom');
 }
-
-=head1 USE ONLY IN RULES AND SUBCLASS
-
-These methods can be used only inside rules, or methods of a subclass. Some of these methods are available only when C<auto_split> is on. They are listed as follows:
-
-=for :list
-* L<NF|Text::Parser::AutoSplit/NF> - number of fields on this line
-* L<fields|Text::Parser::AutoSplit/fields> - all the fields as an array of strings ; trailing C<\n> removed
-* L<field|Text::Parser::AutoSplit/field> - access individual elements of the array above ; negative arguments count from back
-* L<field_range|Text::Parser::AutoSplit/field_range> - array of fields in the given range of indices ; negative arguments allowed
-* L<join_range|Text::Parser::AutoSplit/join_range> - join the fields in the range of indices ; negative arguments allowed
-* L<find_field|Text::Parser::AutoSplit/find_field> - returns field for which a given subroutine is true ; each field is passed to the subroutine in C<$_>
-* L<find_field_index|Text::Parser::AutoSplit/find_field_index> - similar to above, except it returns the index of the field instead of the field itself
-* L<splice_fields|Text::Parser::AutoSplit/splice_fields> - like the native Perl C<splice>
-
-Other methods described below are also to be used only inside a rule, or inside methods called by the rules.
-
-=sub_use_method abort_reading
-
-Takes no arguments. Returns C<1>. Aborts C<read>ing any more lines, and C<read> method exits gracefully as if nothing unusual happened.
-
-    $parser->add_rule(
-        do          => '$this->abort_reading;',
-        if          => '$1 eq "EOF"', 
-        dont_record => 1, 
-    );
-
-=sub_use_method this_line
-
-Takes no arguments, and returns the current line being parsed. For example:
-
-    $parser->add_rule(
-        if => 'length($this->this_line) > 256', 
-    );
-    ## Saves all lines longer than 256 characters
-
-Inside rules, instead of using this method, one may also use C<$_>:
-
-    $parser->add_rule(
-        if => 'length($_) > 256', 
-    );
-
-=cut
-
-has _current_line => (
-    is       => 'ro',
-    isa      => 'Str|Undef',
-    init_arg => undef,
-    writer   => '_set_this_line',
-    reader   => 'this_line',
-    clearer  => '_clear_this_line',
-    default  => undef,
-);
 
 =head1 HANDLING LINE-WRAPPING
 
@@ -981,9 +1064,11 @@ To setup custom line-unwrapping routines in a subclass, you can use the C<L<unwr
         unwrap_routine => \&_my_unwrap_routine, 
     );
 
-=head1 OVERRIDE IN SUBCLASS
+=head1 METHODS THAT MAY BE OVERRIDDEN IN SUBCLASSES
 
-The following methods should never be called in the C<::main> program. They may be overridden (or re-defined) in a subclass. For the most part, one would never have to override any of these methods at all. But just in case someone wants to...
+The following methods should never be called in the C<::main> program. They may be overridden (or re-defined) in a subclass.
+
+Starting version 0.925, one should never have to override any of these methods at all. But just in case someone wants to...
 
 =inherit save_record
 
@@ -1134,14 +1219,10 @@ sub _jnl_join_last_line {
     return $last . $line;
 }
 
-=head1 EXAMPLES
-
-You can find example code in L<Text::Parser::Manual::ComparingWithNativePerl>.
-
 =head1 SEE ALSO
 
 =for :list
-* L<Text::Parser::Manual> - Read this manual
+* L<Text::Parser::Manual> - Read this manual to learn how to do cool things with this class
 * L<The AWK Programming Language|https://books.google.com/books/about/The_AWK_Programming_Language.html?id=53ueQgAACAAJ> - by B<A>ho, B<W>einberg, and B<K>ernighan.
 * L<Text::Parser::Errors> - documentation of the exceptions this class throws
 * L<Text::Parser::Multiline> - how to read line-wrapped text input

@@ -271,15 +271,21 @@ Do I have to really do this? Why don't I let you try this yourself.
     use Text::Parser;
 
     my $parser = Text::Parser->new(FS => qr/\s+\=\s+|,\s+/);
-    $parser->add_rule(if => '$1 eq "School"',
-        do => '~school = $2; return {$2 => {}};');
-    $parser->add_rule(if => '$1 eq "Grade"',
-        do => 'my $p = $this->pop_record;
-        $p->{~school}{$2} = {};
-        ~grade = $2;
-        return $p;');
-    $parser->add_rule(if => '$1 eq "Student number"',
-        do => '~info = $2;', dont_record => 1);
+    $parser->add_rule(
+        if          => '$1 eq "School"',
+        do          => '~school = $2;', 
+        dont_record => 1, 
+    );
+    $parser->add_rule(
+        if          => '$1 eq "Grade"',
+        do          => '~grade = $2;', 
+        dont_record => 1, 
+    );
+    $parser->add_rule(
+        if          => '$1 eq "Student number"',
+        do          => '~info = $2;',
+        dont_record => 1
+    );
     $parser->add_rule(
         do => 'my $p = $this->pop_record;
         $p->{~school}{~grade}{$1}{~info} = $2;
@@ -287,9 +293,13 @@ Do I have to really do this? Why don't I let you try this yourself.
     );
     $parser->read('info.txt');
 
-That's it!
+That's it! Just notice how elegant it looks.
 
 By now, you I<should> have concluded that the L<Text::Parser> way is much better. If not, you must know a better solution and perhaps you should make a Perl module (or feel free to contact me and contribute if you like this project).
+
+=head1 PERFORMANCE
+
+There will be a compile-time penalty in using L<Text::Parser>. If compile-time performance is important for you, maybe this package is not for you.
 
 L<Table of contents|Text::Parser::Manual> | L<Next|Text::Parser::Manual::ExtendedAWKSyntax>
 

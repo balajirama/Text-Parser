@@ -119,7 +119,7 @@ Read-write attribute. Takes a boolean value as parameter. Defaults to C<0>.
 
 Read-write boolean attribute. Defaults to C<0> (false). Indicates if the parser will automatically split every line into fields.
 
-If it is set to a true value, each line will be split into fields, and L<a set of methods|/"USE ONLY IN RULES AND SUBCLASS"> become accessible to C<L<save_record|/save_record>> or the rules.
+If it is set to a true value, each line will be split into fields, and L<a set of methods|/"METHODS USED ONLY IN RULES AND SUBCLASSES"> become accessible to C<L<save_record|/save_record>> or the rules.
 
 =head2 auto_trim
 
@@ -192,7 +192,7 @@ If the target format allows line-wrapping I<from the B<last>> line, set C<multil
 
 To know more about how to use this, read about L<specifying custom line-unwrap routines|/"Specifying custom line-unwrap routines">.
 
-=head1 METHODS
+=head1 METHODS FOR SPECIFYING RULES
 
 These are meant to be called from the C<::main> program or within subclasses.
 
@@ -258,135 +258,7 @@ By default C<dont_record> is set true. User I<can> change this and set C<dont_re
 
 =back
 
-=head2 read
-
-Takes a single optional argument that can be either a string containing the name of the file, or a filehandle reference (a C<GLOB>) like C<\*STDIN> or an object of the C<L<FileHandle>> class.
-
-    $parser->read($filename);         # Read the file
-    $parser->read(\*STDIN);           # Read the filehandle
-
-The above could also be done in two steps if the developer so chooses.
-
-    $parser->filename($filename);
-    $parser->read();                  # equiv: $parser->read($filename)
-
-    $parser->filehandle(\*STDIN);
-    $parser->read();                  # equiv: $parser->read(\*STDIN)
-
-The method returns once all records have been read, or if an exception is thrown, or if reading has been aborted with the C<L<abort_reading|/abort_reading>> method.
-
-Any C<close> operation will be handled (even if any exception is thrown), as long as C<read> is called with a file name parameter - not if you call with a file handle or C<GLOB> parameter.
-
-    $parser->read('myfile.txt');      # Will close file automatically
-
-    open MYFH, "<myfile.txt" or die "Can't open file myfile.txt at ";
-    $parser->read(\*MYFH);            # Will not close MYFH
-    close MYFH;
-
-=head2 filename
-
-Takes an optional string argument containing the name of a file. Returns the name of the file that was last opened if any. Returns C<undef> if no file has been opened.
-
-    print "Last read ", $parser->filename, "\n";
-
-The value stored is "persistent" - meaning that the method remembers the last file that was C<L<read|/read>>.
-
-    $parser->read(shift @ARGV);
-    print $parser->filename(), ":\n",
-          "=" x (length($parser->filename())+1),
-          "\n",
-          $parser->get_records(),
-          "\n";
-
-A C<read> call with a filehandle, will clear the last file name.
-
-    $parser->read(\*MYFH);
-    print "Last file name is lost\n" if not defined $parser->filename();
-
-=head2 filehandle
-
-Takes an optional argument, that is a filehandle C<GLOB> (such as C<\*STDIN>) or an object of the C<FileHandle> class. Returns the filehandle last saved, or C<undef> if none was saved.
-
-    my $fh = $parser->filehandle();
-
-Like C<L<filename|/filename>>, C<filehandle> is also "persistent". Its old value is lost when either C<filename> is set, or C<read> is called with a filename.
-
-    $parser->read(\*STDOUT);
-    my $lastfh = $parser->filehandle();          # Will return glob of STDOUT
-
-=head2 lines_parsed
-
-Takes no arguments. Returns the number of lines last parsed. Every call to C<read>, causes the value to be auto-reset.
-
-    print $parser->lines_parsed, " lines were parsed\n";
-
-=head2 push_records
-
-Takes an array as input, and stores each element as a separate record. Returns the number of elements in the new array.
-
-    $parser->push_records(qw(insert these as separate records));
-
-=head2 get_records
-
-Takes no arguments. Returns an array containing all the records saved by the parser.
-
-    foreach my $record ( $parser->get_records ) {
-        $i++;
-        print "Record: $i: ", $record, "\n";
-    }
-
-=head2 pop_record
-
-Takes no arguments and pops the last saved record.
-
-    my $last_rec = $parser->pop_record;
-
-=head2 last_record
-
-Takes no arguments and returns the last saved record. Leaves the saved records untouched.
-
-    my $last_rec = $parser->last_record;
-
-=head2 has_aborted
-
-Takes no arguments, returns a boolean to indicate if text reading was aborted in the middle.
-
-    print "Aborted\n" if $parser->has_aborted();
-
-=head2 custom_line_unwrap_routines
-
-This method should be used only when the line-wrapping supported by the text format is not already among the L<known line-wrapping styles supported|/"Common line-wrapping styles">.
-
-Takes a hash argument with required keys C<is_wrapped> and C<unwrap_routine>. Used in setting up L<custom line-unwrapping routines|/"Specifying custom line-unwrap routines">.
-
-Here is an example of setting custom line-unwrapping routines:
-
-    $parser->multiline_type('join_last');
-    $parser->custom_line_unwrap_routines(
-        is_wrapped => sub {     # A method that detects if this line is wrapped or not
-            my ($self, $this_line) = @_;
-            $this_line =~ /^[~]/;
-        }, 
-        unwrap_routine => sub { # A method to unwrap the line by joining it with the last line
-            my ($self, $last_line, $this_line) = @_;
-            chomp $last_line;
-            $last_line =~ s/\s*$//g;
-            $this_line =~ s/^[~]\s*//g;
-            "$last_line $this_line";
-        }, 
-    );
-
-Now you can parse a file with the following content:
-
-    This is a long line that is wrapped around with a custom
-    ~ character - the tilde. It is unusual, but hey, we're
-    ~ showing an example.
-
-When C<$parser> gets to C<read> this, these three lines get unwrapped and processed by the rules, as if it were a single line.
-
-L<Text::Parser::Multiline> shows another example with C<join_next> type.
-
-=head1 USE ONLY IN RULES AND SUBCLASS
+=head1 METHODS USED ONLY IN RULES AND SUBCLASSES
 
 These methods can be used only inside rules, or methods of a subclass. Some of these methods are available only when C<auto_split> is on. They are listed as follows:
 
@@ -453,9 +325,205 @@ Inside rules, instead of using this method, one may also use C<$_>:
         if => 'length($_) > 256', 
     );
 
-=head1 OVERRIDE IN SUBCLASS
+=head1 METHODS FOR READING INPUT
 
-The following methods should never be called in the C<::main> program. They may be overridden (or re-defined) in a subclass. For the most part, one would never have to override any of these methods at all. But just in case someone wants to...
+=head2 filename
+
+Takes an optional string argument containing the name of a file. Returns the name of the file that was last opened if any. Returns C<undef> if no file has been opened.
+
+    print "Last read ", $parser->filename, "\n";
+
+The value stored is "persistent" - meaning that the method remembers the last file that was C<L<read|/read>>.
+
+    $parser->read(shift @ARGV);
+    print $parser->filename(), ":\n",
+          "=" x (length($parser->filename())+1),
+          "\n",
+          $parser->get_records(),
+          "\n";
+
+A C<read> call with a filehandle, will clear the last file name.
+
+    $parser->read(\*MYFH);
+    print "Last file name is lost\n" if not defined $parser->filename();
+
+=head2 filehandle
+
+Takes an optional argument, that is a filehandle C<GLOB> (such as C<\*STDIN>) or an object of the C<FileHandle> class. Returns the filehandle last saved, or C<undef> if none was saved.
+
+    my $fh = $parser->filehandle();
+
+Like C<L<filename|/filename>>, C<filehandle> is also "persistent". Its old value is lost when either C<filename> is set, or C<read> is called with a filename.
+
+    $parser->read(\*STDOUT);
+    my $lastfh = $parser->filehandle();          # Will return glob of STDOUT
+
+=head2 read
+
+Takes a single optional argument that can be either a string containing the name of the file, or a filehandle reference (a C<GLOB>) like C<\*STDIN> or an object of the C<L<FileHandle>> class.
+
+    $parser->read($filename);         # Read the file
+    $parser->read(\*STDIN);           # Read the filehandle
+
+The above could also be done in two steps if the developer so chooses.
+
+    $parser->filename($filename);
+    $parser->read();                  # equiv: $parser->read($filename)
+
+    $parser->filehandle(\*STDIN);
+    $parser->read();                  # equiv: $parser->read(\*STDIN)
+
+The method returns once all records have been read, or if an exception is thrown, or if reading has been aborted with the C<L<abort_reading|/abort_reading>> method.
+
+Any C<close> operation will be handled (even if any exception is thrown), as long as C<read> is called with a file name parameter - not if you call with a file handle or C<GLOB> parameter.
+
+    $parser->read('myfile.txt');      # Will close file automatically
+
+    open MYFH, "<myfile.txt" or die "Can't open file myfile.txt at ";
+    $parser->read(\*MYFH);            # Will not close MYFH
+    close MYFH;
+
+=head1 METHODS FOR HANDLING RECORDS
+
+=head2 get_records
+
+Takes no arguments. Returns an array containing all the records saved by the parser.
+
+    foreach my $record ( $parser->get_records ) {
+        $i++;
+        print "Record: $i: ", $record, "\n";
+    }
+
+=head2 last_record
+
+Takes no arguments and returns the last saved record. Leaves the saved records untouched.
+
+    my $last_rec = $parser->last_record;
+
+=head2 pop_record
+
+Takes no arguments and pops the last saved record.
+
+    my $last_rec = $parser->pop_record;
+
+=head2 push_records
+
+Takes an array as input, and stores each element as a separate record. Returns the number of elements in the new array.
+
+    $parser->push_records(qw(insert these as separate records));
+
+=head1 METHODS FOR ACCESSING STASHED VARIABLES
+
+Stashed variables can be data structures or simple scalar variables stored as elements in the parser object. Hence they are accessible across different rules. Stashed variables start with a tilde (~). So you could set up rules like these:
+
+    $parser->BEGIN_rule( do => '~count=0;' );
+    $parser->add_rule( if => '$1 eq "SECTION"', do => '~count++;' );
+    $pasrer->read('some_text_file.txt');
+    print "Found ", $parser->stashed('count'), " sections in file.\n";
+
+=head2 clear_stash
+
+Takes no arguments, and returns nothing. Clears the stash of variables, or forgets all previously recorded stashed variables, if any.
+
+    $parser->clear_stash;
+
+This method is automatically called right before C<read> starts reading the text input.
+
+=head2 forget
+
+Takes a list of string arguments which must be the names of stashed variables. This method forgets those stashed variables for ever. So be sure you really intend to do this.
+
+    $parser->forget('forget_me');
+
+=head2 has_empty_stash
+
+Takes no arguments and returns a true value if the stash of variables is empty (i.e., no stashed variables are present). If not, it returns a boolean false.
+
+    if ( not $parser->has_empty_stash ) {
+        my $myvar = $parser->stashed('myvar');
+        print "myvar = $myvar\n";
+    }
+
+=head2 has_stashed
+
+Takes a single string argument and returns a boolean indicating if there is a stashed variable with that name or not:
+
+    if ( $parser->has_stashed('stashed_var') ) {
+        print "Here is what stashed_var contains: ", $parser->stashed('stashed_var');
+    }
+
+=head2 stashed
+
+Takes an optional list of string arguments each with the name of a stashed variable you want to query, i.e., get the value of. In list context, it returns their values in the same order as the queried variables, and in scalar context it returns the value of the last variable queried.
+
+    my (%var_vals) = $parser->stashed;
+    my (@vars)     = $parser->stashed( qw(first second third) );
+    my $third      = $parser->stashed( qw(first second third) ); # returns only the value of third
+    my $myvar      = $parser->stashed('myvar');
+
+Or you could do this:
+
+    use Data::Dumper 'Dumper';
+
+    if ( $parser->has_empty_stash ) {
+        print "Nothing on my stash\n";
+    } else {
+        my %stash = $parser->stashed;
+        print Dumper(\%stash), "\n";
+    }
+
+=head1 MISCELLANEOUS METHODS
+
+=head2 lines_parsed
+
+Takes no arguments. Returns the number of lines last parsed. Every call to C<read>, causes the value to be auto-reset.
+
+    print $parser->lines_parsed, " lines were parsed\n";
+
+=head2 has_aborted
+
+Takes no arguments, returns a boolean to indicate if text reading was aborted in the middle.
+
+    print "Aborted\n" if $parser->has_aborted();
+
+=head2 custom_line_unwrap_routines
+
+This method should be used only when the line-wrapping supported by the text format is not already among the L<known line-wrapping styles supported|/"Common line-wrapping styles">.
+
+Takes a hash argument with required keys C<is_wrapped> and C<unwrap_routine>. Used in setting up L<custom line-unwrapping routines|/"Specifying custom line-unwrap routines">.
+
+Here is an example of setting custom line-unwrapping routines:
+
+    $parser->multiline_type('join_last');
+    $parser->custom_line_unwrap_routines(
+        is_wrapped => sub {     # A method that detects if this line is wrapped or not
+            my ($self, $this_line) = @_;
+            $this_line =~ /^[~]/;
+        }, 
+        unwrap_routine => sub { # A method to unwrap the line by joining it with the last line
+            my ($self, $last_line, $this_line) = @_;
+            chomp $last_line;
+            $last_line =~ s/\s*$//g;
+            $this_line =~ s/^[~]\s*//g;
+            "$last_line $this_line";
+        }, 
+    );
+
+Now you can parse a file with the following content:
+
+    This is a long line that is wrapped around with a custom
+    ~ character - the tilde. It is unusual, but hey, we're
+    ~ showing an example.
+
+When C<$parser> gets to C<read> this, these three lines get unwrapped and processed by the rules, as if it were a single line.
+
+L<Text::Parser::Multiline> shows another example with C<join_next> type.
+
+=head1 METHODS THAT MAY BE OVERRIDDEN IN SUBCLASSES
+
+The following methods should never be called in the C<::main> program. They may be overridden (or re-defined) in a subclass.
+
+Starting version 0.925, one should never have to override any of these methods at all. But just in case someone wants to...
 
 =head2 save_record
 
@@ -480,10 +548,6 @@ In earlier versions of L<Text::Parser> you had no way but to subclass L<Text::Pa
 The default implementation of this routine takes two string arguments, joins them without any C<chomp> or any other operation, and returns that result.
 
 In earlier versions of L<Text::Parser> you had no way but to subclass L<Text::Parser> to select a line-unwrapping routine. Now you can instead select from a list of known C<line_wrap_style>s, or even set custom methods for this.
-
-=head1 EXAMPLES
-
-You can find example code in L<Text::Parser::Manual::ComparingWithNativePerl>.
 
 =head1 RATIONALTE
 
@@ -567,9 +631,9 @@ You may subclass C<Text::Paser> to parse your specific text format. And that for
     has '+line_wrap_style' => ( default => 'slurp', is => 'ro');
     has '+multiline_type'  => ( is => 'ro' );
 
-Of course, you don't I<have> to make them read-only, but you I<can> do so to ensure the line-unwrapping can't be turned off.
+Of course, you don't I<have> to make them read-only.
 
-To setup custom line-unwrapping routines in a subclass, you can use the syntax sugar from L<Text::Parser::RuleSpec>. For example:
+To setup custom line-unwrapping routines in a subclass, you can use the C<L<unwraps_lines_using|Text::Parser::RuleSpec/"unwraps_lines_using">> syntax sugar from L<Text::Parser::RuleSpec>. For example:
 
     package MyParser;
 
@@ -581,7 +645,7 @@ To setup custom line-unwrapping routines in a subclass, you can use the syntax s
         is => 'ro', 
     );
 
-    unwrap_routines(
+    unwraps_lines_using(
         is_wrapped     => \&_my_is_wrapped_routine, 
         unwrap_routine => \&_my_unwrap_routine, 
     );
@@ -592,7 +656,7 @@ To setup custom line-unwrapping routines in a subclass, you can use the syntax s
 
 =item *
 
-L<Text::Parser::Manual> - Read this manual
+L<Text::Parser::Manual> - Read this manual to learn how to do cool things with this class
 
 =item *
 
