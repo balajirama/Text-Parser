@@ -46,17 +46,6 @@ is_deeply(
 );
 isnt( $parser->has_stashed('del_me'), 1, 'del_me no longer exists' );
 
-lives_ok {
-    $parser->read('t/names.txt');
-}
-'No errors in reading file - pass 2';
-is( $parser->stashed('count'), 5, '5 times' );
-is_deeply(
-    $parser->stashed('err_lines'),
-    [ 6, 7, 6, 7 ],
-    '2nd matches the err_lines'
-);
-
 $parser->forget;
 isnt( $parser->has_stashed('count'), 1, 'No longer has count' );
 is( $parser->has_stashed('del_1'), 1, 'Still has del_1' );
@@ -68,6 +57,22 @@ lives_ok {
     $parser->forget('non_existent');
 }
 'Does not die when you try to forget a non-existent variable';
+
+lives_ok {
+    $parser->read('t/names.txt');
+}
+'No errors in reading file - pass 2';
+is( $parser->stashed('count'), 5, '5 times' );
+is_deeply(
+    $parser->stashed('err_lines'),
+    [ 6, 7, 6, 7 ],
+    '2nd matches the err_lines'
+);
+isnt( $parser->has_empty_stash, 1, 'Not an empty stash' );
+$parser->forget('count');
+isnt( $parser->has_stashed('count'), 1, 'count removed now' );
+isnt( $parser->has_stashed('del_2'), 1, 'del_2 not present' );
+is( $parser->has_stashed('del_1'), 1, 'del_1 still present' );
 
 done_testing;
 
