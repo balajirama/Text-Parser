@@ -37,7 +37,8 @@ lives_ok {
     $parser->read('t/names.txt');
 }
 'No errors in reading file - pass 1';
-is( $parser->stashed('count'), 5, '5 times' );
+is( $parser->has_stashed('count'), 1, 'count is a stashed variable' );
+is( $parser->stashed('count'),     5, '5 times' );
 is_deeply(
     $parser->stashed('err_lines'),
     [ 6, 7 ],
@@ -63,6 +64,10 @@ is( $parser->has_stashed('del_2'), 1, 'Still has del_2' );
 $parser->forget('del_2');
 is( $parser->has_stashed('del_1'), 1, 'Still has del_1' );
 isnt( $parser->has_stashed('del_2'), 1, 'del_2 now forgotten' );
+lives_ok {
+    $parser->forget('non_existent');
+}
+'Does not die when you try to forget a non-existent variable';
 
 done_testing;
 
