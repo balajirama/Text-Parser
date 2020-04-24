@@ -676,7 +676,6 @@ Any C<close> operation will be handled (even if any exception is thrown), as lon
 sub read {
     my $self = shift;
     return if not defined $self->_handle_read_inp(@_);
-    $self->clear_stash;
     $self->_run_begin_end_block('_begin_rule');
     $self->__read_and_close_filehandle;
     $self->_run_begin_end_block('_end_rule');
@@ -690,7 +689,26 @@ sub _handle_read_inp {
     return $self->filehandle(@_);
 }
 
+sub _before_begin {
+    my $self = shift;
+    $self->forget;
+    $self->_preset_vars( $self->_all_preset ) if not $self->_has_no_prestash;
+}
+
+sub _after_end {
+    my $self = shift;
+    my $h    = $self->_hidden_stash;
+    $h->{$_} = $self->stashed($_) for ( keys %{$h} );
+}
+
 sub _run_begin_end_block {
+    my ( $self, $func ) = ( shift, shift );
+    $self->_before_begin if $func eq '_begin_rule';
+    $self->_run_beg_end__($func);
+    $self->_after_end if $func eq '_end_rule';
+}
+
+sub _run_beg_end__ {
     my ( $self, $func ) = ( shift, shift );
     my $pred = '_has' . $func;
     return if not $self->$pred();
@@ -809,22 +827,55 @@ Stashed variables can be data structures or simple scalar variables stored as el
 
     $parser->BEGIN_rule( do => '~count=0;' );
     $parser->add_rule( if => '$1 eq "SECTION"', do => '~count++;' );
-    $pasrer->read('some_text_file.txt');
+
+In the above rule C<~count> is a stashed variable. Internally this is just a hash element with key named C<count>. After the C<read> call is over, this variable can be accessed.
+
+    $parser->read('some_text_file.txt');
     print "Found ", $parser->stashed('count'), " sections in file.\n";
 
-=stash_meth clear_stash
+Stashed variables that are created entirely within the rules are forgotten at the beginning of the next C<read> call. This means, you can C<read> another text file and don't have to bother to clear out the stashed variable C<~count>.
 
-Takes no arguments, and returns nothing. Clears the stash of variables, or forgets all previously recorded stashed variables, if any.
+    $parser->read('another_text_file.txt');
+    print "Found ", $parser->stashed('count'), " sections in file.\n";
 
-    $parser->clear_stash;
+In contrast, stashed variables created by calling C<prestash> continue to persist for subsequent calls of C<read>, unless an explicit call to C<forget> names these pre-stashed variables.
 
-This method is automatically called right before C<read> starts reading the text input.
+    $parser->prestash( max_err => 100 );
+    $parser->BEGIN_rule( do => '~err_count = 0;' );
+    $parser->add_rule(
+        if               => '$1 eq "ERROR:" && ~err_count < ~max_err',
+        do               => '~err_count++;', 
+        continue_to_next => 1, 
+    );
+    $parser->add_rule(
+        if => '$1 eq "ERROR:" && ~err_count == ~max_err',
+        do => '$this->abort_reading;', 
+    );
+    $parser->read('first.log');
+    print "Top 100 errors:\n", $parser->get_records, "\n";
+    
+    $parser->read('another.log');         # max_err is still set to 100, but err_count is forgotten and reset to 0 by the BEGIN_rule
+    print "Top 100 errors:\n", $parser->get_records, "\n";
 
 =stash_meth forget
 
-Takes a list of string arguments which must be the names of stashed variables. This method forgets those stashed variables for ever. So be sure you really intend to do this.
+Takes an optional list of string arguments which must be the names of stashed variables. This method forgets those stashed variables for ever. So be sure you really intend to do this. In list context, this method returns the values of the variables whose names were passed to the method. In scalar context, it returns the last value of the last stashed variable passed.
 
-    $parser->forget('forget_me');
+    my $pop_and_forget_me = $parser->forget('forget_me_totally', 'pop_and_forget_me');
+
+Inside rules, you could simply C<delete> the stashed variable like this:
+
+    $parser->add_rule( do => 'delete ~forget_me;' );
+
+The above C<delete> statement works because the stashed variable C<~forget_me> is just a hash key named C<forget_me> internally. Using this on pre-stashed variables, will only temporarily delete the variable. It will be present in subsequent calls to C<read>. If you want to delete it completely call C<forget> with the pre-stashed variable name as an argument.
+
+When no arguments are passed, it clears the stash of variables, or forgets all previously recorded stashed variables, if any.
+
+    $parser->forget;
+
+Note that when C<forget> is called with no arguments, pre-stashed variables are not deleted and are still accessible in subsequent calls to C<read>. But when a pre-stashed variable is explicitly named in a call to forget, then it is forgotten even for subsequent calls to C<read>.
+
+A call to C<forget> method is done without any arguments, right before C<read> starts reading a new text input. That is how we can reset the values of stashed variables, but still retain pre-stashed variables.
 
 =stash_meth has_empty_stash
 
@@ -843,13 +894,26 @@ Takes a single string argument and returns a boolean indicating if there is a st
         print "Here is what stashed_var contains: ", $parser->stashed('stashed_var');
     }
 
+Inside rules you could check this with the C<exists> keyword:
+
+    $parser->add_rule( if => 'exists ~stashed_var' );
+
+=stash_meth prestash
+
+Takes an even number of arguments, or a hash, with variable name and value as pairs. This is useful to preset some stash variables before C<read> is called so that the rules have some variables accessible inside them. The main difference between pre-stashed variables created via C<prestash> and those created in the rules or using C<stashed> is that the pre-stashed ones are static.
+
+    $parser->prestash(pattern => 'string');
+    $parser->add_rule( if => 'my $patt = ~pattern; m/$patt/;' );
+
+You may change the value of a C<prestash>ed variable inside any of the rules.
+
 =stash_meth stashed
 
 Takes an optional list of string arguments each with the name of a stashed variable you want to query, i.e., get the value of. In list context, it returns their values in the same order as the queried variables, and in scalar context it returns the value of the last variable queried.
 
     my (%var_vals) = $parser->stashed;
     my (@vars)     = $parser->stashed( qw(first second third) );
-    my $third      = $parser->stashed( qw(first second third) ); # returns only the value of third
+    my $third      = $parser->stashed( qw(first second third) ); # returns value of last variable listed
     my $myvar      = $parser->stashed('myvar');
 
 Or you could do this:
@@ -865,27 +929,63 @@ Or you could do this:
 
 =cut
 
-has _ExAWK_symbol_table => (
+has _stashed_vars => (
     is      => 'ro',
     isa     => 'HashRef[Any]',
     default => sub { {} },
     lazy    => 1,
     traits  => ['Hash'],
     handles => {
-        clear_stash     => 'clear',
+        _clear_stash    => 'clear',
         _stashed        => 'elements',
-        has_stashed     => 'exists',
-        forget          => 'delete',
+        _has_stashed    => 'exists',
+        _forget         => 'delete',
         has_empty_stash => 'is_empty',
         _get_vars       => 'get',
+        _preset_vars    => 'set',
     }
 );
+
+sub forget {
+    my $self = shift;
+    return $self->_forget_stashed(@_) if @_;
+    $self->_clear_stash;
+}
+
+sub _forget_stashed {
+    my $self = shift;
+    foreach my $s (@_) {
+        $self->_forget($s)       if $self->_has_stashed($s);
+        $self->_del_prestash($s) if $self->_has_prestash($s);
+    }
+}
 
 sub stashed {
     my $self = shift;
     return $self->_get_vars(@_) if @_;
     return $self->_stashed;
 }
+
+sub has_stashed {
+    my $self = shift;
+    return 1 if $self->_has_stashed(@_);
+    return $self->_has_prestash(@_);
+}
+
+has _hidden_stash => (
+    is      => 'ro',
+    isa     => 'HashRef[Any]',
+    default => sub { {} },
+    lazy    => 1,
+    traits  => ['Hash'],
+    handles => {
+        prestash         => 'set',
+        _all_preset      => 'elements',
+        _has_prestash    => 'exists',
+        _has_no_prestash => 'is_empty',
+        _del_prestash    => 'delete',
+    }
+);
 
 =head1 MISCELLANEOUS METHODS
 

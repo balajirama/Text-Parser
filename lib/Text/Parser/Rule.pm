@@ -92,7 +92,7 @@ sub _get_min_req_fields {
 
 my $SUB_BEGIN = 'sub {
     my $this = shift;
-    my $__ = $this->_ExAWK_symbol_table;
+    my $__ = $this->_stashed_vars;
     local $_ = $this->this_line;
     ';
 
