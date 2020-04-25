@@ -158,26 +158,9 @@ around BUILDARGS => sub {
 
 sub BUILD {
     my $self = shift;
-    $self->_collect_any_class_rules;
     ensure_all_roles $self, 'Text::Parser::AutoSplit' if $self->auto_split;
     return if not defined $self->multiline_type;
     ensure_all_roles $self, 'Text::Parser::Multiline';
-}
-
-sub _collect_any_class_rules {
-    my $self = shift;
-    my $cls  = $self->_origclass;
-    my $h    = Text::Parser::RuleSpec->_class_rule_order;
-    return if not exists $h->{$cls};
-    $self->_find_class_rules_and_set_auto_split( $h, $cls );
-}
-
-sub _find_class_rules_and_set_auto_split {
-    my ( $self, $h, $cls ) = ( shift, shift, shift );
-    my (@r)
-        = map { Text::Parser::RuleSpec->_get_rule($_); } ( @{ $h->{$cls} } );
-    $self->_class_rules( \@r );
-    $self->auto_split(1) if not $self->auto_split;
 }
 
 =head1 ATTRIBUTES
@@ -368,18 +351,6 @@ Takes a hash as input. The keys of this hash must be the attributes of the L<Tex
 Calling this method without any arguments will throw an exception. The method internally sets the C<auto_split> attribute.
 
 =cut
-
-has _class_rules => (
-    is      => 'rw',
-    isa     => 'ArrayRef[Text::Parser::Rule]',
-    lazy    => 1,
-    default => sub { [] },
-    traits  => ['Array'],
-    handles => {
-        _has_no_rules => 'is_empty',
-        _get_rules    => 'elements',
-    },
-);
 
 has _obj_rules => (
     is      => 'rw',
@@ -1082,11 +1053,10 @@ has _unwrap_routine => (
 
 sub custom_line_unwrap_routines {
     my $self = shift;
-    my ( $is_wrapped, $unwrap_routine )
-        = Text::Parser::RuleSpec::_check_custom_unwrap_args(@_);
     $self->_prep_for_custom_unwrap_routines;
-    $self->_is_wrapped($is_wrapped);
-    $self->_unwrap_routine($unwrap_routine);
+    my ( $is_wr, $un_wr ) = _check_custom_unwrap_args(@_);
+    $self->_is_wrapped($is_wr);
+    $self->_unwrap_routine($un_wr);
 }
 
 sub _prep_for_custom_unwrap_routines {
@@ -1168,7 +1138,7 @@ To setup custom line-unwrapping routines in a subclass, you can use the C<L<unwr
 
 The following methods should never be called in the C<::main> program. They may be overridden (or re-defined) in a subclass.
 
-Starting version 0.925, one should never have to override any of these methods at all. But just in case someone wants to...
+Starting version 0.925, users should never need to override any of these methods to make their own parser. But in case someone wants to ...
 
 =inherit save_record
 
@@ -1180,14 +1150,21 @@ B<Note>: Starting C<0.925> version of C<Text::Parser> it is not required to over
 
 sub save_record {
     my ( $self, $record ) = ( shift, shift );
-    ( $self->_has_no_rules and $self->_has_no_obj_rules )
+    ( $self->_has_no_rules )
         ? $self->push_records($record)
         : $self->_run_through_rules;
 }
 
+sub _has_no_rules {
+    my $self = shift;
+    Text::Parser::RuleSpec->class_has_no_rules( $self->_origclass )
+        and $self->_has_no_obj_rules;
+}
+
 sub _run_through_rules {
     my $self = shift;
-    foreach my $rule ( $self->_get_rules, $self->_get_obj_rules ) {
+    my (@crules) = Text::Parser::RuleSpec->class_rules( $self->_origclass );
+    foreach my $rule ( @crules, $self->_get_obj_rules ) {
         next if not $rule->_test($self);
         $rule->_run( $self, 0 );
         last if not $rule->continue_to_next;

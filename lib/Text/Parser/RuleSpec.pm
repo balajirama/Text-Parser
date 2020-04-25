@@ -43,13 +43,9 @@ package Text::Parser::RuleSpec;
 
 =head1 EXPORTS
 
-The following methods are exported into the C<use>r's namespace by default:
+=head1 METHODS
 
-=for :list
-* C<L<applies_rule|/applies_rule>>
-* C<L<unwraps_lines_using|/unwraps_lines_using>>
-
-All of the above functions may be called only outside the C<main> namespace. 
+All methods can be called directly on the C<Text::Parser::RuleSpec> class directly.
 
 =cut
 
@@ -61,6 +57,7 @@ use Text::Parser::Rule;
 
 Moose::Exporter->setup_import_methods(
     with_meta => [ 'applies_rule', 'unwraps_lines_using' ],
+    as_is     => ['_check_custom_unwrap_args'],
     also      => 'Moose'
 );
 
@@ -82,7 +79,82 @@ class_has _class_rule_order => (
     isa     => 'HashRef[ArrayRef[Str]]',
     lazy    => 1,
     default => sub { {} },
+    traits  => ['Hash'],
+    handles => {
+        _class_has_rules      => 'exists',
+        __cls_rule_order      => 'get',
+        _set_class_rule_order => 'set',
+    }
 );
+
+class_has _class_rules_in_order => (
+    is      => 'rw',
+    isa     => 'HashRef[ArrayRef[Text::Parser::Rule]]',
+    lazy    => 1,
+    default => sub { {} },
+    traits  => ['Hash'],
+    handles => {
+        _are_rules_ordered  => 'exists',
+        _class_rules        => 'get',
+        _set_rules_of_class => 'set',
+    },
+);
+
+sub _push_class_rule_order {
+    my ( $class, $cls, $rulename ) = @_;
+    my @ord = $class->class_rule_order($cls);
+    push @ord, $rulename;
+    $class->_set_class_rule_order( $cls => \@ord );
+    $class->_set_rules_of_class(
+        $cls => [ map { $class->_get_rule($_) } @ord ] );
+}
+
+=meth class_rules
+
+Takes a paser class name as a string argument, and returns the rules of the class in the correct.
+
+    my (@rules) = Text::Parser::RuleSpec->class_rules('MyFavoriteParser');
+
+=cut
+
+sub class_rules {
+    my ( $class, $cls ) = @_;
+    $class->class_has_no_rules($cls)
+        ? ()
+        : @{ $class->_class_rules($cls) };
+}
+
+=meth class_rule_order
+
+Takes a string argument and returns the ordered list of rule names for the class.
+
+    my (@order) = Text::Parser::RuleSpec->class_rule_order('MyFavoriteParser');
+
+=cut
+
+sub class_rule_order {
+    my ( $class, $cls ) = @_;
+    $class->_class_has_rules($cls) ? @{ $class->__cls_rule_order($cls) } : ();
+}
+
+=meth class_has_no_rules
+
+Takes parser class name and returns a boolean representing if that class has any rules or not.
+
+    print "There are no class rules for MyFavoriteParser.\n"
+        if Text::Parser::RuleSpec->class_has_no_rules('MyFavoriteParser');
+
+=cut
+
+sub class_has_no_rules {
+    my ( $this_cls, $cls ) = ( shift, shift );
+    return 1 if not $this_cls->_class_has_rules($cls);
+    return not $this_cls->class_rule_order($cls);
+}
+
+=head1 FUNCTIONS
+
+The following methods are exported into the namespace of your class by default, and may only be called outside the C<main> namespace.
 
 =func applies_rule
 
@@ -101,6 +173,7 @@ sub applies_rule {
     my ( $meta, $name ) = ( shift, shift );
     _excepts_apply_rule( $meta, $name, @_ );
     _register_rule( _full_rule_name( $meta, $name ), @_ );
+    _set_default_of_attribute( $meta, auto_split => 1 );
     _push_rule_order( $meta, $name );
 }
 
@@ -125,20 +198,26 @@ sub _register_rule {
     Text::Parser::RuleSpec->_add_new_rule( $key => $rule );
 }
 
-sub _push_rule_order {
-    my ( $meta, $rule_name ) = ( shift, shift );
-    my $h     = Text::Parser::RuleSpec->_class_rule_order;
-    my $class = $meta->name;
-    _init_class_rule_order( $h, $class, $meta->superclasses );
-    push @{ $h->{$class} }, _full_rule_name( $meta, $rule_name );
+sub _set_default_of_attribute {
+    my ( $meta, %val ) = @_;
+    foreach my $k ( keys %val ) {
+        my $old = $meta->find_attribute_by_name($k);
+        my $new = $old->clone_and_inherit_options( default => $val{$k} );
+        $meta->add_attribute($new);
+    }
 }
 
-sub _init_class_rule_order {
-    my ( $h, $class ) = ( shift, shift );
-    return if exists $h->{$class};
-    $h->{$class} = [];
-    $h->{$class} = exists $h->{$_} ? [ @{ $h->{$class} }, @{ $h->{$_} } ] : []
-        for (@_);
+sub _push_rule_order {
+    my ( $meta, $rule_name ) = ( shift, shift );
+    Text::Parser::RuleSpec->_set_class_rule_order(
+        $meta->name => _ordered_rules_of_classes( $meta->superclasses ) )
+        if not Text::Parser::RuleSpec->_class_has_rules( $meta->name );
+    Text::Parser::RuleSpec->_push_class_rule_order( $meta->name,
+        _full_rule_name( $meta, $rule_name ) );
+}
+
+sub _ordered_rules_of_classes {
+    return [ map { Text::Parser::RuleSpec->class_rule_order($_) } @_ ];
 }
 
 =func unwraps_lines_using
@@ -162,15 +241,15 @@ For the pair of routines to not cause unexpected C<undef> results, they should r
 sub unwraps_lines_using {
     my $meta = shift;
     die main_cant_unwrap_lines if $meta->name eq 'main';
-    my ( $is_wr, $unwr ) = _check_custom_unwrap_args(@_);
-    _set_lws_and_routines($meta, $is_wr, $unwr);
+    my ( $is_wr, $un_wr ) = _check_custom_unwrap_args(@_);
+    _set_lws_and_routines( $meta, $is_wr, $un_wr );
 }
 
 sub _check_custom_unwrap_args {
     die bad_custom_unwrap_call( err => 'Need 4 arguments' )
         if @_ != 4;
     _test_fields_unwrap_rtn(@_);
-    my (%opt) = (@_);
+    my (%opt) = @_;
     return ( $opt{is_wrapped}, $opt{unwrap_routine} );
 }
 
@@ -189,19 +268,10 @@ sub _is_arg_a_code {
 }
 
 sub _set_lws_and_routines {
-    my ($meta, $is_wr, $unwr) = @_;
+    my ( $meta, $is_wr, $unwr ) = @_;
     _set_default_of_attribute( $meta, line_wrap_style => 'custom' );
     _set_default_of_attribute( $meta, _is_wrapped     => sub { $is_wr; } );
     _set_default_of_attribute( $meta, _unwrap_routine => sub { $unwr; } );
-}
-
-sub _set_default_of_attribute {
-    my ( $meta, %val ) = @_;
-    foreach my $k ( keys %val ) {
-        my $old = $meta->find_attribute_by_name($k);
-        my $new = $old->clone_and_inherit_options( default => $val{$k} );
-        $meta->add_attribute($new);
-    }
 }
 
 __PACKAGE__->meta->make_immutable;
