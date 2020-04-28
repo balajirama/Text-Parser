@@ -45,6 +45,29 @@ lives_ok {
 }
 'Creates a second rule';
 
+package DisablerClass;
+
+use Test::Exception;
+use Text::Parser::Errors;
+use Text::Parser::RuleSpec;
+extends 'AnotherClass';
+
+throws_ok {
+    disables_superclass_rules;
+}
+BadDisableRulespecArg(), 'Fails to disable - no args';
+
+throws_ok {
+    disables_superclass_rules 'empty_rule';
+}
+RulenameForDisableMustHaveClassname(), 'Fails to disable - no classname in arg';
+
+lives_ok {
+    disables_superclass_rules 'Parser2/empty_rule', qr/AnotherClass/,
+        sub { my ( $c, $r ) = split /\//, shift; $c eq 'ParserClass'; };
+}
+'Disables properly';
+
 package main;
 use Test::Exception;
 use Text::Parser::RuleSpec;
@@ -60,13 +83,38 @@ lives_ok {
     is_deeply(
         $h,
         {   ParserClass  => [qw(ParserClass/empty_rule)],
-            Parser2      => ['Parser2/empty_rule'],
             AnotherClass => [
                 qw(ParserClass/empty_rule Parser2/empty_rule AnotherClass/get_names AnotherClass/get_address)
-            ]
+            ],
+            Parser2       => ['Parser2/empty_rule'],
+            DisablerClass => [],
         },
         'Has the right classes and rules'
     );
+    is_deeply(
+        [ Text::Parser::RuleSpec->class_rule_order('AnotherClass') ],
+        [   qw(ParserClass/empty_rule Parser2/empty_rule AnotherClass/get_names AnotherClass/get_address)
+        ],
+        'Correct rule order for AnotherClass',
+    );
+    is_deeply( [ Text::Parser::RuleSpec->class_rule_order() ],
+        [], 'Empty rule order for no argument' );
+    is( Text::Parser::RuleSpec->class_has_no_rules(),
+        1, 'No argument returns 1' );
+    is( Text::Parser::RuleSpec->class_has_no_rules('Unknown'),
+        1, 'Unknown class name returns 1' );
+    isnt( Text::Parser::RuleSpec->class_has_no_rules('AnotherClass'),
+        1, 'AnotherClass class_has_no_rules is not 1' );
+    is_deeply( [ Text::Parser::RuleSpec->class_rules() ],
+        [], 'Empty array of objects for no argument call of class_rules' );
+    is_deeply( [ Text::Parser::RuleSpec->class_rules('Random') ],
+        [],
+        'Empty array of objects for random argument call of class_rules' );
+    lives_ok { Text::Parser::RuleSpec->populate_class_rules(); } 'All fine 1';
+    lives_ok { Text::Parser::RuleSpec->populate_class_rules('Random'); }
+    'All fine 2';
+    lives_ok { Text::Parser::RuleSpec->populate_class_rules('AnotherClass'); }
+    'All fine 3';
 }
 'Ran checks on Text::Parser::RuleSpec';
 

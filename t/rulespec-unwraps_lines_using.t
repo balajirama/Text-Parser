@@ -67,8 +67,10 @@ BEGIN {
 }
 
 throws_ok {
-    unwraps_lines_using is_wrapped => sub { 0; }, unwrap_routine => sub {'';};
+    unwraps_lines_using
+        is_wrapped     => sub { 0; },
+        unwrap_routine => sub { ''; };
 }
-MainCantUnwrapLines(), 'Main cannot call this function';
+MainCantCallRulespecFunc(), 'Main cannot call this function';
 
 done_testing;

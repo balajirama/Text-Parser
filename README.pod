@@ -569,7 +569,7 @@ L<Text::Parser::Multiline> shows another example with C<join_next> type.
 
 The following methods should never be called in the C<::main> program. They may be overridden (or re-defined) in a subclass.
 
-Starting version 0.925, one should never have to override any of these methods at all. But just in case someone wants to...
+Starting version 0.925, users should never need to override any of these methods to make their own parser. But in case someone wants to ...
 
 =head2 save_record
 

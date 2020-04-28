@@ -56,9 +56,11 @@ use Text::Parser::Errors;
 use Text::Parser::Rule;
 
 Moose::Exporter->setup_import_methods(
-    with_meta => [ 'applies_rule', 'unwraps_lines_using' ],
-    as_is     => ['_check_custom_unwrap_args'],
-    also      => 'Moose'
+    with_meta => [
+        'applies_rule', 'unwraps_lines_using', 'disables_superclass_rules'
+    ],
+    as_is => ['_check_custom_unwrap_args'],
+    also  => 'Moose'
 );
 
 class_has _all_rules => (
@@ -105,13 +107,12 @@ sub _push_class_rule_order {
     my @ord = $class->class_rule_order($cls);
     push @ord, $rulename;
     $class->_set_class_rule_order( $cls => \@ord );
-    $class->_set_rules_of_class(
-        $cls => [ map { $class->_get_rule($_) } @ord ] );
+    $class->populate_class_rules($cls);
 }
 
 =meth class_rules
 
-Takes a paser class name as a string argument, and returns the rules of the class in the correct.
+Takes a single string argument and returns the actual rule objects of the given class name.
 
     my (@rules) = Text::Parser::RuleSpec->class_rules('MyFavoriteParser');
 
@@ -119,14 +120,13 @@ Takes a paser class name as a string argument, and returns the rules of the clas
 
 sub class_rules {
     my ( $class, $cls ) = @_;
-    $class->class_has_no_rules($cls)
-        ? ()
-        : @{ $class->_class_rules($cls) };
+    return () if $class->class_has_no_rules($cls);
+    @{ $class->_class_rules($cls) };
 }
 
 =meth class_rule_order
 
-Takes a string argument and returns the ordered list of rule names for the class.
+Takes a single string argument and returns the ordered list of rule names for the class.
 
     my (@order) = Text::Parser::RuleSpec->class_rule_order('MyFavoriteParser');
 
@@ -134,6 +134,7 @@ Takes a string argument and returns the ordered list of rule names for the class
 
 sub class_rule_order {
     my ( $class, $cls ) = @_;
+    return () if not defined $cls;
     $class->_class_has_rules($cls) ? @{ $class->__cls_rule_order($cls) } : ();
 }
 
@@ -148,8 +149,25 @@ Takes parser class name and returns a boolean representing if that class has any
 
 sub class_has_no_rules {
     my ( $this_cls, $cls ) = ( shift, shift );
+    return 1 if not defined $cls;
     return 1 if not $this_cls->_class_has_rules($cls);
     return not $this_cls->class_rule_order($cls);
+}
+
+=meth populate_class_rules
+
+Takes a parser class name as string argument. It populates the class rules according to the latest order of rules (returned by C<class_rule_order>).
+
+    Text::Parser::RuleSpec->populate_class_rules('MyFavoriteParser');
+
+=cut
+
+sub populate_class_rules {
+    my ( $class, $cls ) = @_;
+    return if not defined $cls or not $class->_class_has_rules($cls);
+    my @ord = $class->class_rule_order($cls);
+    $class->_set_rules_of_class(
+        $cls => [ map { $class->_get_rule($_) } @ord ] );
 }
 
 =head1 FUNCTIONS
@@ -184,16 +202,28 @@ sub _full_rule_name {
 
 sub _excepts_apply_rule {
     my ( $meta, $name ) = ( shift, shift );
-    die spec_must_have_name package_name => $meta->name
+    _rule_must_have_name( $meta, $name );
+    _check_arg_is_hash( $name, @_ );
+    die main_cant_apply_rule( rule_name => $name ) if $meta->name eq 'main';
+}
+
+sub _rule_must_have_name {
+    my ( $meta, $name ) = ( shift, shift );
+    die spec_must_have_name( package_name => $meta->name )
         if not defined $name
         or ref($name) ne '';
-    die spec_requires_hash rule_name => $name if not @_ or ( scalar(@_) % 2 );
-    die main_cant_apply_rule rule_name => $name if $meta->name eq 'main';
+}
+
+sub _check_arg_is_hash {
+    my $name = shift;
+    die spec_requires_hash( rule_name => $name )
+        if not @_
+        or ( scalar(@_) % 2 );
 }
 
 sub _register_rule {
     my $key = shift;
-    die name_rule_uniquely if Text::Parser::RuleSpec->_exists_rule($key);
+    die name_rule_uniquely() if Text::Parser::RuleSpec->_exists_rule($key);
     my $rule = Text::Parser::Rule->new(@_);
     Text::Parser::RuleSpec->_add_new_rule( $key => $rule );
 }
@@ -209,11 +239,16 @@ sub _set_default_of_attribute {
 
 sub _push_rule_order {
     my ( $meta, $rule_name ) = ( shift, shift );
+    _if_empty_prepopulate_rules_from_superclass($meta);
+    Text::Parser::RuleSpec->_push_class_rule_order( $meta->name,
+        _full_rule_name( $meta, $rule_name ) );
+}
+
+sub _if_empty_prepopulate_rules_from_superclass {
+    my $meta = shift;
     Text::Parser::RuleSpec->_set_class_rule_order(
         $meta->name => _ordered_rules_of_classes( $meta->superclasses ) )
         if not Text::Parser::RuleSpec->_class_has_rules( $meta->name );
-    Text::Parser::RuleSpec->_push_class_rule_order( $meta->name,
-        _full_rule_name( $meta, $rule_name ) );
 }
 
 sub _ordered_rules_of_classes {
@@ -240,7 +275,7 @@ For the pair of routines to not cause unexpected C<undef> results, they should r
 
 sub unwraps_lines_using {
     my $meta = shift;
-    die main_cant_unwrap_lines if $meta->name eq 'main';
+    die main_cant_call_rulespec_func() if $meta->name eq 'main';
     my ( $is_wr, $un_wr ) = _check_custom_unwrap_args(@_);
     _set_lws_and_routines( $meta, $is_wr, $un_wr );
 }
@@ -272,6 +307,74 @@ sub _set_lws_and_routines {
     _set_default_of_attribute( $meta, line_wrap_style => 'custom' );
     _set_default_of_attribute( $meta, _is_wrapped     => sub { $is_wr; } );
     _set_default_of_attribute( $meta, _unwrap_routine => sub { $unwr; } );
+}
+
+=func disables_superclass_rules
+
+Takes a list of rule names, or regular expression patterns, or any 
+
+=cut
+
+sub disables_superclass_rules {
+    my $meta = shift;
+    die main_cant_call_rulespec_func() if $meta->name eq 'main';
+    _check_disable_rules_args(@_);
+    _find_and_remove_superclass_rules( $meta, @_ );
+}
+
+sub _check_disable_rules_args {
+    die bad_disable_rulespec_arg( arg => 'No arguments' ) if not @_;
+    foreach my $a (@_) {
+        _test_rule_type_and_string_val($a);
+    }
+}
+
+my %disable_arg_types = ( '' => 1, 'Regexp' => 1, 'CODE' => 1 );
+
+sub _test_rule_type_and_string_val {
+    my $a      = shift;
+    my $type_a = ref($a);
+    die bad_disable_rulespec_arg( arg => $a )
+        if not exists $disable_arg_types{$type_a};
+    die rulename_for_disable_must_have_classname( rule => $a )
+        if $type_a eq '' and $a !~ /\//;
+}
+
+sub _find_and_remove_superclass_rules {
+    my $meta = shift;
+    _if_empty_prepopulate_rules_from_superclass($meta);
+    my @ord = _filtered_rules( $meta->name, @_ );
+    Text::Parser::RuleSpec->_set_class_rule_order( $meta->name => \@ord );
+    Text::Parser::RuleSpec->populate_class_rules( $meta->name );
+}
+
+sub _filtered_rules {
+    my $cls = shift;
+    local $_;
+    map { _is_to_be_filtered( $_, $cls, @_ ) ? () : $_ }
+        ( Text::Parser::RuleSpec->class_rule_order($cls) );
+}
+
+sub _is_to_be_filtered {
+    my ( $r, $cls ) = ( shift, shift );
+    my @c = split /\//, $r, 2;
+    return 0 if $c[0] eq $cls;
+    _test_each_filter_pattern( $r, @_ );
+}
+
+my %test_for_filter_type = (
+    ''       => sub { $_[0] eq $_[1]; },
+    'Regexp' => sub { $_[0] =~ $_[1]; },
+    'CODE'   => sub { $_[1]->( $_[0] ); },
+);
+
+sub _test_each_filter_pattern {
+    my $r = shift;
+    foreach my $p (@_) {
+        my $t = ref $p;
+        return 1 if $test_for_filter_type{$t}->( $r, $p );
+    }
+    return 0;
 }
 
 __PACKAGE__->meta->make_immutable;

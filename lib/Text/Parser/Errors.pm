@@ -414,15 +414,16 @@ exception
     ),
     ];
 
-=head3 C<Text::Parser::Errors::MainCantUnwrapLines> - C<MainCantUnwrapLines()>
+=head3 C<Text::Parser::Errors::MainCantCallRulespecFunc> - C<MainCantCallRulespecFunc()>
 
-Child of C<Text::Parser::Errors::MainCantUnwrapLines>. This means C<L<unwraps_lines_using|Text::Parser::RuleSpec/"unwraps_lines_using">> was called from C<main> and that is not right.
+Child of C<Text::Parser::Errors::RuleSpecError>. This means L<functions in Text::Parser::RuleSpec|Text::Parser::RuleSpec/"FUNCTIONS"> which should be called only in a class were called from C<main>, which is not allowed.
 
 =cut
 
 exception
-    MainCantUnwrapLines => 'unwraps_lines_using was called in main',
-    extends             => RuleSpecError();
+    MainCantCallRulespecFunc =>
+    'a function of Text::Parser::RuleSpec was called in main',
+    extends => RuleSpecError();
 
 =head3 C<Text::Parser::Errors::NameRuleUniquely> - C<NameRuleUniquely()>
 
@@ -433,6 +434,40 @@ Child of C<Text::Parser::Errors::NameRuleUniquely>. If the same rule name is use
 exception
     NameRuleUniquely => 'name rules uniquely',
     extends          => RuleSpecError();
+
+=head3 C<Text::Parser::Errors::BadDisableRulespecArg> - C<BadDisableRulespecArg()>
+
+Child of C<Text::Parser::Errors::RuleSpecError>. This means that C<L<disable_superclass_rules>> was called with either no or an unexpected argument type.
+
+=head4 Attributes
+
+=for :list
+* B<arg> - specifies the value of the invalid argument
+
+=cut
+
+exception
+    BadDisableRulespecArg =>
+    'disable_superclass_rules should take only strings, regexp, or subroutine codref',
+    extends => RuleSpecError(),
+    has     => [ arg => ( is => 'ro', isa => \&_Str, ) ];
+
+=head3 C<Text::Parser::Errors::RulenameForDisableMustHaveClassname> - C<RulenameForDisableMustHaveClassname()>
+
+Child of C<Text::Parser::Errors::RuleSpecError>. This means that C<L<disable_superclass_rules>> was called with a string rulename, but the rulename did not have a classname.
+
+=head4 Attributes
+
+=for :list
+* B<rule> - specifies the rulename of the invalid argument
+
+=cut
+
+exception
+    RulenameForDisableMustHaveClassname =>
+    'Rule name passed to disable_superclass_rules must have class name',
+    extends => RuleSpecError(),
+    has     => [ rule => ( is => 'ro', isa => \&_Str, ) ];
 
 =head2 Miscellaneous
 
