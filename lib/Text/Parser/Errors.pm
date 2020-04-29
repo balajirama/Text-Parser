@@ -450,7 +450,7 @@ exception
     BadDisableRulespecArg =>
     'disable_superclass_rules should take only strings, regexp, or subroutine codref',
     extends => RuleSpecError(),
-    has     => [ arg => ( is => 'ro', isa => \&_Str, ) ];
+    has     => [ arg => ( is => 'ro', ) ];
 
 =head3 C<Text::Parser::Errors::RulenameForDisableMustHaveClassname> - C<RulenameForDisableMustHaveClassname()>
 
@@ -459,13 +459,30 @@ Child of C<Text::Parser::Errors::RuleSpecError>. This means that C<L<disable_sup
 =head4 Attributes
 
 =for :list
-* B<rule> - specifies the rulename of the invalid argument
+* B<rule> - specifies the rulename which had problems
 
 =cut
 
 exception
     RulenameForDisableMustHaveClassname =>
     'Rule name passed to disable_superclass_rules must have class name',
+    extends => RuleSpecError(),
+    has     => [ rule => ( is => 'ro', isa => \&_Str, ) ];
+
+=head3 C<Text::Parser::Errors::CantDisableSameClassRules> - C<CantDisableSameClassRules()>
+
+Child of C<Text::Parser::Errors::RuleSpecError>. This means that C<L<disable_superclass_rules>> was called with a string rulename, but rulename was from the present class. Instead of disabling same class rules, just don't specify them in this class. C<disables_superclass_rules> is meant only for rules in superclasses.
+
+=head4 Attributes
+
+=for :list
+* B<rule> - specifies the rulename which had problems
+
+=cut
+
+exception
+    CantDisableSameClassRules =>
+    'Rule name passed to disable_superclass_rules must not be from same class',
     extends => RuleSpecError(),
     has     => [ rule => ( is => 'ro', isa => \&_Str, ) ];
 

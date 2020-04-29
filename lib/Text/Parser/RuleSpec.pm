@@ -202,9 +202,9 @@ sub _full_rule_name {
 
 sub _excepts_apply_rule {
     my ( $meta, $name ) = ( shift, shift );
+    die main_cant_apply_rule( rule_name => $name ) if $meta->name eq 'main';
     _rule_must_have_name( $meta, $name );
     _check_arg_is_hash( $name, @_ );
-    die main_cant_apply_rule( rule_name => $name ) if $meta->name eq 'main';
 }
 
 sub _rule_must_have_name {
@@ -318,26 +318,32 @@ Takes a list of rule names, or regular expression patterns, or any
 sub disables_superclass_rules {
     my $meta = shift;
     die main_cant_call_rulespec_func() if $meta->name eq 'main';
-    _check_disable_rules_args(@_);
+    _check_disable_rules_args( $meta->name, @_ );
     _find_and_remove_superclass_rules( $meta, @_ );
 }
 
 sub _check_disable_rules_args {
+    my $cls = shift;
     die bad_disable_rulespec_arg( arg => 'No arguments' ) if not @_;
     foreach my $a (@_) {
-        _test_rule_type_and_string_val($a);
+        _test_rule_type_and_val( $cls, $a );
     }
 }
 
 my %disable_arg_types = ( '' => 1, 'Regexp' => 1, 'CODE' => 1 );
 
-sub _test_rule_type_and_string_val {
-    my $a      = shift;
-    my $type_a = ref($a);
-    die bad_disable_rulespec_arg( arg => $a )
+sub _test_rule_type_and_val {
+    my $type_a = ref( $_[1] );
+    die bad_disable_rulespec_arg( arg => $_[1] )
         if not exists $disable_arg_types{$type_a};
-    die rulename_for_disable_must_have_classname( rule => $a )
-        if $type_a eq '' and $a !~ /\//;
+    _test_rule_string_val(@_) if $type_a eq '';
+}
+
+sub _test_rule_string_val {
+    my ( $cls, $a ) = ( shift, shift );
+    die rulename_for_disable_must_have_classname( rule => $a ) if $a !~ /\//;
+    my @c = split /\//, $a, 2;
+    die cant_disable_same_class_rules( rule => $a ) if $c[0] eq $cls;
 }
 
 sub _find_and_remove_superclass_rules {
@@ -351,15 +357,8 @@ sub _find_and_remove_superclass_rules {
 sub _filtered_rules {
     my $cls = shift;
     local $_;
-    map { _is_to_be_filtered( $_, $cls, @_ ) ? () : $_ }
+    map { _is_to_be_filtered( $_, @_ ) ? () : $_ }
         ( Text::Parser::RuleSpec->class_rule_order($cls) );
-}
-
-sub _is_to_be_filtered {
-    my ( $r, $cls ) = ( shift, shift );
-    my @c = split /\//, $r, 2;
-    return 0 if $c[0] eq $cls;
-    _test_each_filter_pattern( $r, @_ );
 }
 
 my %test_for_filter_type = (
@@ -368,7 +367,7 @@ my %test_for_filter_type = (
     'CODE'   => sub { $_[1]->( $_[0] ); },
 );
 
-sub _test_each_filter_pattern {
+sub _is_to_be_filtered {
     my $r = shift;
     foreach my $p (@_) {
         my $t = ref $p;

@@ -22,27 +22,32 @@ use Text::Parser::Errors;
 use Text::Parser::RuleSpec;
 extends 'ParserClass';
 
-dies_ok {
+throws_ok {
     applies_rule;
 }
 SpecMustHaveName();
 
-dies_ok {
+throws_ok {
     applies_rule {};
 }
 SpecMustHaveName();
 
-dies_ok {
+throws_ok {
     applies_rule if => '$1 eq "NAME:"';
 }
-SpecMustHaveName();
+SpecRequiresHash();
+
+throws_ok {
+    applies_rule 'failing_rule';
+}
+SpecRequiresHash();
 
 lives_ok {
     applies_rule get_names => ( if => '$1 eq "NAME:"' );
 }
 'Creates a rule get_names';
 
-dies_ok {
+throws_ok {
     applies_rule get_names => ( if => '$1 eq "EMAIL:"' );
 }
 NameRuleUniquely();
@@ -52,15 +57,20 @@ lives_ok {
 }
 'Creates a second rule';
 
-dies_ok {
+throws_ok {
     applies_rule get_DOB => ('something random');
 }
 SpecRequiresHash();
 
-dies_ok {
+throws_ok {
     applies_rule get_DOB => ();
 }
 SpecRequiresHash();
+
+throws_ok {
+    disables_superclass_rules [];
+}
+BadDisableRulespecArg();
 
 package main;
 use Test::Exception;
@@ -72,15 +82,20 @@ BEGIN {
     use_ok 'Text::Parser::Errors';
 }
 
-dies_ok {
+throws_ok {
     applies_rule if => '$1 eq "NAME:"';
 }
-SpecMustHaveName();
+MainCantApplyRule();
 
-dies_ok {
+throws_ok {
     applies_rule get_names => ( if => '$1 eq "NAME:"' );
 }
 MainCantApplyRule();
+
+throws_ok {
+    disables_superclass_rules 'ParserClass/empty_rule';
+}
+MainCantCallRulespecFunc();
 
 lives_ok {
     my $h = Text::Parser::RuleSpec->_class_rule_order;
