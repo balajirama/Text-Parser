@@ -35,7 +35,7 @@ SpecMustHaveName();
 throws_ok {
     applies_rule if => '$1 eq "NAME:"';
 }
-SpecRequiresHash();
+SpecMustHaveName();
 
 throws_ok {
     applies_rule 'failing_rule';

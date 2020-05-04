@@ -110,7 +110,7 @@ sub _push_class_rule_order {
     $class->populate_class_rules($cls);
 }
 
-=meth class_rules
+=method class_rules
 
 Takes a single string argument and returns the actual rule objects of the given class name.
 
@@ -124,7 +124,7 @@ sub class_rules {
     @{ $class->_class_rules($cls) };
 }
 
-=meth class_rule_order
+=method class_rule_order
 
 Takes a single string argument and returns the ordered list of rule names for the class.
 
@@ -138,7 +138,7 @@ sub class_rule_order {
     $class->_class_has_rules($cls) ? @{ $class->__cls_rule_order($cls) } : ();
 }
 
-=meth class_has_no_rules
+=method class_has_no_rules
 
 Takes parser class name and returns a boolean representing if that class has any rules or not.
 
@@ -154,7 +154,7 @@ sub class_has_no_rules {
     return not $this_cls->class_rule_order($cls);
 }
 
-=meth populate_class_rules
+=method populate_class_rules
 
 Takes a parser class name as string argument. It populates the class rules according to the latest order of rules (returned by C<class_rule_order>).
 
@@ -176,7 +176,7 @@ The following methods are exported into the namespace of your class by default, 
 
 =func applies_rule
 
-Takes one mandatory string argument which is a rule name, followed by the options to create a rule. These are the same as the arguments to the C<L<add_rule|Text::Parser/"add_rule">> method. Returns nothing. Exceptions will be thrown if any of the required arguments are not provided.
+Takes one mandatory string argument - a rule name - followed by the options to create a rule. These are the same as the arguments to the C<L<add_rule|Text::Parser/"add_rule">> method of L<Text::Parser> class. Returns nothing. Exceptions will be thrown if any of the required arguments are not provided.
 
     applies_rule print_emails => (
         if               => '$1 eq "EMAIL:"', 
@@ -207,11 +207,21 @@ sub _excepts_apply_rule {
     _check_arg_is_hash( $name, @_ );
 }
 
+my %rule_options = (
+    if               => 1,
+    do               => 1,
+    dont_record      => 1,
+    continue_to_next => 1,
+    before           => 1,
+    after            => 1
+);
+
 sub _rule_must_have_name {
     my ( $meta, $name ) = ( shift, shift );
     die spec_must_have_name( package_name => $meta->name )
         if not defined $name
-        or ref($name) ne '';
+        or ( '' ne ref($name) )
+        or ( exists $rule_options{$name} );
 }
 
 sub _check_arg_is_hash {
@@ -311,7 +321,20 @@ sub _set_lws_and_routines {
 
 =func disables_superclass_rules
 
-Takes a list of rule names, or regular expression patterns, or any 
+Takes a list of rule names, or regular expression patterns, or subroutine references to identify rules that are to be disabled. You cannot disable rules of the same class.
+
+A string argument is expected to contain the full rule-name (including class name) in the format C<My::Parser::Class/my_rule>. The C</> (slash) separating the class name and rule name is mandatory.
+
+A regexp argument is tested against the full rule-name.
+
+If a subroutine reference is provided, the subroutine is called for each rule in the class, and the rule is disabled if the subroutine returns a true value.
+
+    disables_superclass_rules qw(Parent::Parser::Class/parent_rule Another::Class/another_rule);
+    disables_superclass_rules qr/Parent::Parser::Class\/comm.*/;
+    disables_superclass_rules sub {
+        my $rulename = shift;
+        $rulename =~ /[@]/;
+    };
 
 =cut
 
@@ -357,8 +380,15 @@ sub _find_and_remove_superclass_rules {
 sub _filtered_rules {
     my $cls = shift;
     local $_;
-    map { _is_to_be_filtered( $_, @_ ) ? () : $_ }
+    map { _is_to_be_filtered( $cls, $_, @_ ) ? () : $_ }
         ( Text::Parser::RuleSpec->class_rule_order($cls) );
+}
+
+sub _is_to_be_filtered {
+    my ( $class, $r ) = ( shift, shift );
+    my ( $cls, $rn ) = split /\//, $r, 2;
+    return 0 if $cls eq $class;
+    _is_superclass_rule_to_be_filtered( $r, @_ );
 }
 
 my %test_for_filter_type = (
@@ -367,7 +397,7 @@ my %test_for_filter_type = (
     'CODE'   => sub { $_[1]->( $_[0] ); },
 );
 
-sub _is_to_be_filtered {
+sub _is_superclass_rule_to_be_filtered {
     my $r = shift;
     foreach my $p (@_) {
         my $t = ref $p;
