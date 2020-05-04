@@ -380,15 +380,8 @@ sub _find_and_remove_superclass_rules {
 sub _filtered_rules {
     my $cls = shift;
     local $_;
-    map { _is_to_be_filtered( $cls, $_, @_ ) ? () : $_ }
+    map { _is_to_be_filtered( $_, @_ ) ? () : $_ }
         ( Text::Parser::RuleSpec->class_rule_order($cls) );
-}
-
-sub _is_to_be_filtered {
-    my ( $class, $r ) = ( shift, shift );
-    my ( $cls, $rn ) = split /\//, $r, 2;
-    return 0 if $cls eq $class;
-    _is_superclass_rule_to_be_filtered( $r, @_ );
 }
 
 my %test_for_filter_type = (
@@ -397,7 +390,7 @@ my %test_for_filter_type = (
     'CODE'   => sub { $_[1]->( $_[0] ); },
 );
 
-sub _is_superclass_rule_to_be_filtered {
+sub _is_to_be_filtered {
     my $r = shift;
     foreach my $p (@_) {
         my $t = ref $p;
