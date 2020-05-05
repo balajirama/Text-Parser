@@ -118,8 +118,7 @@ use String::Util qw(trim ltrim rtrim eqq);
 use Text::Parser::Errors;
 use Text::Parser::Rule;
 use Text::Parser::RuleSpec;
-use List::Util 'first';
-use List::MoreUtils 'natatime';
+use List::MoreUtils qw(natatime first_index);
 
 enum 'Text::Parser::Types::MultilineType' => [qw(join_next join_last)];
 enum 'Text::Parser::Types::LineWrapStyle' =>
@@ -827,7 +826,7 @@ sub _num_matching {
 
 sub _singlechar_indent {
     my ( $self, $line ) = ( shift, shift );
-    my $n = first { $_ ne $self->indentation_str } ( split //, $line );
+    my $n = first_index { $_ ne $self->indentation_str } ( split //, $line );
     $self->_set_indent_level($n);
 }
 
