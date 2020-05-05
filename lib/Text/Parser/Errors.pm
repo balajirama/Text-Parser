@@ -437,7 +437,7 @@ exception
 
 =head3 C<Text::Parser::Errors::BadDisableRulespecArg> - C<BadDisableRulespecArg()>
 
-Child of C<Text::Parser::Errors::RuleSpecError>. This means that C<L<disables_superclass_rules|"Text::Parser::RuleSpec/disables_superclass_rules">> was called with either no or an unexpected argument type.
+Child of C<Text::Parser::Errors::RuleSpecError>. This means that C<L<disables_superclass_rules|Text::Parser::RuleSpec/"disables_superclass_rules">> was called with either no or an unexpected argument type.
 
 =head4 Attributes
 
@@ -454,7 +454,7 @@ exception
 
 =head3 C<Text::Parser::Errors::RulenameForDisableMustHaveClassname> - C<RulenameForDisableMustHaveClassname()>
 
-Child of C<Text::Parser::Errors::RuleSpecError>. This means that C<L<disables_superclass_rules|"Text::Parser::RuleSpec/disables_superclass_rules">> was called with a string rulename, but the rulename did not have a classname.
+Child of C<Text::Parser::Errors::RuleSpecError>. This means that C<L<disables_superclass_rules|Text::Parser::RuleSpec/"disables_superclass_rules">> was called with a string rulename, but the rulename did not have a classname.
 
 =head4 Attributes
 
@@ -471,7 +471,7 @@ exception
 
 =head3 C<Text::Parser::Errors::CantDisableSameClassRules> - C<CantDisableSameClassRules()>
 
-Child of C<Text::Parser::Errors::RuleSpecError>. This means that C<L<disables_superclass_rules|"Text::Parser::RuleSpec/disables_superclass_rules">> was called with a string rulename, but rulename was from the present class. Instead of disabling same class rules, just don't specify them in this class. C<disables_superclass_rules> is meant only for rules in superclasses.
+Child of C<Text::Parser::Errors::RuleSpecError>. This means that C<L<disables_superclass_rules|Text::Parser::RuleSpec/"disables_superclass_rules">> was called with a string rulename, but rulename was from the present class. Instead of disabling same class rules, just don't specify them in this class. C<disables_superclass_rules> is meant only for rules in superclasses.
 
 =head4 Attributes
 
