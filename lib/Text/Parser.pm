@@ -118,11 +118,16 @@ use String::Util qw(trim ltrim rtrim eqq);
 use Text::Parser::Errors;
 use Text::Parser::Rule;
 use Text::Parser::RuleSpec;
+use List::Util 'first';
+use List::MoreUtils 'natatime';
 
 enum 'Text::Parser::Types::MultilineType' => [qw(join_next join_last)];
 enum 'Text::Parser::Types::LineWrapStyle' =>
     [qw(trailing_backslash spice just_next_line slurp custom)];
 enum 'Text::Parser::Types::TrimType' => [qw(l r b n)];
+
+subtype 'NonEmptyStr', as 'Str', where { length $_ > 0 },
+    message {"$_ is an empty string"};
 
 no Moose::Util::TypeConstraints;
 use FileHandle;
@@ -140,7 +145,7 @@ Takes optional attributes as in example below. See section L<ATTRIBUTES|/ATTRIBU
 
     my $parser = Text::Parser->new(
         auto_chomp      => 0,
-        line_wrap       => 'just_next_line',
+        line_wrap_style => 'just_next_line',
         auto_trim       => 'b',
         auto_split      => 1,
         FS              => qr/\s+/,
@@ -219,6 +224,29 @@ has auto_trim => (
     default => 'n',
 );
 
+=attr custom_line_trimmer
+
+Read-write attribute which can be set to a custom subroutine that trims each line before applying any rules or saving any records. The function is expected to take a single argument containing the complete un-trimmed line, and is expected to return a manipulated line.
+
+    sub _cust_trimmer {
+        my $line = shift;
+        chomp $line;
+        return $line;
+    }
+
+    $parser->custom_line_trimmer(\&_cust_trimmer);
+
+By default it is undefined.
+
+=cut
+
+has custom_line_trimmer => (
+    is      => 'rw',
+    isa     => 'CodeRef|Undef',
+    lazy    => 1,
+    default => undef,
+);
+
 =attr FS
 
 Read-write attribute that can be used to specify the field separator to be used by the C<auto_split> feature. It must be a regular expression reference enclosed in the C<qr> function, like C<qr/\s+|[,]/> which will split across either spaces or commas. The default value for this argument is C<qr/\s+/>.
@@ -236,6 +264,19 @@ has FS => (
     isa     => 'RegexpRef',
     lazy    => 1,
     default => sub {qr/\s+/},
+);
+
+=attr indentation_str
+
+This can be used to set the indentation character or string. By default it is a single space C< >. But you may want to set it to be a tab (C<\t>) or perhaps some other character like a hyphen (C<->) or even a string (C<   -E<gt>>). This attribute is used only if C<L<track_indentation|/track_indentation>> is set.
+
+=cut
+
+has indentation_str => (
+    is      => 'rw',
+    isa     => 'NonEmptyStr',
+    lazy    => 1,
+    default => ' ',
 );
 
 =attr line_wrap_style
@@ -298,7 +339,7 @@ sub _on_line_unwrap {
 
 Read-write attribute used mainly if the programmer wishes to specify custom line-unwrapping methods. By default, this attribute is C<undef>, i.e., the target text format will not have wrapped lines.
 
-    $parser->line_wrap_style(custom);
+    $parser->line_wrap_style('custom');
     $parser->multiline_type('join_next');
 
     my $mult = $parser->multiline_type;
@@ -335,6 +376,25 @@ sub __newval_multi_line {
         if defined $newval;
     return $orig->( $self, $newval );
 }
+
+=attr track_indentation
+
+This boolean attribute enables tracking of the number of indentation characters are there at the beginning of each line. In some text formats, this is a very important information that can indicate the depth of some data. By default, this is false. When set to a true value, you can get the number of indentation characters on a given line with the C<L<this_indent|/this_indent>> method.
+
+    $parser->track_indentation(1);
+
+Now you can use C<this_indent> method in the rules:
+
+    $parser->add_rule(if => '$this->this_indent > 0', do => '~num_indented ++;')
+
+=cut
+
+has track_indentation => (
+    is      => 'rw',
+    isa     => 'Bool',
+    lazy    => 1,
+    default => 0,
+);
 
 =head1 METHODS FOR SPECIFYING RULES
 
@@ -490,6 +550,23 @@ Takes no arguments. Returns C<1>. Aborts C<read>ing any more lines, and C<read> 
         if          => '$1 eq "EOF"', 
         dont_record => 1, 
     );
+
+=sub_use_method this_indent
+
+Takes no arguments, and returns the number of indentation characters found at the front of the current line. This can be called from within a rule:
+
+    $parser->add_rule( if => '$this->this_indent > 0', );
+
+=cut
+
+has _indent_level => (
+    is      => 'ro',
+    isa     => 'Int|Undef',
+    lazy    => 1,
+    default => undef,
+    writer  => '_set_indent_level',
+    reader  => 'this_indent',
+);
 
 =sub_use_method this_line
 
@@ -691,8 +768,7 @@ sub __read_and_close_filehandle {
     my $self = shift;
     $self->_prep_to_read_file;
     $self->__read_file_handle;
-    $self->_close_filehandles if $self->_has_filename;
-    $self->_clear_this_line;
+    $self->_final_operations_after_read;
 }
 
 sub _prep_to_read_file {
@@ -712,11 +788,54 @@ sub __read_file_handle {
 
 sub __parse_line {
     my ( $self, $line ) = ( shift, shift );
-    $self->_next_line_parsed();
-    $line = $self->_def_line_manip($line);
+    $line = $self->_prep_line_for_parsing($line);
     $self->_set_this_line($line);
     $self->save_record($line);
     return not $self->has_aborted;
+}
+
+sub _prep_line_for_parsing {
+    my ( $self, $line ) = ( shift, shift );
+    $self->_next_line_parsed();
+    $self->_find_indent_level($line) if $self->track_indentation;
+    $line = $self->_line_manip($line);
+}
+
+sub _find_indent_level {
+    my ( $self, $line ) = ( shift, shift );
+    chomp $line;
+    length( $self->indentation_str ) >= 2
+        ? $self->_find_long_indent_level($line)
+        : $self->_singlechar_indent($line);
+}
+
+sub _find_long_indent_level {
+    my ( $self, $line ) = ( shift, shift );
+    my $n = _num_matching( $self->indentation_str, $line );
+    $self->_set_indent_level($n);
+}
+
+sub _num_matching {
+    my ( $ch, $line ) = ( shift, shift );
+    my $it = natatime( length($ch), ( split //, $line ) );
+    my ( $i, @x ) = ( 0, $it->() );
+    while ( $ch eq join( '', @x ) ) {
+        ( $i, @x ) = ( $i + 1, $it->() );
+    }
+    return $i;
+}
+
+sub _singlechar_indent {
+    my ( $self, $line ) = ( shift, shift );
+    my $n = first { $_ ne $self->indentation_str } ( split //, $line );
+    $self->_set_indent_level($n);
+}
+
+sub _line_manip {
+    my ( $self, $line ) = ( shift, shift );
+    my $cust = $self->custom_line_trimmer;
+    $line = $cust->($line) if defined $cust;
+    return $self->_def_line_manip($line);
 }
 
 sub _def_line_manip {
@@ -731,6 +850,13 @@ sub _trim_line {
     return trim($line)  if $self->auto_trim eq 'b';
     return ltrim($line) if $self->auto_trim eq 'l';
     return rtrim($line);
+}
+
+sub _final_operations_after_read {
+    my $self = shift;
+    $self->_close_filehandles if $self->_has_filename;
+    $self->_clear_this_line;
+    $self->_set_indent_level(undef) if $self->track_indentation;
 }
 
 =head1 METHODS FOR HANDLING RECORDS

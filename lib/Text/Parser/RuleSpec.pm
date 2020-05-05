@@ -41,7 +41,64 @@ package Text::Parser::RuleSpec;
     my (@emails) = $parser->get_records();
     print "Here are all the emails from the file: @emails\n";
 
-=head1 EXPORTS
+=head1 DESCRIPTION
+
+=head2 Primary usage
+
+The primary purpose of this class is to enable users to create their own parser classes for a well-established text file format. Sometimes, there is a relatively complex text file format and a parser for that could be written allowing for code to be shared across multiple programs. The basic steps are as following:
+
+    package MyFavoriteParser;
+    use Text::Parser::RuleSpec;
+    extends 'Text::Parser';
+
+That's it! This is the basic / bare-minimum requirement to make your own text parser. But it is not particularly useful at this point without any rules of its own.
+
+    applies_rule comment_char => (
+        if          => '$1 =~ /^#/;', 
+        dont_record => 1, 
+    );
+
+This above rule ignores all comment lines and is added to C<MyFavoriteParser> class. So now when you create an instance of C<MyFavoriteParser>, it would automatically run this rule when you call C<L<read|Text::Parser/read>>.
+
+We can preset any attributes for this parser class using the familiar L<Moose> functions. Here is an example:
+
+    has '+line_wrap_style' => (
+        default => 'trailing_backslash', 
+        is      => 'ro', 
+    );
+
+    has '+auto_trim' => (
+        default => 'b', 
+        is      => 'ro', 
+    );
+
+=head2 Using attributes for storage
+
+Sometimes, you may want to store the parsed information in attributes, instead of records. Suppose you want to make a parser for the L<YAML|https://yaml.org/spec/1.2/spec.html> syntax
+
+=head2 Inheritance
+
+We can even create sub-classes of a C<Text::Parser> subclass which extends the abilities of parsers. This is how text parsing should have been to begin with. Programmer A writes code to parse a text format, and programmer B notices that the text format he wishes to parse is similar, except for a few differences. And instead of having to re-write the parsing algorithm from scratch, he just extends the code from programmer A. So for example:
+
+    package MyParser1;
+    use Text::Parser::RuleSpec;
+
+    extends 'Text::Parser';
+
+    applies_rule rule1 => (
+        do => '# something', 
+    );
+
+    package MyParser2;
+    use Text::Parser::RuleSpec;
+
+    extends MyParser1;
+
+    applies_rule rule1 => (
+        do => '# something else', 
+    );
+
+Now, C<MyParser2> contains two rules: C<MyParser/rule1> and C<MyParser2/rule1>.
 
 =head1 METHODS
 
@@ -242,7 +299,7 @@ sub _set_default_of_attribute {
     my ( $meta, %val ) = @_;
     foreach my $k ( keys %val ) {
         my $old = $meta->find_attribute_by_name($k);
-        my $new = $old->clone_and_inherit_options( default => $val{$k} );
+        my $new = $old->clone_and_inherit_options( default => $val{$k}, is => 'ro' );
         $meta->add_attribute($new);
     }
 }

@@ -1,8 +1,9 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
-  - Text::Parser::RuleSpec provides syntactical sugar to subclass Text::Parser: applies_rule, unwraps_lines_using
-  - New attribute line_wrap_style, new method custom_line_unwrap_routines in Text::Parser
+  - Text::Parser::RuleSpec provides syntactical sugar to subclass Text::Parser: applies_rule, unwraps_lines_using, disables_superclass_rules
+  - New attribute line_wrap_style
+  - New method custom_line_unwrap_routines in Text::Parser
   - Removed confusing POD documentation
   - Improved POD documentation to reflect latest features
   - Improved the Text::Parser manual
