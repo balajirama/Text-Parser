@@ -74,11 +74,45 @@ We can preset any attributes for this parser class using the familiar L<Moose> f
 
 =head2 Using attributes for storage
 
-Sometimes, you may want to store the parsed information in attributes, instead of records. Suppose you want to make a parser for the L<YAML|https://yaml.org/spec/1.2/spec.html> syntax
+Sometimes, you may want to store the parsed information in attributes, instead of records. So for example:
 
-=head2 Inheritance
+    has current_section => (
+        is      => 'rw', 
+        isa     => 'Str|Undef', 
+        default => undef, 
+        lazy    => 1, 
+    );
 
-We can even create sub-classes of a C<Text::Parser> subclass which extends the abilities of parsers. This is how text parsing should have been to begin with. Programmer A writes code to parse a text format, and programmer B notices that the text format he wishes to parse is similar, except for a few differences. And instead of having to re-write the parsing algorithm from scratch, he just extends the code from programmer A. So for example:
+    has _num_lines_by_section => (
+        is      => 'rw', 
+        isa     => 'HashRef[Int]', 
+        default => sub { {}; }, 
+        lazy    => 1, 
+        handles => {
+            num_lines      => 'get', 
+            _set_num_lines => 'set', 
+        }
+    );
+
+    applies_rule inc_section_num_lines => (
+        if          => '$1 ne "SECTION"', 
+        do          => 'my $sec = $this->current_section;
+                        my $n = $this->num_lines($sec); 
+                        $this->_set_num_lines($sec => $n+1);', 
+        dont_record => 1, 
+    );
+
+    applies_rule get_section_name => (
+        if          => '$1 eq "SECTION"', 
+        do          => '$this->current_section($2); $this->_set_num_lines($2 => 0);', 
+        dont_record => 1, 
+    );
+
+In the above example, you can see how the section name we get from one rule is used in a different rule.
+
+=head2 Inheriting rules in subclasses
+
+We can further subclass a class that C<extends> L<Text::Parser>. Inheriting the rules of the superclass is automatic:
 
     package MyParser1;
     use Text::Parser::RuleSpec;
@@ -92,13 +126,56 @@ We can even create sub-classes of a C<Text::Parser> subclass which extends the a
     package MyParser2;
     use Text::Parser::RuleSpec;
 
-    extends MyParser1;
+    extends 'MyParser1';
 
     applies_rule rule1 => (
         do => '# something else', 
     );
 
-Now, C<MyParser2> contains two rules: C<MyParser/rule1> and C<MyParser2/rule1>.
+Now, C<MyParser2> contains two rules: C<MyParser/rule1> and C<MyParser2/rule1>. By default, rules of superclasses will be run before rules in the subclass. The derived class can change this:
+
+    package MyParser2;
+    use Text::Parser::RuleSpec;
+
+    extends 'MyParser1';
+
+    applies_rule rule1 => (
+        do     => '# something else', 
+        before => 'MyParser1/rule1', 
+    );
+
+A subclass may choose to disable any superclass rules:
+
+    package MyParser3;
+    use Text::Parser::RuleSpec;
+
+    extends 'MyParser2';
+
+    disables_superclass_rules qr/^MyParser1/;  # disables all rules from MyParser1 class
+
+Or to clone a rule from either the same class, or from a superclass, or even from some other random class.
+
+    package ClonerParser;
+    use Text::Parser::RuleSpec;
+
+    use Some::Parser;  # contains rules: "heading", "section"
+    extends 'MyParser2';
+
+    applies_rule my_own_rule => (
+        if    => '# check something', 
+        do    => '# collect some data', 
+        after => 'MyParser2/rule1', 
+    );
+
+    applies_cloned_rule 'MyParser2/rule1' => (
+        add_precondition => '# Additional condition', 
+        do               => '# Optionally change the action', 
+        # prepend_action => '# Or just prepend something', 
+        # append_action  => '# Or append something', 
+        after            => 'MyParser1/rule1', 
+    );
+
+So essentially, programmer A may write a text parser for a text syntax SYNT1, and programmer B notices that the text syntax he wishes to parse (SYNT2) is similar, except for a few differences. Instead of having to re-write the parsing algorithm from scratch, he can just extend the code from programmer A and modify it exactly as needed. This is especially useful when syntax many different text formats are very similar.
 
 =head1 METHODS
 
