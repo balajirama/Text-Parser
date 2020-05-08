@@ -236,14 +236,6 @@ class_has _class_rules_in_order => (
     },
 );
 
-sub _push_class_rule_order {
-    my ( $class, $cls, $rulename ) = @_;
-    my @ord = $class->class_rule_order($cls);
-    push @ord, $rulename;
-    $class->_set_class_rule_order( $cls => \@ord );
-    $class->populate_class_rules($cls);
-}
-
 =method class_rules
 
 Takes a single string argument and returns the actual rule objects of the given class name.
@@ -319,6 +311,16 @@ Takes one mandatory string argument - a rule name - followed by the options to c
         continue_to_next => 1, 
     );
 
+Optionally, one may additionally provide one of the options C<before> or C<after> and specify a superclass rule.
+
+    applies_rule check_line_syntax => (
+        if     => '$1 ne "SECTION"', 
+        do     => '$this->check_syntax($this->current_section, $_);', 
+        before => 'Parent::Parser/add_line_to_data_struct', 
+    );
+
+Exceptions will be thrown if the C<before> or C<after> rule does not have a class name in it, or if it is the same as the current class, or if the rule is not among the inherited rules so far.
+
 =cut
 
 sub applies_rule {
@@ -338,7 +340,7 @@ sub _excepts_apply_rule {
     my ( $meta, $name ) = ( shift, shift );
     die main_cant_apply_rule( rule_name => $name ) if $meta->name eq 'main';
     _rule_must_have_name( $meta, $name );
-    _check_arg_is_hash( $name, @_ );
+    _check_args_hash_stuff( $meta, $name, @_ );
 }
 
 my %rule_options = (
@@ -347,7 +349,7 @@ my %rule_options = (
     dont_record      => 1,
     continue_to_next => 1,
     before           => 1,
-    after            => 1
+    after            => 1,
 );
 
 sub _rule_must_have_name {
@@ -358,34 +360,68 @@ sub _rule_must_have_name {
         or ( exists $rule_options{$name} );
 }
 
+sub _check_args_hash_stuff {
+    my ( $meta, $name ) = ( shift, shift );
+    my (%opt) = _check_arg_is_hash( $name, @_ );
+    _check_rule_order_args( $meta, $name, %opt )
+        if exists $opt{before}
+        or exists $opt{after};
+}
+
 sub _check_arg_is_hash {
     my $name = shift;
     die spec_requires_hash( rule_name => $name )
         if not @_
         or ( scalar(@_) % 2 );
+    return @_;
+}
+
+sub _check_rule_order_args {
+    my ( $meta, $name, %opt ) = ( shift, shift, @_ );
+    die only_one_of_before_or_after( rule => $name )
+        if exists $opt{before} and exists $opt{after};
+    my $loc = exists $opt{before} ? 'before' : 'after';
+    my ( $cls, $rule ) = split /\//, $opt{$loc}, 2;
+    die before_or_after_needs_classname( rule => $name )
+        if not defined $rule;
+    die ref_to_non_existent_rule( rule => $opt{$loc} )
+        if not Text::Parser::RuleSpec->_exists_rule( $opt{$loc} );
+    die before_or_after_only_superclass_rules( rule => $name )
+        if $cls eq $meta->name;
 }
 
 sub _register_rule {
     my $key = shift;
     die name_rule_uniquely() if Text::Parser::RuleSpec->_exists_rule($key);
-    my $rule = Text::Parser::Rule->new(@_);
+    my $rule = Text::Parser::Rule->new( _get_rule_opts_only(@_) );
     Text::Parser::RuleSpec->_add_new_rule( $key => $rule );
+}
+
+sub _get_rule_opts_only {
+    my (%opt) = @_;
+    delete $opt{before} if exists $opt{before};
+    delete $opt{after}  if exists $opt{after};
+    return (%opt);
 }
 
 sub _set_default_of_attribute {
     my ( $meta, %val ) = @_;
-    foreach my $k ( keys %val ) {
-        my $old = $meta->find_attribute_by_name($k);
-        my $new = $old->clone_and_inherit_options( default => $val{$k}, is => 'ro' );
-        $meta->add_attribute($new);
+    while ( my ( $k, $v ) = ( each %val ) ) {
+        _inherit_extend_attr( $meta, $k, $v );
     }
+}
+
+sub _inherit_extend_attr {
+    my ( $meta, $attr, $def ) = ( shift, shift, shift );
+    my $old = $meta->find_attribute_by_name($attr);
+    my $new = $old->clone_and_inherit_options( default => $def, is => 'ro' );
+    $meta->add_attribute($new);
 }
 
 sub _push_rule_order {
     my ( $meta, $rule_name ) = ( shift, shift );
     _if_empty_prepopulate_rules_from_superclass($meta);
-    Text::Parser::RuleSpec->_push_class_rule_order( $meta->name,
-        _full_rule_name( $meta, $rule_name ) );
+    _push_to_class_rules( $meta->name, _full_rule_name( $meta, $rule_name ) );
 }
 
 sub _if_empty_prepopulate_rules_from_superclass {
@@ -397,6 +433,14 @@ sub _if_empty_prepopulate_rules_from_superclass {
 
 sub _ordered_rules_of_classes {
     return [ map { Text::Parser::RuleSpec->class_rule_order($_) } @_ ];
+}
+
+sub _push_to_class_rules {
+    my ( $class, $cls, $rulename ) = ( 'Text::Parser::RuleSpec', @_ );
+    my @ord = $class->class_rule_order($cls);
+    push @ord, $rulename;
+    $class->_set_class_rule_order( $cls => \@ord );
+    $class->populate_class_rules($cls);
 }
 
 =func unwraps_lines_using

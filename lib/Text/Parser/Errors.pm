@@ -486,6 +486,71 @@ exception
     extends => RuleSpecError(),
     has     => [ rule => ( is => 'ro', isa => \&_Str, ) ];
 
+=head3 C<Text::Parser::Errors::OnlyOneOfBeforeOrAfter> - C<OnlyOneOfBeforeOrAfter()>
+
+Child of C<Text::Parser::Errors::RuleSpecError>. This means only one of C<before> or C<after> options can be used with C<L<applies_rule|Text::Parser::RuleSpec/"applies_rule">> or C<L<applies_cloned_rule|Text::Parser::RuleSpec/"applies_cloned_rule">>.
+
+=head4 Attributes
+
+=for :list
+* B<rule> - specifies the rule specification with the problem
+
+=cut
+
+exception
+    OnlyOneOfBeforeOrAfter => 'Only one of before and after may be used',
+    extends                => RuleSpecError(),
+    has                    => [ rule => ( is => 'ro', isa => \&_Str, ) ];
+
+=head3 C<Text::Parser::Errors::BeforeOrAfterNeedsClassname> - C<BeforeOrAfterNeedsClassname()>
+
+Child of C<Text::Parser::Errors::RuleSpectError>. This means C<before> or C<after> rule name specified does not have rulename. Follow the format: C<Parser::Class/rule_name>.
+
+=head4 Attributes
+
+=for :list
+* B<rule> - specifies the rule specification with the problem
+
+=cut
+
+exception
+    BeforeOrAfterNeedsClassname => 'before or after must have classname',
+    extends                     => RuleSpecError(),
+    has                         => [ rule => ( is => 'ro', isa => \&_Str, ) ];
+
+=head3 C<Text::Parser::Errors::RefToNonExistentRule> - C<RefToNonExistentRule()>
+
+Child of C<Text::Parser::Errors::RuleSpectError>. This means that the rulename specified does not exist. Did you forget to inherit from it with C<extends>? Or do you have a typo?
+
+=head4 Attributes
+
+=for :list
+* B<rule> - specifies the rule name that does not exist but referenced
+
+=cut
+
+exception
+    RefToNonExistentRule => 'reference to non-existent rule',
+    extends              => RuleSpecError(),
+    has                  => [ rule => ( is => 'ro', isa => \&_Str, ) ];
+
+=head3 C<Text::Parser::Errors::BeforeOrAfterOnlySuperclassRules> - C<BeforeOrAfterOnlyOtherClassRules()>
+
+Child of C<Text::Parser::Errors::RuleSpecError>. This means C<before> or C<after> clauses may be used only with rules of superclass.
+
+=head4 Attributes
+
+=for :list
+* B<rule> - specifies the rule name that does not exist but referenced
+
+=cut
+
+exception
+    BeforeOrAfterOnlySuperclassRules =>
+    'before or after clause can be used only with superclass rules',
+    extends => RuleSpecError(),
+    has     => [ rule => ( is => 'ro', isa => \&_Str, ) ];
+
 =head2 Miscellaneous
 
 =head3 C<Text::Parser::Errors::SingleParamsToNewMustBeHashRef> - C<SingleParamsToNewMustBeHashRef()>
