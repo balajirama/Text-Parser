@@ -326,8 +326,8 @@ Exceptions will be thrown if the C<before> or C<after> rule does not have a clas
 sub applies_rule {
     my ( $meta, $name ) = ( shift, shift );
     _excepts_apply_rule( $meta, $name, @_ );
+    _set_default_of_attributes( $meta, auto_split => 1 );
     _register_rule( _full_rule_name( $meta, $name ), @_ );
-    _set_default_of_attribute( $meta, auto_split => 1 );
     _push_rule_order( $meta, $name );
 }
 
@@ -404,7 +404,7 @@ sub _get_rule_opts_only {
     return (%opt);
 }
 
-sub _set_default_of_attribute {
+sub _set_default_of_attributes {
     my ( $meta, %val ) = @_;
     while ( my ( $k, $v ) = ( each %val ) ) {
         _inherit_extend_attr( $meta, $k, $v );
@@ -492,9 +492,9 @@ sub _is_arg_a_code {
 
 sub _set_lws_and_routines {
     my ( $meta, $is_wr, $unwr ) = @_;
-    _set_default_of_attribute( $meta, line_wrap_style => 'custom' );
-    _set_default_of_attribute( $meta, _is_wrapped     => sub { $is_wr; } );
-    _set_default_of_attribute( $meta, _unwrap_routine => sub { $unwr; } );
+    _set_default_of_attributes( $meta, line_wrap_style => 'custom' );
+    _set_default_of_attributes( $meta, _is_wrapped     => sub { $is_wr; } );
+    _set_default_of_attributes( $meta, _unwrap_routine => sub { $unwr; } );
 }
 
 =func disables_superclass_rules
