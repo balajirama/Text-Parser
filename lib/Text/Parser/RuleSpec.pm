@@ -413,6 +413,7 @@ sub _set_default_of_attributes {
 
 sub _inherit_extend_attr {
     my ( $meta, $attr, $def ) = ( shift, shift, shift );
+    return if defined $meta->get_attribute($attr);
     my $old = $meta->find_attribute_by_name($attr);
     my $new = $old->clone_and_inherit_options( default => $def, is => 'ro' );
     $meta->add_attribute($new);
