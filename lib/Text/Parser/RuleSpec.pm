@@ -7,7 +7,7 @@ package Text::Parser::RuleSpec;
 
 =head1 SYNOPSIS
 
-    package MyParser;
+    package MyFavorite::Parser;
 
     use Text::Parser::RuleSpec;
     extends 'Text::Parser';
@@ -36,7 +36,7 @@ package Text::Parser::RuleSpec;
 
     package main;
 
-    my $parser = MyParser->new();
+    my $parser = MyFavorite::Parser->new();
     $parser->read('/path/to/email_lists.txt');
     my (@emails) = $parser->get_records();
     print "Here are all the emails from the file: @emails\n";
@@ -47,7 +47,7 @@ package Text::Parser::RuleSpec;
 
 The primary purpose of this class is to enable users to create their own parser classes for a well-established text file format. Sometimes, there is a relatively complex text file format and a parser for that could be written allowing for code to be shared across multiple programs. The basic steps are as following:
 
-    package MyFavoriteParser;
+    package MyFavorite::Parser;
     use Text::Parser::RuleSpec;
     extends 'Text::Parser';
 
@@ -58,7 +58,7 @@ That's it! This is the basic / bare-minimum requirement to make your own text pa
         dont_record => 1, 
     );
 
-This above rule ignores all comment lines and is added to C<MyFavoriteParser> class. So now when you create an instance of C<MyFavoriteParser>, it would automatically run this rule when you call C<L<read|Text::Parser/read>>.
+This above rule ignores all comment lines and is added to C<MyFavorite::Parser> class. So now when you create an instance of C<MyFavorite::Parser>, it would automatically run this rule when you call C<L<read|Text::Parser/read>>.
 
 We can preset any attributes for this parser class using the familiar L<Moose> functions. Here is an example:
 
@@ -132,7 +132,7 @@ We can further subclass a class that C<extends> L<Text::Parser>. Inheriting the 
         do => '# something else', 
     );
 
-Now, C<MyParser2> contains two rules: C<MyParser/rule1> and C<MyParser2/rule1>. By default, rules of superclasses will be run before rules in the subclass. The derived class can change this:
+Now, C<MyParser2> contains two rules: C<MyParser1/rule1> and C<MyParser2/rule1>. By default, rules of superclasses will be run before rules in the subclass. The derived class can change this:
 
     package MyParser2;
     use Text::Parser::RuleSpec;
@@ -179,7 +179,7 @@ So essentially, programmer A may write a text parser for a text syntax SYNT1, an
 
 =head1 METHODS
 
-All methods can be called directly on the C<Text::Parser::RuleSpec> class directly.
+There is no constructor for this class. You cannot create an instance of this class. Therefore, all methods here can be called on the C<Text::Parser::RuleSpec> class directly. These methods are documented if you want to sub-class C<Text::Parser::RuleSpec> itself to do something fancy of your own.
 
 =cut
 
@@ -192,7 +192,8 @@ use List::MoreUtils qw(before_incl after_incl);
 
 Moose::Exporter->setup_import_methods(
     with_meta => [
-        'applies_rule', 'unwraps_lines_using', 'disables_superclass_rules'
+        'applies_rule',              'unwraps_lines_using',
+        'disables_superclass_rules', 'applies_cloned_rule',
     ],
     as_is => ['_check_custom_unwrap_args'],
     also  => 'Moose'
@@ -206,10 +207,19 @@ class_has _all_rules => (
     traits  => ['Hash'],
     handles => {
         _add_new_rule => 'set',
-        _exists_rule  => 'exists',
+        is_known_rule => 'exists',
         _get_rule     => 'get',
     },
 );
+
+=method is_known_rule
+
+Takes a string argument expected to be fully-qualified name of a rule. Returns a boolean that indicates if such a rule exists. The fully-qualified name of a rule is of the form C<Some::Class/rule_name>. Any suffixes like C<@2> or C<@3> should be included to check the existence of any cloned rules.
+
+    print "Some::Parser::Class/some_rule is a rule\n"
+        if Text::Parser::RuleSpec->is_known_rule('Some::Parser::Class/some_rule');
+
+=cut
 
 class_has _class_rule_order => (
     is      => 'rw',
@@ -231,7 +241,6 @@ class_has _class_rules_in_order => (
     default => sub { {} },
     traits  => ['Hash'],
     handles => {
-        _are_rules_ordered  => 'exists',
         _class_rules        => 'get',
         _set_rules_of_class => 'set',
     },
@@ -241,7 +250,7 @@ class_has _class_rules_in_order => (
 
 Takes a single string argument and returns the actual rule objects of the given class name.
 
-    my (@rules) = Text::Parser::RuleSpec->class_rules('MyFavoriteParser');
+    my (@rules) = Text::Parser::RuleSpec->class_rules('MyFavorite::Parser');
 
 =cut
 
@@ -255,7 +264,7 @@ sub class_rules {
 
 Takes a single string argument and returns the ordered list of rule names for the class.
 
-    my (@order) = Text::Parser::RuleSpec->class_rule_order('MyFavoriteParser');
+    my (@order) = Text::Parser::RuleSpec->class_rule_order('MyFavorite::Parser');
 
 =cut
 
@@ -267,10 +276,10 @@ sub class_rule_order {
 
 =method class_has_no_rules
 
-Takes parser class name and returns a boolean representing if that class has any rules or not.
+Takes parser class name and returns a boolean representing if that class has any rules or not. Returns boolean true if the class has no rules, and a boolean false otherwise.
 
-    print "There are no class rules for MyFavoriteParser.\n"
-        if Text::Parser::RuleSpec->class_has_no_rules('MyFavoriteParser');
+    print "There are no class rules for MyFavorite::Parser.\n"
+        if Text::Parser::RuleSpec->class_has_no_rules('MyFavorite::Parser');
 
 =cut
 
@@ -283,9 +292,9 @@ sub class_has_no_rules {
 
 =method populate_class_rules
 
-Takes a parser class name as string argument. It populates the class rules according to the latest order of rules (returned by C<class_rule_order>).
+Takes a parser class name as string argument. It populates the class rules according to the latest order of rules. This is useful if you modify a class rule order through your own code.
 
-    Text::Parser::RuleSpec->populate_class_rules('MyFavoriteParser');
+    Text::Parser::RuleSpec->populate_class_rules('MyFavorite::Parser');
 
 =cut
 
@@ -312,7 +321,9 @@ Takes one mandatory string argument - a rule name - followed by the options to c
         continue_to_next => 1, 
     );
 
-Optionally, one may additionally provide one of the options C<before> or C<after> and specify a superclass rule.
+The above call to create a rule C<print_emails> in your class C<MyFavorite::Parser>, will save the rule as C<MyFavorite::Parser/print_emails>. So if you want to clone it in sub-classes or want to insert a rule before or after that in a sub-class, then this is the way to reference the rule.
+
+Optionally, one may provide one of C<before> or C<after> clauses to specify when this rule is to be executed.
 
     applies_rule check_line_syntax => (
         if     => '$1 ne "SECTION"', 
@@ -320,7 +331,9 @@ Optionally, one may additionally provide one of the options C<before> or C<after
         before => 'Parent::Parser/add_line_to_data_struct', 
     );
 
-Exceptions will be thrown if the C<before> or C<after> rule does not have a class name in it, or if it is the same as the current class, or if the rule is not among the inherited rules so far.
+The above rule will apply C<>
+
+Exceptions will be thrown if the C<before> or C<after> rule does not have a class name in it, or if it is the same as the current class, or if the rule is not among the inherited rules so far. Only one of C<before> or C<after> clauses may be provided.
 
 =cut
 
@@ -370,7 +383,7 @@ sub _check_args_hash_stuff {
     my ( $meta, $name ) = ( shift, shift );
     my (%opt) = _check_arg_is_hash( $name, @_ );
     _if_empty_prepopulate_rules_from_superclass($meta);
-    _check_rule_order_args( $meta, $name, %opt )
+    _check_location_args( $meta, $name, %opt )
         if _has_location_opts(%opt);
 }
 
@@ -387,7 +400,7 @@ sub _check_arg_is_hash {
     return @_;
 }
 
-sub _check_rule_order_args {
+sub _check_location_args {
     my ( $meta, $name, %opt ) = ( shift, shift, @_ );
     die only_one_of_before_or_after( rule => $name )
         if exists $opt{before} and exists $opt{after};
@@ -396,7 +409,7 @@ sub _check_rule_order_args {
     die before_or_after_needs_classname( rule => $name )
         if not defined $rule;
     die ref_to_non_existent_rule( rule => $opt{$loc} )
-        if not Text::Parser::RuleSpec->_exists_rule( $opt{$loc} );
+        if not Text::Parser::RuleSpec->is_known_rule( $opt{$loc} );
     my (@r) = Text::Parser::RuleSpec->class_rule_order( $meta->name );
     my $is_super_rule = grep { $_ eq $opt{$loc} } @r;
     die before_or_after_only_superclass_rules( rule => $name )
@@ -405,7 +418,7 @@ sub _check_rule_order_args {
 
 sub _register_rule {
     my $key = shift;
-    die name_rule_uniquely() if Text::Parser::RuleSpec->_exists_rule($key);
+    die name_rule_uniquely() if Text::Parser::RuleSpec->is_known_rule($key);
     my $rule = Text::Parser::Rule->new( _get_rule_opts_only(@_) );
     Text::Parser::RuleSpec->_add_new_rule( $key => $rule );
 }
@@ -473,14 +486,10 @@ sub _ins_after_rule {
 }
 
 sub _if_empty_prepopulate_rules_from_superclass {
-    my $meta = shift;
-    Text::Parser::RuleSpec->_set_class_rule_order(
-        $meta->name => _ordered_rules_of_classes( $meta->superclasses ) )
-        if not Text::Parser::RuleSpec->_class_has_rules( $meta->name );
-}
-
-sub _ordered_rules_of_classes {
-    return [ map { Text::Parser::RuleSpec->class_rule_order($_) } @_ ];
+    my ( $meta, $cls ) = ( shift, 'Text::Parser::RuleSpec' );
+    my @ro = map { $cls->class_rule_order($_) } ( $meta->superclasses );
+    $cls->_set_class_rule_order( $meta->name => \@ro )
+        if not $cls->_class_has_rules( $meta->name );
 }
 
 sub _push_to_class_rules {
@@ -489,6 +498,31 @@ sub _push_to_class_rules {
     push @ord, $rulename;
     $class->_set_class_rule_order( $cls => \@ord );
     $class->populate_class_rules($cls);
+}
+
+=func applies_cloned_rule
+
+Clones an existing rule to make a replica, but you can add options to change any parameters of the rule.
+
+    applies_cloned_rule 'Some::SuperClass::Parser/some_rule' => (
+        add_precondition => '1; # add some tests returning boolean', 
+        before           => 'MayBe::Another::Superclass::Parser/some_other_rule',
+            ## Or even 'Some::SuperClass::Parser/another_rule'
+        do               => '## Change the do clause of original rule', 
+    );
+
+The first argument must be a string containing the rule name to be cloned. You may clone a superclass rule, or even a rule from another class that you have only C<use>d in your code, but are not actually inheriting (using C<extends>). You may even clone a rule from the present class if the rule has been defined already. If the rule name specified contains a class name, then the exact rule is cloned, modified according to other clauses, and inserted into the rule order. But if the rule name specified does not have a classname, then the function looks for a rule with that name in the current class, and clones that one.
+
+You may use one of the C<before> or C<after> clauses just like in C<applies_rule>. You may use any of the other rule creation options like C<if>, C<do>, C<continue_to_next>, or C<dont_record>. And you may optionally also use the C<add_precondition> clause. In many cases, you may not need any of the rule-creation options at all and may use only C<add_precondition> or any one of C<before> or C<after> clauses. If you do use any of the rule-creating options like C<do> or C<if>, then it will change those fields of the cloned copy of the original rule.
+
+Note that when you clone a rule, you do not change the original rule itself. You actually make a second copy and modify that. So you retain the original rule along with the clone.
+
+The new cloned rule created is automatically renamed by C<applies_cloned_rule>. If a rule C<Some::Other::Class/my_rule_1> is cloned into your parser class C<MyFavorite::Parser>, then the clone is named C<MyFavorite::Parser/my_rule_1>. This way, the original rule is left unaffected. If such a name already exists, then the clone adds C<@2> suffix to the name, viz., C<MyFavorite::Parser/my_rule_1@2>. If that also exists, it will be called C<MyFavorite::Parser/my_rule_1@3>. And so on it goes on incrementing.
+
+=cut
+
+sub applies_cloned_rule {
+    my ( $meta, $orule ) = ( shift, shift );
 }
 
 =func unwraps_lines_using
@@ -624,12 +658,6 @@ sub _is_to_be_filtered {
     }
     return 0;
 }
-
-=func applies_cloned_rule
-
-Clones an existing rule to make a replica, but you can add options to change any parameters of the rule.
-
-=cut
 
 __PACKAGE__->meta->make_immutable;
 
