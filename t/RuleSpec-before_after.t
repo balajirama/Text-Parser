@@ -71,6 +71,19 @@ throws_ok {
 BeforeOrAfterOnlySuperclassRules();
 
 lives_ok {
+    applies_rule simple_rule => ( do => '# nothing', );
+}
+'Just to check next test';
+
+throws_ok {
+    applies_rule random_rule => (
+        if    => '# something else',
+        after => 'MyParser/simple_rule',
+    );
+}
+BeforeOrAfterOnlySuperclassRules();
+
+lives_ok {
     applies_rule random_rule => (
         if     => '# something',
         before => 'OneParser/rule1',
@@ -83,15 +96,16 @@ lives_ok {
         if    => '# something more',
         after => 'OneParser/rule1',
     );
-};
+}
+'Test after clause also';
 
 package main;
 use Test::More;
 
 is_deeply(
     [ Text::Parser::RuleSpec->class_rule_order('MyParser') ],
-    [   'MyParser/random_rule', 'OneParser/rule1',
-        'MyParser/another_random_rule'
+    [   'MyParser/random_rule',         'OneParser/rule1',
+        'MyParser/another_random_rule', 'MyParser/simple_rule',
     ],
     'set rules in correct order'
 );

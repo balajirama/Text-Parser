@@ -441,24 +441,8 @@ sub _set_correct_rule_order {
 }
 
 my %INSERT_RULE_FUNC = (
-    before => sub {
-        my ( $cls, $before, $rname ) = ( shift, shift, shift );
-        my (@ord)  = Text::Parser::RuleSpec->class_rule_order($cls);
-        my (@ord1) = before_incl { $_ eq $before } @ord;
-        my (@ord2) = after_incl { $_ eq $before } @ord;
-        pop @ord1;
-        Text::Parser::RuleSpec->_set_class_rule_order(
-            $cls => [ @ord1, $rname, @ord2 ] );
-    },
-    after => sub {
-        my ( $cls, $after, $rname ) = ( shift, shift, shift );
-        my (@ord)  = Text::Parser::RuleSpec->class_rule_order($cls);
-        my (@ord1) = before_incl { $_ eq $after } @ord;
-        my (@ord2) = after_incl { $_ eq $after } @ord;
-        shift @ord2;
-        Text::Parser::RuleSpec->_set_class_rule_order(
-            $cls => [ @ord1, $rname, @ord2 ] );
-    }
+    before => \&_ins_before_rule,
+    after  => \&_ins_after_rule,
 );
 
 sub _insert_rule_in_order {
@@ -466,6 +450,26 @@ sub _insert_rule_in_order {
     my $loc = exists $opt{before} ? 'before' : 'after';
     $INSERT_RULE_FUNC{$loc}->( $cls, $opt{$loc}, $rname );
     Text::Parser::RuleSpec->populate_class_rules($cls);
+}
+
+sub _ins_before_rule {
+    my ( $cls, $before, $rname ) = ( shift, shift, shift );
+    my (@ord)  = Text::Parser::RuleSpec->class_rule_order($cls);
+    my (@ord1) = before_incl { $_ eq $before } @ord;
+    my (@ord2) = after_incl { $_ eq $before } @ord;
+    pop @ord1;
+    Text::Parser::RuleSpec->_set_class_rule_order(
+        $cls => [ @ord1, $rname, @ord2 ] );
+}
+
+sub _ins_after_rule {
+    my ( $cls, $after, $rname ) = ( shift, shift, shift );
+    my (@ord)  = Text::Parser::RuleSpec->class_rule_order($cls);
+    my (@ord1) = before_incl { $_ eq $after } @ord;
+    my (@ord2) = after_incl { $_ eq $after } @ord;
+    shift @ord2;
+    Text::Parser::RuleSpec->_set_class_rule_order(
+        $cls => [ @ord1, $rname, @ord2 ] );
 }
 
 sub _if_empty_prepopulate_rules_from_superclass {
