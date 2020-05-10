@@ -326,15 +326,14 @@ Exceptions will be thrown if the C<before> or C<after> rule does not have a clas
 
 sub applies_rule {
     my ( $meta, $name ) = ( shift, shift );
-    _first_things_on_applies_rule($meta);
-    _excepts_apply_rule( $meta, $name, @_ );
+    _first_things_on_applies_rule( $meta, $name, @_ );
     _register_rule( _full_rule_name( $meta, $name ), @_ );
     _set_correct_rule_order( $meta, $name, @_ );
 }
 
 sub _first_things_on_applies_rule {
-    my $meta = shift;
-    _if_empty_prepopulate_rules_from_superclass($meta);
+    my ( $meta, $name ) = ( shift, shift );
+    _excepts_apply_rule( $meta, $name, @_ );
     _set_default_of_attributes( $meta, auto_split => 1 );
 }
 
@@ -370,6 +369,7 @@ sub _rule_must_have_name {
 sub _check_args_hash_stuff {
     my ( $meta, $name ) = ( shift, shift );
     my (%opt) = _check_arg_is_hash( $name, @_ );
+    _if_empty_prepopulate_rules_from_superclass($meta);
     _check_rule_order_args( $meta, $name, %opt )
         if _has_location_opts(%opt);
 }
