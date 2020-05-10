@@ -64,8 +64,8 @@ BeforeOrAfterNeedsClassname();
 
 throws_ok {
     applies_rule random_rule => (
-        if     => '# something else',
-        before => 'AnotherParser/my_rule',
+        if    => '# something else',
+        after => 'AnotherParser/my_rule',
     );
 }
 BeforeOrAfterOnlySuperclassRules();
@@ -78,13 +78,21 @@ lives_ok {
 }
 'Finally works';
 
+lives_ok {
+    applies_rule another_random_rule => (
+        if    => '# something more',
+        after => 'OneParser/rule1',
+    );
+};
+
 package main;
 use Test::More;
 
-
 is_deeply(
     [ Text::Parser::RuleSpec->class_rule_order('MyParser') ],
-    [ 'MyParser/random_rule', 'OneParser/rule1' ], 
+    [   'MyParser/random_rule', 'OneParser/rule1',
+        'MyParser/another_random_rule'
+    ],
     'set rules in correct order'
 );
 
