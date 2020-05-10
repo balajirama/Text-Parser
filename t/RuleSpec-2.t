@@ -108,12 +108,12 @@ lives_ok {
     );
     is_deeply( [ Text::Parser::RuleSpec->class_rule_order() ],
         [], 'Empty rule order for no argument' );
-    is( Text::Parser::RuleSpec->class_has_no_rules(),
+    isnt( Text::Parser::RuleSpec->class_has_rules(),
         1, 'No argument returns 1' );
-    is( Text::Parser::RuleSpec->class_has_no_rules('Unknown'),
+    isnt( Text::Parser::RuleSpec->class_has_rules('Unknown'),
         1, 'Unknown class name returns 1' );
-    isnt( Text::Parser::RuleSpec->class_has_no_rules('AnotherClass'),
-        1, 'AnotherClass class_has_no_rules is not 1' );
+    isnt( Text::Parser::RuleSpec->class_has_rules('AnotherClass'),
+        1, 'AnotherClass class_has_rules is not 1' );
     is_deeply( [ Text::Parser::RuleSpec->class_rules() ],
         [], 'Empty array of objects for no argument call of class_rules' );
     is_deeply( [ Text::Parser::RuleSpec->class_rules('Random') ],

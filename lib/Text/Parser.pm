@@ -1282,8 +1282,8 @@ sub save_record {
 
 sub _has_no_rules {
     my $self = shift;
-    Text::Parser::RuleSpec->class_has_no_rules( $self->_origclass )
-        and $self->_has_no_obj_rules;
+    return 0 if Text::Parser::RuleSpec->class_has_rules( $self->_origclass );
+    return $self->_has_no_obj_rules;
 }
 
 sub _run_through_rules {

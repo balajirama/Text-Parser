@@ -212,15 +212,6 @@ class_has _all_rules => (
     },
 );
 
-=method is_known_rule
-
-Takes a string argument expected to be fully-qualified name of a rule. Returns a boolean that indicates if such a rule exists. The fully-qualified name of a rule is of the form C<Some::Class/rule_name>. Any suffixes like C<@2> or C<@3> should be included to check the existence of any cloned rules.
-
-    print "Some::Parser::Class/some_rule is a rule\n"
-        if Text::Parser::RuleSpec->is_known_rule('Some::Parser::Class/some_rule');
-
-=cut
-
 class_has _class_rule_order => (
     is      => 'rw',
     isa     => 'HashRef[ArrayRef[Str]]',
@@ -246,18 +237,20 @@ class_has _class_rules_in_order => (
     },
 );
 
-=method class_rules
+=method class_has_rules
 
-Takes a single string argument and returns the actual rule objects of the given class name.
+Takes parser class name and returns a boolean representing if that class has any rules or not. Returns boolean true if the class has any rules, and a boolean false otherwise.
 
-    my (@rules) = Text::Parser::RuleSpec->class_rules('MyFavorite::Parser');
+    print "There are no class rules for MyFavorite::Parser.\n"
+        if not Text::Parser::RuleSpec->class_has_rules('MyFavorite::Parser');
 
 =cut
 
-sub class_rules {
-    my ( $class, $cls ) = @_;
-    return () if $class->class_has_no_rules($cls);
-    @{ $class->_class_rules($cls) };
+sub class_has_rules {
+    my ( $this_cls, $cls ) = ( shift, shift );
+    return 0 if not defined $cls;
+    return 0 if not $this_cls->_class_has_rules($cls);
+    return $this_cls->class_rule_order($cls);
 }
 
 =method class_rule_order
@@ -274,21 +267,28 @@ sub class_rule_order {
     $class->_class_has_rules($cls) ? @{ $class->__cls_rule_order($cls) } : ();
 }
 
-=method class_has_no_rules
+=method class_rules
 
-Takes parser class name and returns a boolean representing if that class has any rules or not. Returns boolean true if the class has no rules, and a boolean false otherwise.
+Takes a single string argument and returns the actual rule objects of the given class name.
 
-    print "There are no class rules for MyFavorite::Parser.\n"
-        if Text::Parser::RuleSpec->class_has_no_rules('MyFavorite::Parser');
+    my (@rules) = Text::Parser::RuleSpec->class_rules('MyFavorite::Parser');
 
 =cut
 
-sub class_has_no_rules {
-    my ( $this_cls, $cls ) = ( shift, shift );
-    return 1 if not defined $cls;
-    return 1 if not $this_cls->_class_has_rules($cls);
-    return not $this_cls->class_rule_order($cls);
+sub class_rules {
+    my ( $class, $cls ) = @_;
+    return () if not $class->class_has_rules($cls);
+    @{ $class->_class_rules($cls) };
 }
+
+=method is_known_rule
+
+Takes a string argument expected to be fully-qualified name of a rule. Returns a boolean that indicates if such a rule exists. The fully-qualified name of a rule is of the form C<Some::Class/rule_name>. Any suffixes like C<@2> or C<@3> should be included to check the existence of any cloned rules.
+
+    print "Some::Parser::Class/some_rule is a rule\n"
+        if Text::Parser::RuleSpec->is_known_rule('Some::Parser::Class/some_rule');
+
+=cut
 
 =method populate_class_rules
 
