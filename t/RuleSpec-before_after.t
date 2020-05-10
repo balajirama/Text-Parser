@@ -11,6 +11,11 @@ lives_ok {
 }
 'Makes some rule';
 
+lives_ok {
+    applies_rule rule2 => ( if => 'uc($1) eq "HELLO"', );
+}
+'Makes another rule';
+
 package AnotherParser;
 use Text::Parser::RuleSpec;
 extends 'Text::Parser';
@@ -105,7 +110,8 @@ use Test::More;
 is_deeply(
     [ Text::Parser::RuleSpec->class_rule_order('MyParser') ],
     [   'MyParser/random_rule',         'OneParser/rule1',
-        'MyParser/another_random_rule', 'MyParser/simple_rule',
+        'MyParser/another_random_rule', 'OneParser/rule2',
+        'MyParser/simple_rule',
     ],
     'set rules in correct order'
 );
