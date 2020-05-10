@@ -26,7 +26,7 @@ lives_ok {
 
 package MyParser;
 use Text::Parser::RuleSpec;
-extends 'Text::Parser';
+extends 'OneParser';
 use Text::Parser::Errors;
 use Test::Exception;
 

@@ -188,6 +188,7 @@ use Moose::Exporter;
 use MooseX::ClassAttribute;
 use Text::Parser::Errors;
 use Text::Parser::Rule;
+use List::MoreUtils qw(before_incl after_incl);
 
 Moose::Exporter->setup_import_methods(
     with_meta => [
@@ -325,10 +326,16 @@ Exceptions will be thrown if the C<before> or C<after> rule does not have a clas
 
 sub applies_rule {
     my ( $meta, $name ) = ( shift, shift );
+    _first_things_on_applies_rule($meta);
     _excepts_apply_rule( $meta, $name, @_ );
-    _set_default_of_attributes( $meta, auto_split => 1 );
     _register_rule( _full_rule_name( $meta, $name ), @_ );
-    _push_rule_order( $meta, $name );
+    _set_correct_rule_order( $meta, $name, @_ );
+}
+
+sub _first_things_on_applies_rule {
+    my $meta = shift;
+    _if_empty_prepopulate_rules_from_superclass($meta);
+    _set_default_of_attributes( $meta, auto_split => 1 );
 }
 
 sub _full_rule_name {
@@ -364,8 +371,12 @@ sub _check_args_hash_stuff {
     my ( $meta, $name ) = ( shift, shift );
     my (%opt) = _check_arg_is_hash( $name, @_ );
     _check_rule_order_args( $meta, $name, %opt )
-        if exists $opt{before}
-        or exists $opt{after};
+        if _has_location_opts(%opt);
+}
+
+sub _has_location_opts {
+    my (%opt) = @_;
+    exists $opt{before} or exists $opt{after};
 }
 
 sub _check_arg_is_hash {
@@ -386,8 +397,10 @@ sub _check_rule_order_args {
         if not defined $rule;
     die ref_to_non_existent_rule( rule => $opt{$loc} )
         if not Text::Parser::RuleSpec->_exists_rule( $opt{$loc} );
+    my (@r) = Text::Parser::RuleSpec->class_rule_order( $meta->name );
+    my $is_super_rule = grep { $_ eq $opt{$loc} } @r;
     die before_or_after_only_superclass_rules( rule => $name )
-        if $cls eq $meta->name;
+        if $cls eq $meta->name or not $is_super_rule;
 }
 
 sub _register_rule {
@@ -407,22 +420,52 @@ sub _get_rule_opts_only {
 sub _set_default_of_attributes {
     my ( $meta, %val ) = @_;
     while ( my ( $k, $v ) = ( each %val ) ) {
-        _inherit_extend_attr( $meta, $k, $v );
+        _inherit_set_default_mk_ro( $meta, $k, $v )
+            if not defined $meta->get_attribute($k);
     }
 }
 
-sub _inherit_extend_attr {
+sub _inherit_set_default_mk_ro {
     my ( $meta, $attr, $def ) = ( shift, shift, shift );
-    return if defined $meta->get_attribute($attr);
     my $old = $meta->find_attribute_by_name($attr);
     my $new = $old->clone_and_inherit_options( default => $def, is => 'ro' );
     $meta->add_attribute($new);
 }
 
-sub _push_rule_order {
+sub _set_correct_rule_order {
     my ( $meta, $rule_name ) = ( shift, shift );
-    _if_empty_prepopulate_rules_from_superclass($meta);
-    _push_to_class_rules( $meta->name, _full_rule_name( $meta, $rule_name ) );
+    my $rname = _full_rule_name( $meta, $rule_name );
+    return _push_to_class_rules( $meta->name, $rname )
+        if not _has_location_opts(@_);
+    _insert_rule_in_order( $meta->name, $rname, @_ );
+}
+
+my %INSERT_RULE_FUNC = (
+    before => sub {
+        my ( $cls, $before, $rname ) = ( shift, shift, shift );
+        my (@ord)  = Text::Parser::RuleSpec->class_rule_order($cls);
+        my (@ord1) = before_incl { $_ eq $before } @ord;
+        my (@ord2) = after_incl { $_ eq $before } @ord;
+        pop @ord1;
+        Text::Parser::RuleSpec->_set_class_rule_order(
+            $cls => [ @ord1, $rname, @ord2 ] );
+    },
+    after => sub {
+        my ( $cls, $after, $rname ) = ( shift, shift, shift );
+        my (@ord)  = Text::Parser::RuleSpec->class_rule_order($cls);
+        my (@ord1) = before_incl { $_ eq $after } @ord;
+        my (@ord2) = after_incl { $_ eq $after } @ord;
+        shift @ord2;
+        Text::Parser::RuleSpec->_set_class_rule_order(
+            $cls => [ @ord1, $rname, @ord2 ] );
+    }
+);
+
+sub _insert_rule_in_order {
+    my ( $cls, $rname, %opt ) = ( shift, shift, @_ );
+    my $loc = exists $opt{before} ? 'before' : 'after';
+    $INSERT_RULE_FUNC{$loc}->( $cls, $opt{$loc}, $rname );
+    Text::Parser::RuleSpec->populate_class_rules($cls);
 }
 
 sub _if_empty_prepopulate_rules_from_superclass {
