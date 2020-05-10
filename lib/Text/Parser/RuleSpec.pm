@@ -625,6 +625,12 @@ sub _is_to_be_filtered {
     return 0;
 }
 
+=func applies_cloned_rule
+
+Clones an existing rule to make a replica, but you can add options to change any parameters of the rule.
+
+=cut
+
 __PACKAGE__->meta->make_immutable;
 
 no Moose;
