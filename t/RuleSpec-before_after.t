@@ -116,4 +116,10 @@ is_deeply(
     'set rules in correct order'
 );
 
+is_deeply(
+    [ Text::Parser::RuleSpec->class_rule_order('OneParser') ],
+    [qw(OneParser/rule1 OneParser/rule2)],
+    'leave rules of base class in same order'
+);
+
 done_testing;
