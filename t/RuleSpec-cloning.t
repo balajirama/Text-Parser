@@ -27,7 +27,7 @@ lives_ok {
 
 package Blend1;
 use Text::Parser::RuleSpec;
-extends 'Text::Parser';
+extends 'Base2';
 use Test::Exception;
 
 lives_ok {
@@ -38,5 +38,9 @@ lives_ok {
 package main;
 
 use Test::More;
+
+use Text::Parser::RuleSpec;
+
+
 
 done_testing;

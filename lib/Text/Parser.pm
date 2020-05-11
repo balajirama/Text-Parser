@@ -42,7 +42,7 @@ Here is an example with a simple rule that extracts the first error in the logfi
     # Print a message if ...
     print "Some errors were found:\n" if $parser->get_records();
 
-Much more complex file-formats can be read and contents stored in a data-structure:
+A more complex file-formats can be read and contents stored in a data-structure:
 
     use strict;
     use warnings;

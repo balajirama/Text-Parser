@@ -206,9 +206,9 @@ class_has _all_rules => (
     default => sub { {} },
     traits  => ['Hash'],
     handles => {
-        _add_new_rule => 'set',
-        is_known_rule => 'exists',
-        _get_rule     => 'get',
+        _add_new_rule     => 'set',
+        is_known_rule     => 'exists',
+        class_rule_object => 'get',
     },
 );
 
@@ -267,9 +267,15 @@ sub class_rule_order {
     $class->_class_has_rules($cls) ? @{ $class->__cls_rule_order($cls) } : ();
 }
 
+=method class_rule_object
+
+This takes a single string argument with the fully qualified rule name, and returns the actual rule object identified by that name.
+
+    my $rule = Text::Parser::RuleSpec->class_rule_object('MyFavorite::Parser/rule1');
+
 =method class_rules
 
-Takes a single string argument and returns the actual rule objects of the given class name.
+Takes a single string argument and returns the actual rule objects of the given class name. This is a shortcut to first running C<class_rule_order> and then running C<class_rule_object> on each one of them.
 
     my (@rules) = Text::Parser::RuleSpec->class_rules('MyFavorite::Parser');
 
@@ -283,7 +289,7 @@ sub class_rules {
 
 =method is_known_rule
 
-Takes a string argument expected to be fully-qualified name of a rule. Returns a boolean that indicates if such a rule exists. The fully-qualified name of a rule is of the form C<Some::Class/rule_name>. Any suffixes like C<@2> or C<@3> should be included to check the existence of any cloned rules.
+Takes a string argument expected to be fully-qualified name of a rule. Returns a boolean that indicates if such a rule was ever compiled. The fully-qualified name of a rule is of the form C<Some::Class/rule_name>. Any suffixes like C<@2> or C<@3> should be included to check the existence of any cloned rules.
 
     print "Some::Parser::Class/some_rule is a rule\n"
         if Text::Parser::RuleSpec->is_known_rule('Some::Parser::Class/some_rule');
@@ -303,7 +309,7 @@ sub populate_class_rules {
     return if not defined $cls or not $class->_class_has_rules($cls);
     my @ord = $class->class_rule_order($cls);
     $class->_set_rules_of_class(
-        $cls => [ map { $class->_get_rule($_) } @ord ] );
+        $cls => [ map { $class->class_rule_object($_) } @ord ] );
 }
 
 =head1 FUNCTIONS

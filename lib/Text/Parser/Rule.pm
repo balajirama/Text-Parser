@@ -38,7 +38,70 @@ This class is never used directly. Instead rules are created and managed in one 
 
 In both cases, the arguments are the same.
 
+=head1 CONSTRUCTOR
+
+=head2 new
+
+Instances of this class can be created using the C<new> constructor, but normally a user would never create a rule themselves:
+
+    my $rule = Text::Parser::Rule->new(
+        if               => '# some condition string', 
+        do               => '# some task rule', 
+            # At least one of the above two clauses must be specified
+            # When not specified, if clause defaults to 1
+            # When not specified, do clause defaults to 'return $_;'
+        dont_record      => 1, # default: 0
+        continue_to_next => 1, # default: 0
+    );
+
+=head2 clone
+
+You can clone a rule and construct another rule from it.
+
+    my $new_rule = $rule->clone(
+        # all of these are optional
+        dont_record      => 1, 
+        continue_to_next => 1, 
+        add_precondition => '# another condition', 
+        before_super_act => '# action to be done before calling the action of the super-rule', 
+        after_super_act  => '# action to be done after calling the action of the super-rule', 
+        change_condition => '# modify original condition', 
+        change_action    => '# modify original action', 
+    );
+
+In the above example, the rule object C<$rule> which is the source for the cloned object C<$new_rule> is called the 'super-rule'. The clone actually has a reference to its super-rule, and one may get that object from the C<L<super_rule>> method.
+
+=cut
+
+sub BUILD {
+    my $self = shift;
+    die illegal_rule_no_if_no_act
+        if not $self->_has_condition and not $self->_has_action;
+    $self->action('return $0;') if not $self->_has_action;
+    $self->_constr_condition    if not $self->_has_condition;
+}
+
+sub _constr_condition {
+    my $self = shift;
+    $self->condition(1);
+    $self->_has_blank_condition(1);
+}
+
+sub clone {
+    my 
+}
+
 =head1 METHODS
+
+=method condition
+
+Read-write attribute accessor method. Returns a string with the condition string as supplied to the C<if> clause in the constructor.
+
+    my $cond_str = $rule->condition();
+
+Or modify the condition of a given rule:
+
+    $rule->condition($new_condition);
 
 =cut
 
@@ -91,7 +154,7 @@ sub _get_min_req_fields {
 }
 
 my $SUB_BEGIN = 'sub {
-    my $this = shift;
+    my ($self, $this) = (shift, shift);
     my $__ = $this->_stashed_vars;
     local $_ = $this->this_line;
     ';
@@ -179,6 +242,15 @@ has min_nf => (
     handles  => { _set_min_nf => 'set', }
 );
 
+=method action
+
+Read-write accessor method for the C<do> clause of the rule. This is similar to the C<condition> accessor method.
+
+    my $act_str = $rule->action;
+    $rule->action($modified_action);
+
+=cut
+
 has action => (
     is        => 'rw',
     isa       => 'Str',
@@ -206,6 +278,14 @@ has _act_sub_str => (
     init_arg => undef,
 );
 
+=method dont_record
+
+Read-write boolean accessor method for the C<dont_record> attribute of the constructor.
+
+    print "This rule will not record\n" if $rule->dont_record;
+
+=cut
+
 has dont_record => (
     is      => 'rw',
     isa     => 'Bool',
@@ -222,7 +302,9 @@ sub _check_continue_to_next {
 
 =method continue_to_next
 
-Method called internally in L<Text::Parser>. By default, if the C<if> condition passes for a line, then that is the last rule executed for that line. But when C<continue_to_next> is set to a true value, the parser will continue to run the next rule in sequence, even though the C<if> block for this rule passed.
+Read-write boolean accessor method for the C<continue_to_next> attribute in the constructor.
+
+    print "Continuing to the next rule\n" if $rule->continue_to_next;
 
 =cut
 
@@ -233,20 +315,6 @@ has continue_to_next => (
     lazy    => 1,
     trigger => \&_check_continue_to_next,
 );
-
-sub BUILD {
-    my $self = shift;
-    die illegal_rule_no_if_no_act
-        if not $self->_has_condition and not $self->_has_action;
-    $self->action('return $0;') if not $self->_has_action;
-    $self->_constr_condition    if not $self->_has_condition;
-}
-
-sub _constr_condition {
-    my $self = shift;
-    $self->condition(1);
-    $self->_has_blank_condition(1);
-}
 
 has _preconditions => (
     is       => 'ro',
@@ -263,6 +331,15 @@ has _preconditions => (
         _no_preconds     => 'is_empty',
     },
 );
+
+=method add_precondition
+
+Method that can be used to add more pre-conditions to a rule
+
+    $rule->add_precondition('looks_like_number($1)');
+    # Check if the first field on line is a number
+
+=cut
 
 after add_precondition => sub {
     my $self = shift;
@@ -302,6 +379,8 @@ has _precond_subroutines => (
 =method test
 
 Method called internally in L<Text::Parser>. Runs code in C<if> block.
+
+    print "I will run the task of the rule\n" if $rule->test;
 
 =cut
 
@@ -350,6 +429,8 @@ sub _test_cond_sub {
 
 Method called internally in L<Text::Parser>. Runs code in C<do> block, and saves the result as a record depending on C<dont_record>.
 
+    my $result = $rule->run();
+
 =cut
 
 sub run {
@@ -372,8 +453,14 @@ sub _call_act_sub {
     my ( $self, $parser, $test_line ) = @_;
     return if $test_line and not defined $parser->this_line;
     my $act = $self->_act_sub;
-    return ( $act->($parser) );
+    return ( $act->($self, $parser) );
 }
+
+=method super_rule
+
+Method that returns the rule object of the 'super-rule'. When you clone a rule using the C<clone> method, the source rule object is called the 'super-rule'.
+
+=cut
 
 __PACKAGE__->meta->make_immutable;
 
