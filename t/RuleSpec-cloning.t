@@ -1,8 +1,6 @@
 use strict;
 use warnings;
 
-use Test::More;
-
 package Base1;
 use Text::Parser::RuleSpec;
 extends 'Text::Parser';
@@ -37,3 +35,8 @@ lives_ok {
 }
 'Cloned Base1/rule1';
 
+package main;
+
+use Test::More;
+
+done_testing;
