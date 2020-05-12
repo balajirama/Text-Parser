@@ -60,13 +60,17 @@ You can clone a rule and construct another rule from it.
 
     my $new_rule = $rule->clone(
         # all of these are optional
+        if               => '# modify original condition', 
+        do               => '# modify original action', 
         dont_record      => 1, 
         continue_to_next => 1, 
+
+        # Or you may provide these options
         add_precondition => '# another condition', 
-        before_super_act => '# action to be done before calling the action of the super-rule', 
-        after_super_act  => '# action to be done after calling the action of the super-rule', 
-        change_condition => '# modify original condition', 
-        change_action    => '# modify original action', 
+        before_do        => '# action to be done before calling the action of the super-rule', 
+        after_do         => '# action to be done after calling the action of the super-rule', 
+
+        # If you provide do clause, you may not provide before_do or after_do clauses
     );
 
 In the above example, the rule object C<$rule> which is the source for the cloned object C<$new_rule> is called the 'super-rule'. The clone actually has a reference to its super-rule, and one may get that object from the C<L<super_rule>> method.
@@ -88,7 +92,7 @@ sub _constr_condition {
 }
 
 sub clone {
-    my 
+    my ($self, %opt) = (shift, @_);
 }
 
 =head1 METHODS
@@ -338,6 +342,10 @@ Method that can be used to add more pre-conditions to a rule
 
     $rule->add_precondition('looks_like_number($1)');
     # Check if the first field on line is a number
+
+When you call C<L<test|/"test">> on the rule, it tests all the pre-conditions and the regular condition. If any of them fail, the test returns a boolean false.
+
+This method is very useful when you clone a rule.
 
 =cut
 
