@@ -419,7 +419,7 @@ sub _test {
 sub _test_preconditions {
     my ( $self, $parser ) = @_;
     foreach my $cond ( $self->_precond_subs ) {
-        my $val = $cond->($parser);
+        my $val = $cond->($self, $parser);
         return 0 if not defined $val or not $val;
     }
     return 1;
@@ -429,7 +429,7 @@ sub _test_cond_sub {
     my ( $self, $parser ) = @_;
     my $cond = $self->_cond_sub;
     return 0 if not defined $parser->this_line;
-    my $val = $cond->($parser);
+    my $val = $cond->($self, $parser);
     defined $val and $val;
 }
 
