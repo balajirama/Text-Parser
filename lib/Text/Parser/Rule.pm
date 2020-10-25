@@ -71,6 +71,7 @@ You can clone a rule and construct another rule from it.
         after_do         => '# action to be done after calling the action of the super-rule', 
 
         # If you provide do clause, you may not provide before_do or after_do clauses
+        # But you may provide an add_precondition clause whether or not there is an if clause
     );
 
 In the above example, the rule object C<$rule> which is the source for the cloned object C<$new_rule> is called the 'super-rule'. The clone actually has a reference to its super-rule, and one may get that object from the C<L<super_rule>> method.
@@ -93,6 +94,9 @@ sub _constr_condition {
 
 sub clone {
     my ($self, %opt) = (shift, @_);
+    $self->_check_clone_clauses(\%opt);
+    $self->_prep_clauses(\%opt);
+    return $self->_clone_and_save(\%opt);
 }
 
 =head1 METHODS
