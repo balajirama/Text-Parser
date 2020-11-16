@@ -1,6 +1,7 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+  - Simplifying the errors. Text::Parser::Error is just a child of Throwable::Error and can be handled as all Throwable::Error objects.
   - Text::Parser::RuleSpec provides syntactical sugar to subclass Text::Parser
   - New attribute line_wrap_style, new method custom_line_unwrap_routines
   - Removed confusing POD documentation

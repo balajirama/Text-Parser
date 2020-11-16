@@ -112,7 +112,7 @@ use namespace::autoclean;
 use Moose::Util 'apply_all_roles', 'ensure_all_roles';
 use Moose::Util::TypeConstraints;
 use String::Util qw(trim ltrim rtrim eqq);
-use Text::Parser::Errors;
+use Text::Parser::Error;
 use Text::Parser::Rule;
 use Text::Parser::RuleSpec;
 
@@ -149,7 +149,8 @@ around BUILDARGS => sub {
     my ( $orig, $class ) = ( shift, shift );
     return $class->$orig( @_, _origclass => $class ) if @_ > 1 or not @_;
     my $ptr = shift;
-    die single_params_to_new_must_be_hash_ref() if ref($ptr) ne 'HASH';
+    parser_exception("Invalid parameters to Text::Parser constructor")
+        if ref($ptr) ne 'HASH';
     $class->$orig( %{$ptr}, _origclass => $class );
 };
 
@@ -296,7 +297,7 @@ my %MULTILINE_VAL = (
 
 sub _on_line_unwrap {
     my ( $self, $val, $oldval ) = (@_);
-    return if not defined $val and not defined $oldval;
+    return           if not defined $val and not defined $oldval;
     $val = 'default' if not defined $val;
     $self->multiline_type( $MULTILINE_VAL{$val} );
 }
@@ -650,9 +651,9 @@ sub _get_valid_text_filename {
 # Don't touch: Override this is Text::Parser::AutoUncompress
 sub _throw_invalid_file_exception {
     my ( $self, $fname ) = ( shift, shift );
-    die invalid_filename( name => $fname )  if not -f $fname;
-    die file_not_readable( name => $fname ) if not -r $fname;
-    die file_not_plain_text( name => $fname );
+    parser_exception("Invalid filename $fname") if not -f $fname;
+    parser_exception("Cannot read $fname")      if not -r $fname;
+    parser_exception("Not a plain text file $fname");
 }
 
 =method filehandle
@@ -844,8 +845,10 @@ sub custom_line_unwrap_routines {
     $self->_unwrap_routine($unwrap_routine);
 }
 
+my $unwrap_prefix = "Bad call to custom_line_unwrap_routines: ";
+
 sub _check_custom_unwrap_args {
-    die bad_custom_unwrap_call( err => 'Need 4 arguments' )
+    parser_exception("$unwrap_prefix Need 4 arguments")
         if @_ != 4;
     _test_fields_unwrap_rtn(@_);
     my (%opt) = (@_);
@@ -854,15 +857,15 @@ sub _check_custom_unwrap_args {
 
 sub _test_fields_unwrap_rtn {
     my (%opt) = (@_);
-    die bad_custom_unwrap_call(
-        err => 'must have keys: is_wrapped, unwrap_routine' )
+    parser_exception(
+        "$unwrap_prefix must have keys is_wrapped, unwrap_routine")
         if not( exists $opt{is_wrapped} and exists $opt{unwrap_routine} );
     _is_arg_a_code( $_, %opt ) for (qw(is_wrapped unwrap_routine));
 }
 
 sub _is_arg_a_code {
     my ( $arg, %opt ) = (@_);
-    die bad_custom_unwrap_call( err => "$arg key must reference code" )
+    parser_exception("$unwrap_prefix $arg key must reference code")
         if 'CODE' ne ref( $opt{$arg} );
 }
 
@@ -1033,7 +1036,7 @@ sub is_line_continued {
     my $self = shift;
     return 0 if not defined $self->multiline_type;
     my $routine = $self->_get_is_line_contd_routine;
-    die undef_line_unwrap_routine( name => 'is_wrapped' )
+    parser_exception("is_wrapped routine not defined")
         if not defined $routine;
     $routine->( $self, @_ );
 }
@@ -1054,7 +1057,7 @@ sub _get_is_line_contd_routine {
 sub join_last_line {
     my $self    = shift;
     my $routine = $self->_get_join_last_line_routine;
-    die undef_line_unwrap_routine( name => 'unwrap_routine' )
+    parser_exception("unwrap_routine not defined")
         if not defined $routine;
     $routine->( $self, @_ );
 }
@@ -1125,7 +1128,6 @@ You can find example code in L<Text::Parser::Manual::ComparingWithNativePerl>.
 =for :list
 * L<Text::Parser::Manual> - Read this manual
 * L<The AWK Programming Language|https://books.google.com/books/about/The_AWK_Programming_Language.html?id=53ueQgAACAAJ> - by B<A>ho, B<W>einberg, and B<K>ernighan.
-* L<Text::Parser::Errors> - documentation of the exceptions this class throws
 * L<Text::Parser::Multiline> - how to read line-wrapped text input
 
 =cut

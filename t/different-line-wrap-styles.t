@@ -7,7 +7,7 @@ use Test::Exception;
 
 BEGIN {
     use_ok('Text::Parser');
-    use_ok('Text::Parser::Errors');
+    use_ok('Text::Parser::Error');
 }
 
 lives_ok {
@@ -68,27 +68,27 @@ lives_ok {
     };
     $parser->multiline_type('join_last');
     is( $parser->multiline_type, 'join_last', 'Correctly set unwrapper' );
-    dies_ok {
+    throws_ok {
         $parser->read('t/example-custom-line-wrap.txt');
-    }, UndefLineUnwrapRoutine();
-    dies_ok {
+    } 'Text::Parser::Error';
+    throws_ok {
         $parser->custom_line_unwrap_routines();
-    }, BadCustomUnwrapCall();
-    dies_ok {
+    } 'Text::Parser::Error';
+    throws_ok {
         $parser->custom_line_unwrap_routines( 1, 2, 3, 4 );
-    }, BadCustomUnwrapCall();
-    dies_ok {
+    } 'Text::Parser::Error';
+    throws_ok {
         $parser->custom_line_unwrap_routines( is_wrapped => 2, 3, 4 );
-    }, BadCustomUnwrapCall();
-    dies_ok {
+    }'Text::Parser::Error'; 
+    throws_ok {
         $parser->custom_line_unwrap_routines( unwrap_routine => 2, 3, 4 );
-    }, BadCustomUnwrapCall();
-    dies_ok {
+    } 'Text::Parser::Error';
+    throws_ok {
         $parser->custom_line_unwrap_routines(
             unwrap_routine => 2,
             is_wrapped     => 4
         );
-    }, BadCustomUnwrapCall();
+    } 'Text::Parser::Error';
     my $unwrap_routine = sub {
         my ( $self, $last_line, $this_line ) = @_;
         chomp $last_line;
@@ -105,9 +105,9 @@ lives_ok {
         unwrap_routine => $unwrap_routine,
     );
     $parser->_unwrap_routine(undef);
-    dies_ok {
+    throws_ok {
         $parser->read('t/example-custom-line-wrap.txt');
-    }, UndefLineUnwrapRoutine();
+    } 'Text::Parser::Error';
     $parser->_unwrap_routine($unwrap_routine);
     $parser->read('t/example-custom-line-wrap.txt');
     is_deeply [ $parser->get_records ],

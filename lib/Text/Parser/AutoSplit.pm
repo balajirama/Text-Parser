@@ -8,7 +8,7 @@ package Text::Parser::AutoSplit;
 use Moose::Role;
 use MooseX::CoverableModifiers;
 use String::Util qw(trim);
-use Text::Parser::Errors;
+use Text::Parser::Error;
 use English;
 
 =head1 SYNOPSIS

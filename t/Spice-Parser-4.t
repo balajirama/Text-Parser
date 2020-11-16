@@ -118,7 +118,7 @@ lives_ok { $sp->read('t/example-4.sp'); } 'Works fine again';
 is( scalar( $sp->get_records() ), 2, '2 records saved' );
 is( $sp->lines_parsed(),          4, '4 lines parsed' );
 
-throws_ok { $sp->read('t/bad-spice.sp'); } 'Text::Parser::Errors::UnexpectedCont',
+throws_ok { $sp->read('t/bad-spice.sp'); } 'Text::Parser::Error',
     'Dies as expected';
 
 lives_ok { $sp->read('t/example-5.sp'); }

@@ -127,7 +127,7 @@ is( scalar( $sp->get_records() ), 2, '2 records saved' );
 is( $sp->lines_parsed(),          4, '4 lines parsed' );
 
 throws_ok { $sp->read('t/bad-spice.sp'); }
-'Text::Parser::Errors::UnexpectedCont', 'Dies as expected';
+'Text::Parser::Error', 'Dies as expected';
 
 lives_ok { $sp->read('t/example-5.sp'); }
 'Reads spice with include statement';

@@ -36,7 +36,7 @@ The following methods are exported into the C<use>r's namespace by default:
 use Moose;
 use Moose::Exporter;
 use MooseX::ClassAttribute;
-use Text::Parser::Errors;
+use Text::Parser::Error;
 use Text::Parser::Rule;
 
 Moose::Exporter->setup_import_methods(
@@ -91,16 +91,24 @@ sub _full_rule_name {
 
 sub _excepts_apply_rule {
     my ( $meta, $name ) = ( shift, shift );
-    die spec_must_have_name package_name => $meta->name
+    parser_exception(
+              "applies_rule must be called with a name (at package: "
+            . $meta->name
+            . ")" )
         if not defined $name
         or ref($name) ne '';
-    die spec_requires_hash rule_name => $name if not @_ or ( scalar(@_) % 2 );
-    die main_cant_apply_rule rule_name => $name if $meta->name eq 'main';
+    parser_exception(
+        "applies_rule must be called with required hash argument: $name")
+        if not @_
+        or ( scalar(@_) % 2 );
+    parser_exception("package main can\'t apply a rule: $name")
+        if $meta->name eq 'main';
 }
 
 sub _register_rule {
     my $key = shift;
-    die name_rule_uniquely if Text::Parser::RuleSpec->_exists_rule($key);
+    parser_exception("name rules uniquely: $key")
+        if Text::Parser::RuleSpec->_exists_rule($key);
     my $rule = Text::Parser::Rule->new(@_);
     Text::Parser::RuleSpec->_add_new_rule( $key => $rule );
 }

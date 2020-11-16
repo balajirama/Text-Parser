@@ -43,7 +43,7 @@ requires(
     qw(join_last_line is_line_continued _set_this_line this_line)
 );
 
-use Text::Parser::Errors;
+use Text::Parser::Error;
 
 around save_record       => \&__around_save_record;
 around is_line_continued => \&__around_is_line_continued;
@@ -73,7 +73,7 @@ sub __around_is_line_continued {
         or $self->multiline_type eq 'join_next';
     return 0 if not $orig->( $self, $line );
     return 1 if $self->lines_parsed() > 1;
-    die unexpected_cont( line => $line );
+    parser_exception("join_last continuation character on first line $line");
 }
 
 sub __after__read_file_handle {
@@ -90,7 +90,9 @@ sub __test_safe_eof {
     my $last = $self->__pop_last_line();
     return if not defined $last;
     my $lnum = $self->lines_parsed();
-    die unexpected_eof( discontd => $last, line_num => $lnum );
+    parser_exception(
+        "join_next continuation character in last line ($lnum \"$last\"): unexpected EoF"
+    );
 }
 
 sub __join_next_proc {
@@ -146,7 +148,6 @@ no Moose::Role;
 
 =for :list
 * L<Text::Parser>
-* L<Text::Parser::Errors>
 
 =cut
 
