@@ -577,10 +577,6 @@ L<The AWK Programming Language|https://books.google.com/books/about/The_AWK_Prog
 
 =item *
 
-L<Text::Parser::Errors> - documentation of the exceptions this class throws
-
-=item *
-
 L<Text::Parser::Multiline> - how to read line-wrapped text input
 
 =back
