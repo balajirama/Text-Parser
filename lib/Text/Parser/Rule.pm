@@ -81,7 +81,7 @@ In the above example, the rule object C<$rule> which is the source for the clone
 
 sub BUILD {
     my $self = shift;
-    die illegal_rule_no_if_no_act
+    parser_exception("Rule created without required components")
         if not $self->_has_condition and not $self->_has_action;
     $self->action('return $0;') if not $self->_has_action;
     $self->_constr_condition    if not $self->_has_condition;
@@ -318,20 +318,6 @@ has continue_to_next => (
     lazy    => 1,
     trigger => \&_check_continue_to_next,
 );
-
-sub BUILD {
-    my $self = shift;
-    parser_exception("Rule created without required components")
-        if not $self->_has_condition and not $self->_has_action;
-    $self->action('return $0;') if not $self->_has_action;
-    $self->_constr_condition    if not $self->_has_condition;
-}
-
-sub _constr_condition {
-    my $self = shift;
-    $self->condition(1);
-    $self->_has_blank_condition(1);
-}
 
 has _preconditions => (
     is       => 'ro',
