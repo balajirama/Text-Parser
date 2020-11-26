@@ -74,6 +74,13 @@ throws_ok {
 }
 $err;
 
+throws_ok {
+    applies_rule
+        something_stupid => ( if => '$1 eq "NAME"', do => 'print;' ),
+        before           => 'AnotherClass/get_DOB';
+}
+$err;
+
 package main;
 use Test::Exception;
 use Text::Parser::RuleSpec;

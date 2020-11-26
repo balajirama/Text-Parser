@@ -1195,20 +1195,6 @@ sub _prep_for_custom_unwrap_routines {
 
 my $unwrap_prefix = "Bad call to custom_line_unwrap_routines: ";
 
-sub _test_fields_unwrap_rtn {
-    my (%opt) = (@_);
-    parser_exception(
-        "$unwrap_prefix must have keys is_wrapped, unwrap_routine")
-        if not( exists $opt{is_wrapped} and exists $opt{unwrap_routine} );
-    _is_arg_a_code( $_, %opt ) for (qw(is_wrapped unwrap_routine));
-}
-
-sub _is_arg_a_code {
-    my ( $arg, %opt ) = (@_);
-    parser_exception("$unwrap_prefix $arg key must reference code")
-        if 'CODE' ne ref( $opt{$arg} );
-}
-
 =head1 HANDLING LINE-WRAPPING
 
 Different text formats sometimes allow line-wrapping to make their content more human-readable. Handling this can be rather complicated if you use native Perl, but extremely easy with L<Text::Parser>.
