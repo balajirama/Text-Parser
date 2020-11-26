@@ -4,7 +4,6 @@ use warnings;
 
 use Test::More;
 use Test::Exception;
-use Text::Parser::Error;
 
 BEGIN {
     use_ok 'Text::Parser::Rule';
