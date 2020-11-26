@@ -1,3 +1,4 @@
+## Please see file perltidy.ERR
 use strict;
 use warnings;
 
@@ -186,7 +187,7 @@ There is no constructor for this class. You cannot create an instance of this cl
 use Moose;
 use Moose::Exporter;
 use MooseX::ClassAttribute;
-use Text::Parser::Errors;
+use Text::Parser::Error;
 use Text::Parser::Rule;
 use List::MoreUtils qw(before_incl after_incl);
 
@@ -363,7 +364,8 @@ sub _full_rule_name {
 
 sub _excepts_apply_rule {
     my ( $meta, $name ) = ( shift, shift );
-    die main_cant_apply_rule( rule_name => $name ) if $meta->name eq 'main';
+    parser_exception("Rule $name cannot be applied by main.")
+      if $meta->name eq 'main';
     _rule_must_have_name( $meta, $name );
     _check_args_hash_stuff( $meta, $name, @_ );
 }
@@ -379,10 +381,10 @@ my %rule_options = (
 
 sub _rule_must_have_name {
     my ( $meta, $name ) = ( shift, shift );
-    die spec_must_have_name( package_name => $meta->name )
-        if not defined $name
-        or ( '' ne ref($name) )
-        or ( exists $rule_options{$name} );
+    parser_exception("A rulespec must have a name")
+      if not defined $name
+      or ( '' ne ref($name) )
+      or ( exists $rule_options{$name} );
 }
 
 sub _check_args_hash_stuff {
@@ -390,7 +392,7 @@ sub _check_args_hash_stuff {
     my (%opt) = _check_arg_is_hash( $name, @_ );
     _if_empty_prepopulate_rules_from_superclass($meta);
     _check_location_args( $meta, $name, %opt )
-        if _has_location_opts(%opt);
+      if _has_location_opts(%opt);
 }
 
 sub _has_location_opts {
@@ -400,32 +402,37 @@ sub _has_location_opts {
 
 sub _check_arg_is_hash {
     my $name = shift;
-    die spec_requires_hash( rule_name => $name )
-        if not @_
-        or ( scalar(@_) % 2 );
+    parser_exception(
+        "Rulespec $name must have a hash specification. See documentation.")
+      if not @_
+      or ( scalar(@_) % 2 );
     return @_;
 }
 
 sub _check_location_args {
     my ( $meta, $name, %opt ) = ( shift, shift, @_ );
-    die only_one_of_before_or_after( rule => $name )
-        if exists $opt{before} and exists $opt{after};
+    parser_exception(
+        "Rulespec $name may have one of \'before\' or \'after\'; not both.")
+      if exists $opt{before} and exists $opt{after};
     my $loc = exists $opt{before} ? 'before' : 'after';
     my ( $cls, $rule ) = split /\//, $opt{$loc}, 2;
-    die before_or_after_needs_classname( rule => $name )
-        if not defined $rule;
-    die ref_to_non_existent_rule( rule => $opt{$loc} )
-        if not Text::Parser::RuleSpec->is_known_rule( $opt{$loc} );
+    parser_exception(
+        "Clause $loc should have a value of format <classname>/<rulename>")
+      if not defined $rule;
+    parser_exception("Unknown rule $opt{$loc} in clause $loc of rule $name")
+      if not Text::Parser::RuleSpec->is_known_rule( $opt{$loc} );
     my (@r) = Text::Parser::RuleSpec->class_rule_order( $meta->name );
     my $is_super_rule = grep { $_ eq $opt{$loc} } @r;
-    die before_or_after_only_superclass_rules( rule => $name )
-        if $cls eq $meta->name or not $is_super_rule;
+    parser_exception(
+        "Use \'$loc\' clause only with superclass rules ; not this class.")
+      if $cls eq $meta->name or not $is_super_rule;
 }
 
 sub _register_rule {
     my $key = shift;
-    die name_rule_uniquely() if Text::Parser::RuleSpec->is_known_rule($key);
-    my $rule = Text::Parser::Rule->new( _get_rule_opts_only(@_) );
+    parser_exception("name rules uniquely: $key")
+      if Text::Parser::RuleSpec->_exists_rule($key);
+    my $rule = Text::Parser::Rule->new(@_);
     Text::Parser::RuleSpec->_add_new_rule( $key => $rule );
 }
 
@@ -440,7 +447,7 @@ sub _set_default_of_attributes {
     my ( $meta, %val ) = @_;
     while ( my ( $k, $v ) = ( each %val ) ) {
         _inherit_set_default_mk_ro( $meta, $k, $v )
-            if not defined $meta->get_attribute($k);
+          if not defined $meta->get_attribute($k);
     }
 }
 
@@ -455,7 +462,7 @@ sub _set_correct_rule_order {
     my ( $meta, $rule_name ) = ( shift, shift );
     my $rname = _full_rule_name( $meta, $rule_name );
     return _push_to_class_rules( $meta->name, $rname )
-        if not _has_location_opts(@_);
+      if not _has_location_opts(@_);
     _insert_rule_in_order( $meta->name, $rname, @_ );
 }
 
@@ -495,7 +502,7 @@ sub _if_empty_prepopulate_rules_from_superclass {
     my ( $meta, $cls ) = ( shift, 'Text::Parser::RuleSpec' );
     my @ro = map { $cls->class_rule_order($_) } ( $meta->superclasses );
     $cls->_set_class_rule_order( $meta->name => \@ro )
-        if not $cls->_class_has_rules( $meta->name );
+      if not $cls->_class_has_rules( $meta->name );
 }
 
 sub _push_to_class_rules {
@@ -552,14 +559,18 @@ If a subroutine reference is provided, the subroutine is called for each rule in
 
 sub disables_superclass_rules {
     my $meta = shift;
-    die main_cant_call_rulespec_func() if $meta->name eq 'main';
+    parser_exception(
+        "main cannot create rulespecs or call any rulespec functions")
+      if $meta->name eq 'main';
     _check_disable_rules_args( $meta->name, @_ );
     _find_and_remove_superclass_rules( $meta, @_ );
 }
 
 sub _check_disable_rules_args {
     my $cls = shift;
-    die bad_disable_rulespec_arg( arg => 'No arguments' ) if not @_;
+    parser_exception(
+        "No arguments specified in call to disable_superclass_rules")
+      if not @_;
     foreach my $a (@_) {
         _test_rule_type_and_val( $cls, $a );
     }
@@ -569,16 +580,18 @@ my %disable_arg_types = ( '' => 1, 'Regexp' => 1, 'CODE' => 1 );
 
 sub _test_rule_type_and_val {
     my $type_a = ref( $_[1] );
-    die bad_disable_rulespec_arg( arg => $_[1] )
-        if not exists $disable_arg_types{$type_a};
+    parser_exception("Rules must be selected by regular expressions or a code")
+      if not exists $disable_arg_types{$type_a};
     _test_rule_string_val(@_) if $type_a eq '';
 }
 
 sub _test_rule_string_val {
     my ( $cls, $a ) = ( shift, shift );
-    die rulename_for_disable_must_have_classname( rule => $a ) if $a !~ /\//;
+    parser_exception(
+"disable_superclass_rule called with $a ; must be in format <superclass>/<rulename>"
+    ) if $a !~ /\//;
     my @c = split /\//, $a, 2;
-    die cant_disable_same_class_rules( rule => $a ) if $c[0] eq $cls;
+    parser_exception("Cannot disable rules of same class") if $c[0] eq $cls;
 }
 
 sub _find_and_remove_superclass_rules {
@@ -593,7 +606,7 @@ sub _filtered_rules {
     my $cls = shift;
     local $_;
     map { _is_to_be_filtered( $_, @_ ) ? () : $_ }
-        ( Text::Parser::RuleSpec->class_rule_order($cls) );
+      ( Text::Parser::RuleSpec->class_rule_order($cls) );
 }
 
 my %test_for_filter_type = (
@@ -631,14 +644,17 @@ For the pair of routines to not cause unexpected C<undef> results, they should r
 
 sub unwraps_lines_using {
     my $meta = shift;
-    die main_cant_call_rulespec_func() if $meta->name eq 'main';
+    parser_exception("man cannot call a rulespec function")
+      if $meta->name eq 'main';
     my ( $is_wr, $un_wr ) = _check_custom_unwrap_args(@_);
     _set_lws_and_routines( $meta, $is_wr, $un_wr );
 }
 
 sub _check_custom_unwrap_args {
-    die bad_custom_unwrap_call( err => 'Need 4 arguments' )
-        if @_ != 4;
+    parser_exception( "unwraps_lines_using needs exactly 4 arguments ; "
+          . scalar(@_)
+          . " given" )
+      if @_ != 4;
     _test_fields_unwrap_rtn(@_);
     my (%opt) = @_;
     return ( $opt{is_wrapped}, $opt{unwrap_routine} );
@@ -646,16 +662,17 @@ sub _check_custom_unwrap_args {
 
 sub _test_fields_unwrap_rtn {
     my (%opt) = (@_);
-    die bad_custom_unwrap_call(
-        err => 'must have keys: is_wrapped, unwrap_routine' )
-        if not( exists $opt{is_wrapped} and exists $opt{unwrap_routine} );
+    parser_exception(
+        "unwraps_lines_using must have keys: is_wrapped, unwrap_routine")
+      if not( exists $opt{is_wrapped} and exists $opt{unwrap_routine} );
     _is_arg_a_code( $_, %opt ) for (qw(is_wrapped unwrap_routine));
 }
 
 sub _is_arg_a_code {
     my ( $arg, %opt ) = (@_);
-    die bad_custom_unwrap_call( err => "$arg key must reference code" )
-        if 'CODE' ne ref( $opt{$arg} );
+    parser_exception(
+        "$arg in call to unwraps_lines_using must be code reference")
+      if 'CODE' ne ref( $opt{$arg} );
 }
 
 sub _set_lws_and_routines {

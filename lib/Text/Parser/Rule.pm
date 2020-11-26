@@ -6,7 +6,7 @@ package Text::Parser::Rule;
 # ABSTRACT: Makes it possible to write AWK-style parsing rules for Text::Parser
 
 use Moose;
-use Text::Parser::Errors;
+use Text::Parser::Error;
 use Scalar::Util 'blessed', 'looks_like_number';
 use String::Util ':all';
 use List::Util qw(reduce any all none notall first
@@ -14,6 +14,7 @@ use List::Util qw(reduce any all none notall first
     unpairs pairkeys pairvalues pairfirst
     pairgrep pairmap shuffle uniq uniqnum uniqstr
 );
+use Try::Tiny;
 
 =head1 SYNOPSIS
 
@@ -155,7 +156,7 @@ sub _gen_joined_str {
 sub _get_min_req_fields {
     my $str = shift;
     my @indx
-        = $str =~ /\$([0-9]+)|\$[{]([-][0-9]+)[}]|[$@][{]([-]?[0-9]+)[+][}]/g;
+        = $str =~ /\$([0-9]+)|\$[{]([-][0-9]+)[}]|[$][{]([-]?[0-9]+)[+][}]/g;
     my @inds = sort { $b <=> $a } ( grep { defined $_ } @indx );
     return 0 if not @inds;
     ( $inds[0] >= -$inds[-1] ) ? $inds[0] : -$inds[-1];
@@ -221,17 +222,9 @@ has _cond_sub_str => (
 sub _set_cond_sub {
     my ( $rstr, $sub_str ) = @_;
     my $sub = eval $sub_str;
-    _throw_bad_cond( $rstr, $sub_str, $@ ) if not defined $sub;
+    parser_exception("Bad rule syntax $rstr: $@: $sub_str")
+        if not defined $sub;
     return $sub;
-}
-
-sub _throw_bad_cond {
-    my ( $code, $sub_str, $msg ) = @_;
-    die bad_rule_syntax(
-        code       => $code,
-        msg        => $msg,
-        subroutine => $sub_str,
-    );
 }
 
 has _cond_sub => (
@@ -304,8 +297,10 @@ has dont_record => (
 
 sub _check_continue_to_next {
     my $self = shift;
-    return                if not $self->continue_to_next;
-    die illegal_rule_cont if not $self->dont_record;
+    return if not $self->continue_to_next;
+    parser_exception(
+        "Rule cannot continue to next if action result is recorded")
+        if not $self->dont_record;
 }
 
 =method continue_to_next
@@ -323,6 +318,20 @@ has continue_to_next => (
     lazy    => 1,
     trigger => \&_check_continue_to_next,
 );
+
+sub BUILD {
+    my $self = shift;
+    parser_exception("Rule created without required components")
+        if not $self->_has_condition and not $self->_has_action;
+    $self->action('return $0;') if not $self->_has_action;
+    $self->_constr_condition    if not $self->_has_condition;
+}
+
+sub _constr_condition {
+    my $self = shift;
+    $self->condition(1);
+    $self->_has_blank_condition(1);
+}
 
 has _preconditions => (
     is       => 'ro',
@@ -447,8 +456,9 @@ Method called internally in L<Text::Parser>. Runs code in C<do> block, and saves
 
 sub run {
     my $self = shift;
-    die rule_run_improperly if not _check_parser_arg(@_);
-    return                  if not $_[0]->auto_split;
+    parser_exception("Method run on rule was called without a parser object")
+        if not _check_parser_arg(@_);
+    return if not $_[0]->auto_split;
     push @_, 1 if @_ < 2;
     $self->_run(@_);
 }

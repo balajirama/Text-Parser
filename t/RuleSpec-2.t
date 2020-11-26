@@ -5,7 +5,7 @@ use warnings;
 package ParserClass;
 
 use Test::Exception;
-use Text::Parser::Errors;
+use Text::Parser::Error;
 use Text::Parser::RuleSpec;
 
 extends 'Text::Parser';
@@ -18,7 +18,7 @@ lives_ok {
 package Parser2;
 
 use Test::Exception;
-use Text::Parser::Errors;
+use Text::Parser::Error;
 use Text::Parser::RuleSpec;
 
 extends 'Text::Parser';
@@ -31,7 +31,7 @@ lives_ok {
 package AnotherClass;
 
 use Test::Exception;
-use Text::Parser::Errors;
+use Text::Parser::Error;
 use Text::Parser::RuleSpec;
 extends 'ParserClass', 'Parser2';
 
@@ -84,7 +84,7 @@ use Test::More;
 
 BEGIN {
     use_ok 'Text::Parser::RuleSpec';
-    use_ok 'Text::Parser::Errors';
+    use_ok 'Text::Parser::Error';
 }
 
 lives_ok {

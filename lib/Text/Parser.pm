@@ -79,9 +79,9 @@ A more complex file-formats can be read and contents stored in a data-structure:
     my $p = ComplexFormatParser->new();
     $p->read('myfile.complex.fmt');
 
-=head1 RATIONALTE
+=head1 RATIONALE
 
-The L<motivation|Text::Parser::Manual/MOTIVATION> for this class stems from the fact that text parsing is the most common thing that programmers do, and yet there is no lean, simple way to do it efficiently. Most programmers still write boilerplate code with a C<while> loop.
+The L<need|Text::Parser::Manual/MOTIVATION> for this class stems from the fact that text parsing is the most common thing that programmers do, and yet there is no lean, simple way to do it in Perl. Most programmers still write boilerplate code with a C<while> loop.
 
 Instead C<Text::Parser> allows programmers to parse text with simple, self-explanatory L<rules|Text::Parser::Manual::ExtendedAWKSyntax>, whose structure is very similar to L<AWK|https://books.google.com/books/about/The_AWK_Programming_Language.html?id=53ueQgAACAAJ>, but extends beyond the capability of AWK.
 
@@ -89,11 +89,11 @@ I<B<Sidenote:>> Incidentally, AWK is L<one of the ancestors of Perl|http://histo
 
 =head1 OVERVIEW
 
-With C<Text::Parser>, you focus on just specifying a grammar in intuitive rules. C<Text::Parser> handles the rest. The C<L<read|/read>> method automatically runs the rules for each line, collecting records from the text input into an internal array. And then, you may use C<L<get_records|/get_records>> to retrieve the records.
+With C<Text::Parser>, a developer can focus on specifying a grammar and then simply C<read> the file. The C<L<read|/read>> method automatically runs each rule collecting records from the text input into an internal array. Finally, C<L<get_records|/get_records>> can retrieve the records.
 
-Since C<Text::Parser> is a class, you may subclass it to parse very complex file formats. L<Text::Parser::RuleSpec> provides intuitive syntax sugar to specify rules in a subclass. Use of L<Moose> is encouraged. Data from parsed files can be turned into very complex data-structures or even objects.
+Since C<Text::Parser> is a class, a programmer can subclass it to parse very complex file formats. L<Text::Parser::RuleSpec> provides intuitive rule sugar. Use of L<Moose> is encouraged. And data from parsed files can be turned into very complex data-structures or even objects.
 
-With B<L<Text::Parser>> you have the power of Perl combined with the elegance of AWK.
+With B<L<Text::Parser>> programmers have the power of Perl combined with the elegance and simplicity of AWK to parse any text file they wish.
 
 =head1 THINGS TO DO FURTHER
 
@@ -115,7 +115,7 @@ use namespace::autoclean;
 use Moose::Util 'apply_all_roles', 'ensure_all_roles';
 use Moose::Util::TypeConstraints;
 use String::Util qw(trim ltrim rtrim eqq);
-use Text::Parser::Errors;
+use Text::Parser::Error;
 use Text::Parser::Rule;
 use Text::Parser::RuleSpec;
 use List::MoreUtils qw(natatime first_index);
@@ -156,7 +156,8 @@ around BUILDARGS => sub {
     my ( $orig, $class ) = ( shift, shift );
     return $class->$orig( @_, _origclass => $class ) if @_ > 1 or not @_;
     my $ptr = shift;
-    die single_params_to_new_must_be_hash_ref() if ref($ptr) ne 'HASH';
+    parser_exception("Invalid parameters to Text::Parser constructor")
+        if ref($ptr) ne 'HASH';
     $class->$orig( %{$ptr}, _origclass => $class );
 };
 
@@ -328,7 +329,7 @@ my %MULTILINE_VAL = (
 
 sub _on_line_unwrap {
     my ( $self, $val, $oldval ) = (@_);
-    return if not defined $val and not defined $oldval;
+    return           if not defined $val and not defined $oldval;
     $val = 'default' if not defined $val;
     return if $val eq 'custom' and defined $self->multiline_type;
     $self->multiline_type( $MULTILINE_VAL{$val} );
@@ -655,9 +656,9 @@ sub _get_valid_text_filename {
 # Don't touch: Override this is Text::Parser::AutoUncompress
 sub _throw_invalid_file_exception {
     my ( $self, $fname ) = ( shift, shift );
-    die invalid_filename( name => $fname )  if not -f $fname;
-    die file_not_readable( name => $fname ) if not -r $fname;
-    die file_not_plain_text( name => $fname );
+    parser_exception("Invalid filename $fname") if not -f $fname;
+    parser_exception("Cannot read $fname")      if not -r $fname;
+    parser_exception("Not a plain text file $fname");
 }
 
 =read_meth filehandle
@@ -1192,6 +1193,30 @@ sub _prep_for_custom_unwrap_routines {
     $self->line_wrap_style('custom');
 }
 
+my $unwrap_prefix = "Bad call to custom_line_unwrap_routines: ";
+
+sub _check_custom_unwrap_args {
+    parser_exception("$unwrap_prefix Need 4 arguments")
+        if @_ != 4;
+    _test_fields_unwrap_rtn(@_);
+    my (%opt) = (@_);
+    return ( $opt{is_wrapped}, $opt{unwrap_routine} );
+}
+
+sub _test_fields_unwrap_rtn {
+    my (%opt) = (@_);
+    parser_exception(
+        "$unwrap_prefix must have keys is_wrapped, unwrap_routine")
+        if not( exists $opt{is_wrapped} and exists $opt{unwrap_routine} );
+    _is_arg_a_code( $_, %opt ) for (qw(is_wrapped unwrap_routine));
+}
+
+sub _is_arg_a_code {
+    my ( $arg, %opt ) = (@_);
+    parser_exception("$unwrap_prefix $arg key must reference code")
+        if 'CODE' ne ref( $opt{$arg} );
+}
+
 =head1 HANDLING LINE-WRAPPING
 
 Different text formats sometimes allow line-wrapping to make their content more human-readable. Handling this can be rather complicated if you use native Perl, but extremely easy with L<Text::Parser>.
@@ -1212,7 +1237,7 @@ When C<read> reads each line of text, it looks for any trailing backslash and un
     way to wrap long lines. In general, line-wrapping \
     can be much easier on the reader's eyes.
 
-When C<read> runs any rules in C<$parser>, the text above appears as a single line in C<$_> to each rule in C<$parser>.
+When C<read> runs any rules in C<$parser>, the text above appears as a single line to the rules.
 
 =cut
 
@@ -1232,7 +1257,13 @@ L<Here|/"custom_line_unwrap_routines"> is an example with C<join_last> value for
 
 You may subclass C<Text::Paser> to parse your specific text format. And that format may support some line-wrapping. To handle the known common line-wrapping styles, set a default value for C<line_wrap_style>. For example: 
 
-    package MyParser;
+=for :list
+* Set a default value for C<line_wrap_style>. For example, the following uses one of the supported common line-unwrap methods.
+    has '+line_wrap_style' => ( 
+        default => 'spice', 
+    );
+
+* Setup custom line-unwrap routines with C<unwraps_lines> from L<Text::Parser::RuleSpec>.
 
     use Text::Parser::RuleSpec;
     extends 'Text::Parser';
@@ -1263,13 +1294,15 @@ To setup custom line-unwrapping routines in a subclass, you can use the C<L<unwr
 
 The following methods should never be called in the C<::main> program. They may be overridden (or re-defined) in a subclass.
 
-Starting version 0.925, users should never need to override any of these methods to make their own parser. But in case someone wants to ...
+Starting version 0.925, users should never need to override any of these methods to make their own parser.
 
 =inherit save_record
 
 The default implementation takes a single argument, runs any rules, and saves the returned value as a record in an internal array. If nothing is returned from the rule, C<undef> is stored as a record.
 
 B<Note>: Starting C<0.925> version of C<Text::Parser> it is not required to override this method in your derived class. In most cases, you should use the rules.
+
+B<Importnant Note:> Starting version C<1.0> of C<Text::Parser> this method will be deprecated to improve performance. So avoid inheriting this method.
 
 =cut
 
@@ -1338,7 +1371,7 @@ sub is_line_continued {
     my $self = shift;
     return 0 if not defined $self->multiline_type;
     my $routine = $self->_get_is_line_contd_routine;
-    die undef_line_unwrap_routine( name => 'is_wrapped' )
+    parser_exception("is_wrapped routine not defined")
         if not defined $routine;
     $routine->( $self, @_ );
 }
@@ -1359,7 +1392,7 @@ sub _get_is_line_contd_routine {
 sub join_last_line {
     my $self    = shift;
     my $routine = $self->_get_join_last_line_routine;
-    die undef_line_unwrap_routine( name => 'unwrap_routine' )
+    parser_exception("unwrap_routine not defined")
         if not defined $routine;
     $routine->( $self, @_ );
 }
@@ -1426,7 +1459,6 @@ sub _jnl_join_last_line {
 =for :list
 * L<Text::Parser::Manual> - Read this manual to learn how to do cool things with this class
 * L<The AWK Programming Language|https://books.google.com/books/about/The_AWK_Programming_Language.html?id=53ueQgAACAAJ> - by B<A>ho, B<W>einberg, and B<K>ernighan.
-* L<Text::Parser::Errors> - documentation of the exceptions this class throws
 * L<Text::Parser::Multiline> - how to read line-wrapped text input
 
 =cut

@@ -7,7 +7,7 @@ use Test::Exception;
 
 BEGIN {
     use_ok('Text::Parser');
-    use_ok('Text::Parser::Errors');
+    use_ok('Text::Parser::Error');
 }
 
 lives_ok {
@@ -104,50 +104,43 @@ lives_ok {
     }
     'Reads the file fine without dying even if multiline_type is undef';
     $parser->multiline_type('join_last');
-    is( $parser->multiline_type, 'join_last',
-        'Correctly set multiline_type to join_last' );
+    is( $parser->multiline_type, 'join_last', 'Correctly set unwrapper' );
     throws_ok {
         $parser->read('t/example-custom-line-wrap.txt');
-    }
-    UndefLineUnwrapRoutine(),
-        'Should die because no custom unwrappers are setup';
+    } 'Text::Parser::Error';
     throws_ok {
         $parser->custom_line_unwrap_routines();
-    }
-    BadCustomUnwrapCall(),
-        'Should die because setup to custom unwrappers is called with less than 4 arguments';
+    } 'Text::Parser::Error';
     throws_ok {
         $parser->custom_line_unwrap_routines( 1, 2, 3, 4 );
-    }
-    BadCustomUnwrapCall(),
-        'Dies because no argument is the key we are looking for';
+    } 'Text::Parser::Error';
     throws_ok {
         $parser->custom_line_unwrap_routines( is_wrapped => 2, 3, 4 );
-    }
-    BadCustomUnwrapCall(), 'Dies because unwrap_routine is not there';
+    }'Text::Parser::Error'; 
     throws_ok {
         $parser->custom_line_unwrap_routines( unwrap_routine => 2, 3, 4 );
-    }
-    BadCustomUnwrapCall(), 'Dies because is_wrapped is not there';
+    } 'Text::Parser::Error';
     throws_ok {
         $parser->custom_line_unwrap_routines(
             unwrap_routine => 2,
             is_wrapped     => 4
         );
-    }
-    BadCustomUnwrapCall(), 'Dies because neither of them is a subroutine';
+    } 'Text::Parser::Error';
+    my $unwrap_routine = sub {
+        my ( $self, $last_line, $this_line ) = @_;
+        chomp $last_line;
+        $last_line =~ s/\s*$//g;
+        $this_line =~ s/^[~]\s*//g;
+        "$last_line $this_line";
+    };
     $parser->custom_line_unwrap_routines(
         is_wrapped     => $is_wrapped_routine,
         unwrap_routine => $unwrap_routine,
     );
     $parser->_unwrap_routine(undef);
-    is( $parser->multiline_type, 'join_last',
-        'Continues to remain join_last' );
     throws_ok {
         $parser->read('t/example-custom-line-wrap.txt');
-    }
-    UndefLineUnwrapRoutine(),
-        'dies because one of the routines was somehow removed';
+    } 'Text::Parser::Error';
     $parser->_unwrap_routine($unwrap_routine);
     $parser->read('t/example-custom-line-wrap.txt');
     is_deeply [ $parser->get_records ],

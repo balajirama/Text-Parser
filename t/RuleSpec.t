@@ -5,7 +5,7 @@ use warnings;
 package ParserClass;
 
 use Test::Exception;
-use Text::Parser::Errors;
+use Text::Parser::Error;
 use Text::Parser::RuleSpec;
 
 extends 'Text::Parser';
@@ -18,24 +18,26 @@ lives_ok {
 package AnotherClass;
 
 use Test::Exception;
-use Text::Parser::Errors;
+use Text::Parser::Error;
 use Text::Parser::RuleSpec;
 extends 'ParserClass';
 
-throws_ok {
+my $err = 'Text::Parser::Error';
+
+dies_ok {
     applies_rule;
 }
-SpecMustHaveName();
+$err;
 
 throws_ok {
     applies_rule {};
 }
-SpecMustHaveName();
+$err;
 
 throws_ok {
     applies_rule if => '$1 eq "NAME:"';
 }
-SpecMustHaveName();
+$err;
 
 throws_ok {
     applies_rule 'failing_rule';
@@ -50,7 +52,7 @@ lives_ok {
 throws_ok {
     applies_rule get_names => ( if => '$1 eq "EMAIL:"' );
 }
-NameRuleUniquely();
+$err;
 
 lives_ok {
     applies_rule get_address => ( if => '$1 eq "ADDRESS:"', do => 'print;' );
@@ -60,12 +62,12 @@ lives_ok {
 throws_ok {
     applies_rule get_DOB => ('something random');
 }
-SpecRequiresHash();
+$err;
 
 throws_ok {
     applies_rule get_DOB => ();
 }
-SpecRequiresHash();
+$err;
 
 throws_ok {
     disables_superclass_rules [];
@@ -79,18 +81,18 @@ use Test::More;
 
 BEGIN {
     use_ok 'Text::Parser::RuleSpec';
-    use_ok 'Text::Parser::Errors';
+    use_ok 'Text::Parser::Error';
 }
 
 throws_ok {
     applies_rule if => '$1 eq "NAME:"';
 }
-MainCantApplyRule();
+$err;
 
 throws_ok {
     applies_rule get_names => ( if => '$1 eq "NAME:"' );
 }
-MainCantApplyRule();
+$err;
 
 throws_ok {
     disables_superclass_rules 'ParserClass/empty_rule';
