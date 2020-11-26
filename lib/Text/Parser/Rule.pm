@@ -110,14 +110,12 @@ sub _construct_from_rule {
     my %const = ();
     $const{if} = $opt{if} if exists $opt{if};
     $const{if} = $self->condition
-        if not exists $const{if}
-        and
-        if not $self->_has_blank_condition;
+        if not( exists $const{if} )
+        and not( $self->_has_blank_condition );
     $const{do} = $opt{do} if exists $opt{do};
     $const{do} = $self->action
-        if not exists $const{do}
-        and
-        if not $self->_has_action;
+        if not( exists $const{do} )
+        and not( $self->_has_action );
     $const{dont_record}
         = exists $opt{dont_record} ? $opt{dont_record} : $self->dont_record;
     $const{continue_to_next}
@@ -444,6 +442,7 @@ sub _check_parser_arg {
 
 sub _test {
     my ( $self, $parser ) = ( shift, shift );
+    return 0 unless defined($parser->this_line);
     return 0 if $parser->NF < $self->min_nf;
     return 0
         if not( $self->_no_preconds or $self->_test_preconditions($parser) );
