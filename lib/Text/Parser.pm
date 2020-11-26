@@ -80,17 +80,17 @@ Much more complex file-formats can be read and data in it could be stored in a d
 
 =head1 OVERVIEW
 
-The L<need|Text::Parser::Manual/MOTIVATION> for this class stems from the fact that text parsing is the most common thing that programmers do, and yet there is no lean, simple way to do it efficiently. Most programmers still write boilerplate code with a C<while> loop.
+The L<need|Text::Parser::Manual/MOTIVATION> for this class stems from the fact that text parsing is the most common thing that programmers do, and yet there is no lean, simple way to do it in Perl. Most programmers still write boilerplate code with a C<while> loop.
 
 Instead C<Text::Parser> allows programmers to parse text with simple, self-explanatory L<rules|Text::Parser::Manual::ExtendedAWKSyntax>, whose structure is very similar to L<AWK|https://books.google.com/books/about/The_AWK_Programming_Language.html?id=53ueQgAACAAJ>, but extends beyond the capability of AWK.
 
 I<B<Sidenote:>> Incidentally, AWK is L<one of the ancestors of Perl|http://history.perl.org/PerlTimeline.html>! One would have expected Perl to do way better than AWK. But while you can use Perl to do what AWK already does, that is usually limited to one-liners like C<perl -lane>. Even C<perl -lan script.pl> is not meant for serious projects. And it seems that L<some people still prefer AWK to Perl|https://aplawrence.com/Unixart/awk-vs.perl.html>. This is not looking good.
 
-With C<Text::Parser>, a developer can focus on specifying a grammar and then simply C<read> the file. The C<L<read|/read>> method automatically runs each rule collecting records from the text input into an internal array. Once read, C<L<get_records|/get_records>> can retrieve the records.
+With C<Text::Parser>, a developer can focus on specifying a grammar and then simply C<read> the file. The C<L<read|/read>> method automatically runs each rule collecting records from the text input into an internal array. Finally, C<L<get_records|/get_records>> can retrieve the records.
 
-Since C<Text::Parser> is a class, a programmer can subclass it to parses very complex file formats. L<Text::Parser::RuleSpec> provides intuitive rule sugar. Use of L<Moose> is encouraged. And data from parsed files can be turned into very complex data-structures or even objects.
+Since C<Text::Parser> is a class, a programmer can subclass it to parse very complex file formats. L<Text::Parser::RuleSpec> provides intuitive rule sugar. Use of L<Moose> is encouraged. And data from parsed files can be turned into very complex data-structures or even objects.
 
-With B<L<Text::Parser>> programmers have the power of Perl combined with the elegance of AWK to parse any text file they wish.
+With B<L<Text::Parser>> programmers have the power of Perl combined with the elegance and simplicity of AWK to parse any text file they wish.
 
 =head1 THINGS TO DO FURTHER
 
@@ -942,7 +942,7 @@ Once this setting is done, a call to C<read> will automatically unwrap the multi
     way to wrap long lines. In general, line-wrapping \
     can be much easier on the reader's eyes.
 
-When C<read> runs any rules in C<$parser>, the text above appears as a single line in C<$_>.
+When C<read> runs any rules in C<$parser>, the text above appears as a single line to the rules.
 
 =cut
 
@@ -961,20 +961,26 @@ To specify a custom line-unwrapping style:
 In a subclass, you may do one of the following:
 
 =for :list
-* Set a default value for C<line_wrap_style>. For example: C<has '+line_wrap_style' => ( default => 'spice', );>. This uses one of the supported common line-unwrap methods.
+* Set a default value for C<line_wrap_style>. For example, the following uses one of the supported common line-unwrap methods.
+    has '+line_wrap_style' => ( 
+        default => 'spice', 
+    );
+
 * Setup custom line-unwrap routines with C<unwraps_lines> from L<Text::Parser::RuleSpec>.
 
 =cut
 
 =head1 OVERRIDE IN SUBCLASS
 
-The following methods should never be called in the C<::main> program. They may be overridden (or re-defined) in a subclass. For the most part, one would never have to override any of these methods at all. But just in case someone wants to...
+The following methods should never be called in the C<main> program. They may be overridden (or re-defined) in a subclass. One would never have to override any of these methods at all.
 
 =inherit save_record
 
 The default implementation takes a single argument, runs any rules, and saves the returned value as a record in an internal array. If nothing is returned from the rule, C<undef> is stored as a record.
 
 B<Note>: Starting C<0.925> version of C<Text::Parser> it is not required to override this method in your derived class. In most cases, you should use the rules.
+
+B<Importnant Note:> Starting version C<1.0> of C<Text::Parser> this method will be deprecated to improve performance. So avoid inheriting this method.
 
 =cut
 
