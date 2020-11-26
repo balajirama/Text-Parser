@@ -54,29 +54,6 @@ Instances of this class can be created using the C<new> constructor, but normall
         dont_record      => 1, # default: 0
         continue_to_next => 1, # default: 0
     );
-
-=head2 clone
-
-You can clone a rule and construct another rule from it.
-
-    my $new_rule = $rule->clone(
-        # all of these are optional
-        if               => '# modify original condition', 
-        do               => '# modify original action', 
-        dont_record      => 1, 
-        continue_to_next => 1, 
-
-        # Or you may provide these options
-        add_precondition => '# another condition', 
-        before_do        => '# action to be done before calling the action of the super-rule', 
-        after_do         => '# action to be done after calling the action of the super-rule', 
-
-        # If you provide do clause, you may not provide before_do or after_do clauses
-        # But you may provide an add_precondition clause whether or not there is an if clause
-    );
-
-In the above example, the rule object C<$rule> which is the source for the cloned object C<$new_rule> is called the 'super-rule'. The clone actually has a reference to its super-rule, and one may get that object from the C<L<super_rule>> method.
-
 =cut
 
 sub BUILD {
@@ -93,11 +70,69 @@ sub _constr_condition {
     $self->_has_blank_condition(1);
 }
 
+=head2 clone
+
+You can clone a rule and construct another rule from it.
+
+    $new_rule = $rule->clone();
+     # Just creates a clone of $rule.
+
+The above is not particularly useful as it just creates a copy of the same rule. In the below example, we demonstrate that any of the four main attributes of a rule could be changed while creating a clone. For example:
+
+    $rule = Text::Parser::Rule->new(
+        if               => '# some condition',
+    );
+    $new_rule = $rule->clone(
+        # all of these are optional
+        do               => '# modify original action', 
+        dont_record      => 1, 
+        continue_to_next => 1,
+    );
+
+You could also change the C<if> clause above, but you could also add a pre-condition at the time of creating C<$new_rule> without affecting C<$rule> itself:
+
+    $new_rule = $rule->clone(
+        add_precondition => '# another condition',
+        # ...
+    );
+
+The C<clone> method is just another way to create a rule. It just uses an existing rule as a seed.
+
+=cut
+
 sub clone {
-    my ($self, %opt) = (shift, @_);
-    $self->_check_clone_clauses(\%opt);
-    $self->_prep_clauses(\%opt);
-    return $self->_clone_and_save(\%opt);
+    my ( $self, %opt ) = ( shift, @_ );
+    return _clone_another_rule( \%opt, $self->_construct_from_rule(@_) );
+}
+
+sub _construct_from_rule {
+    my ( $self, %opt ) = ( shift, @_ );
+    my %const = ();
+    $const{if} = $opt{if} if exists $opt{if};
+    $const{if} = $self->condition
+        if not exists $const{if}
+        and
+        if not $self->_has_blank_condition;
+    $const{do} = $opt{do} if exists $opt{do};
+    $const{do} = $self->action
+        if not exists $const{do}
+        and
+        if not $self->_has_action;
+    $const{dont_record}
+        = exists $opt{dont_record} ? $opt{dont_record} : $self->dont_record;
+    $const{continue_to_next}
+        = exists $opt{continue_to_next}
+        ? $opt{continue_to_next}
+        : $self->continue_to_next;
+    return \%const;
+}
+
+sub _clone_another_rule {
+    my ( $opt, $const ) = ( shift, shift );
+    my $r = Text::Parser::Rule->new($const);
+    $r->add_precondition( $opt->{add_precondition} )
+        if exists $opt->{add_precondition};
+    return $r;
 }
 
 =head1 METHODS
@@ -124,6 +159,7 @@ has condition => (
 
 sub _set_condition {
     my $self = shift;
+    return if ( $self->condition =~ /^\s*$/ );
     $self->_has_blank_condition(0);
     $self->_set_highest_nf;
     $self->_cond_sub_str( _gen_sub_str( $self->condition ) );
@@ -319,6 +355,19 @@ has continue_to_next => (
     trigger => \&_check_continue_to_next,
 );
 
+=method add_precondition
+
+Method that can be used to add more pre-conditions to a rule
+
+    $rule->add_precondition('looks_like_number($1)');
+    # Check if the first field on line is a number
+
+When you call C<L<test|/"test">> on the rule, it tests all the pre-conditions and the regular condition. If any of them fail, the test returns a boolean false.
+
+This method is very useful when you clone a rule.
+
+=cut
+
 has _preconditions => (
     is       => 'ro',
     isa      => 'ArrayRef[Str]',
@@ -334,19 +383,6 @@ has _preconditions => (
         _no_preconds     => 'is_empty',
     },
 );
-
-=method add_precondition
-
-Method that can be used to add more pre-conditions to a rule
-
-    $rule->add_precondition('looks_like_number($1)');
-    # Check if the first field on line is a number
-
-When you call C<L<test|/"test">> on the rule, it tests all the pre-conditions and the regular condition. If any of them fail, the test returns a boolean false.
-
-This method is very useful when you clone a rule.
-
-=cut
 
 after add_precondition => sub {
     my $self = shift;
@@ -418,7 +454,7 @@ sub _test {
 sub _test_preconditions {
     my ( $self, $parser ) = @_;
     foreach my $cond ( $self->_precond_subs ) {
-        my $val = $cond->($self, $parser);
+        my $val = $cond->( $self, $parser );
         return 0 if not defined $val or not $val;
     }
     return 1;
@@ -428,7 +464,7 @@ sub _test_cond_sub {
     my ( $self, $parser ) = @_;
     my $cond = $self->_cond_sub;
     return 0 if not defined $parser->this_line;
-    my $val = $cond->($self, $parser);
+    my $val = $cond->( $self, $parser );
     defined $val and $val;
 }
 
@@ -461,14 +497,8 @@ sub _call_act_sub {
     my ( $self, $parser, $test_line ) = @_;
     return if $test_line and not defined $parser->this_line;
     my $act = $self->_act_sub;
-    return ( $act->($self, $parser) );
+    return ( $act->( $self, $parser ) );
 }
-
-=method super_rule
-
-Method that returns the rule object of the 'super-rule'. When you clone a rule using the C<clone> method, the source rule object is called the 'super-rule'.
-
-=cut
 
 __PACKAGE__->meta->make_immutable;
 

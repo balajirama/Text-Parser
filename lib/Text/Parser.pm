@@ -1436,6 +1436,7 @@ sub _jnl_join_last_line {
 
 =for :list
 * L<Text::Parser::Manual> - Read this manual to learn how to do cool things with this class
+* L<Text::Parser::Error> - there is a change in how exceptions are thrown by this class. Read this page for more information.
 * L<The AWK Programming Language|https://books.google.com/books/about/The_AWK_Programming_Language.html?id=53ueQgAACAAJ> - by B<A>ho, B<W>einberg, and B<K>ernighan.
 * L<Text::Parser::Multiline> - how to read line-wrapped text input
 

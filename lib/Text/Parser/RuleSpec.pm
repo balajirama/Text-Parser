@@ -46,7 +46,7 @@ package Text::Parser::RuleSpec;
 
 =head2 Primary usage
 
-The primary purpose of this class is to enable users to create their own parser classes for a well-established text file format. Sometimes, there is a relatively complex text file format and a parser for that could be written allowing for code to be shared across multiple programs. The basic steps are as following:
+The primary purpose of this class is to enable users to create their own parser classes for a known text file format. Sometimes, there is a relatively complex text file format and a parser for that could be written allowing for code to be shared across multiple programs. The basic steps are as following:
 
     package MyFavorite::Parser;
     use Text::Parser::RuleSpec;
@@ -133,7 +133,7 @@ We can further subclass a class that C<extends> L<Text::Parser>. Inheriting the 
         do => '# something else', 
     );
 
-Now, C<MyParser2> contains two rules: C<MyParser1/rule1> and C<MyParser2/rule1>. By default, rules of superclasses will be run before rules in the subclass. The derived class can change this:
+Now, C<MyParser2> contains two rules: C<MyParser1/rule1> and C<MyParser2/rule1>. Note that both the rules in both classes are called C<rule1> and both will be executed. By default, rules of superclasses will be run before rules in the subclass. The subclass can change this order by explicitly stating that its own C<rule1> is run C<before> the C<rule1> of C<MyParser1>:
 
     package MyParser2;
     use Text::Parser::RuleSpec;
@@ -154,7 +154,7 @@ A subclass may choose to disable any superclass rules:
 
     disables_superclass_rules qr/^MyParser1/;  # disables all rules from MyParser1 class
 
-Or to clone a rule from either the same class, or from a superclass, or even from some other random class.
+Or to clone a rule from either the same class, a superclass, or even from some other random class.
 
     package ClonerParser;
     use Text::Parser::RuleSpec;
@@ -176,11 +176,11 @@ Or to clone a rule from either the same class, or from a superclass, or even fro
         after            => 'MyParser1/rule1', 
     );
 
-So essentially, programmer A may write a text parser for a text syntax SYNT1, and programmer B notices that the text syntax he wishes to parse (SYNT2) is similar, except for a few differences. Instead of having to re-write the parsing algorithm from scratch, he can just extend the code from programmer A and modify it exactly as needed. This is especially useful when syntax many different text formats are very similar.
+Imagine this situation: Programmer A writes a text parser for a text format syntax SYNT1, and programmer B notices that the text format he wishes to parse (SYNT2) is similar, except for a few differences. Instead of having to re-write the code from scratch, he can reuse the code from programmer A and modify it exactly as needed. This is especially useful when syntaxes many different text formats are very similar.
 
 =head1 METHODS
 
-There is no constructor for this class. You cannot create an instance of this class. Therefore, all methods here can be called on the C<Text::Parser::RuleSpec> class directly. These methods are documented if you want to sub-class C<Text::Parser::RuleSpec> itself to do something fancy of your own.
+There is no constructor for this module. You cannot create an instance of C<Text::Parser::RuleSpec>. Therefore, all methods here can be called on the C<Text::Parser::RuleSpec> directly.
 
 =cut
 
