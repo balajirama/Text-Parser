@@ -42,7 +42,7 @@ $err;
 throws_ok {
     applies_rule 'failing_rule';
 }
-SpecRequiresHash();
+$err;
 
 lives_ok {
     applies_rule get_names => ( if => '$1 eq "NAME:"' );
@@ -72,7 +72,7 @@ $err;
 throws_ok {
     disables_superclass_rules [];
 }
-BadDisableRulespecArg();
+$err;
 
 package main;
 use Test::Exception;
@@ -97,7 +97,7 @@ $err;
 throws_ok {
     disables_superclass_rules 'ParserClass/empty_rule';
 }
-MainCantCallRulespecFunc();
+$err;
 
 lives_ok {
     my $h = Text::Parser::RuleSpec->_class_rule_order;

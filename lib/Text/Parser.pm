@@ -331,7 +331,7 @@ sub _on_line_unwrap {
     my ( $self, $val, $oldval ) = (@_);
     return           if not defined $val and not defined $oldval;
     $val = 'default' if not defined $val;
-    return if $val eq 'custom' and defined $self->multiline_type;
+    return           if $val eq 'custom' and defined $self->multiline_type;
     $self->multiline_type( $MULTILINE_VAL{$val} );
 }
 
@@ -1187,9 +1187,9 @@ sub custom_line_unwrap_routines {
 
 sub _prep_for_custom_unwrap_routines {
     my $self = shift;
-    die already_set_line_wrap_style( value => $self->line_wrap_style )
-        if defined $self->line_wrap_style
-        and 'custom' ne $self->line_wrap_style;
+    my $s    = $self->line_wrap_style();
+    parser_exception("Line wrap style already set to $s")
+        if defined $s and 'custom' ne $s;
     $self->line_wrap_style('custom');
 }
 

@@ -431,7 +431,7 @@ sub _check_location_args {
 sub _register_rule {
     my $key = shift;
     parser_exception("name rules uniquely: $key")
-      if Text::Parser::RuleSpec->_exists_rule($key);
+      if Text::Parser::RuleSpec->is_known_rule($key);
     my $rule = Text::Parser::Rule->new(@_);
     Text::Parser::RuleSpec->_add_new_rule( $key => $rule );
 }

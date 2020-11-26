@@ -88,7 +88,7 @@ lives_ok {
             unwrap_routine => $unwrap_routine
         );
     }
-    AlreadySetLineWrapStyle(),
+    'Text::Parser::Error',
         'Throws exception for calling custom line unwrap methods when line_wrap_style is spice';
 }
 'custom line-wrapping routines cannot be set when line_wrap_style is not custom';
