@@ -651,7 +651,7 @@ sub unwraps_lines_using {
 }
 
 sub _check_custom_unwrap_args {
-    parser_exception( "unwraps_lines_using needs exactly 4 arguments ; "
+    parser_exception( "Needs exactly 4 arguments ; "
           . scalar(@_)
           . " given" )
       if @_ != 4;

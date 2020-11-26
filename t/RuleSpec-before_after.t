@@ -32,7 +32,6 @@ lives_ok {
 package MyParser;
 use Text::Parser::RuleSpec;
 extends 'OneParser';
-use Text::Parser::Errors;
 use Test::Exception;
 
 use AnotherParser;
@@ -40,7 +39,7 @@ use AnotherParser;
 throws_ok {
     applies_rule random_rule => ( before => 'OneParser/rule1', );
 }
-IllegalRuleNoIfNoAct();
+'Text::Parser::Error';
 
 throws_ok {
     applies_rule random_rule => (
@@ -48,7 +47,7 @@ throws_ok {
         before => 'NonExistent::Class/rule',
     );
 }
-RefToNonExistentRule();
+'Text::Parser::Error';
 
 throws_ok {
     applies_rule random_rule => (
@@ -57,7 +56,7 @@ throws_ok {
         after  => 'something_else',
     );
 }
-OnlyOneOfBeforeOrAfter();
+'Text::Parser::Error';
 
 throws_ok {
     applies_rule random_rule => (
@@ -65,7 +64,7 @@ throws_ok {
         before => 'something',
     );
 }
-BeforeOrAfterNeedsClassname();
+'Text::Parser::Error';
 
 throws_ok {
     applies_rule random_rule => (
@@ -73,7 +72,7 @@ throws_ok {
         after => 'AnotherParser/my_rule',
     );
 }
-BeforeOrAfterOnlySuperclassRules();
+'Text::Parser::Error';
 
 lives_ok {
     applies_rule simple_rule => ( do => '# nothing', );
@@ -86,7 +85,7 @@ throws_ok {
         after => 'MyParser/simple_rule',
     );
 }
-BeforeOrAfterOnlySuperclassRules();
+'Text::Parser::Error';
 
 lives_ok {
     applies_rule random_rule => (

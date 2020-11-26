@@ -25,7 +25,6 @@ package main;
 
 use Test::More;    # last test to print
 use Test::Exception;
-use Text::Parser::Errors;
 
 lives_ok {
     my $parser = MyParser->new();
@@ -71,6 +70,6 @@ throws_ok {
         is_wrapped     => sub { 0; },
         unwrap_routine => sub { ''; };
 }
-MainCantCallRulespecFunc(), 'Main cannot call this function';
+'Text::Parser::Error', 'Main cannot call this function';
 
 done_testing;

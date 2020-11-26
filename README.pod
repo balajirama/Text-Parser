@@ -83,13 +83,21 @@ A more complex file-formats can be read and contents stored in a data-structure:
     my $p = ComplexFormatParser->new();
     $p->read('myfile.complex.fmt');
 
+=head1 RATIONALE
+
+The L<need|Text::Parser::Manual/MOTIVATION> for this class stems from the fact that text parsing is the most common thing that programmers do, and yet there is no lean, simple way to do it in Perl. Most programmers still write boilerplate code with a C<while> loop.
+
+Instead C<Text::Parser> allows programmers to parse text with simple, self-explanatory L<rules|Text::Parser::Manual::ExtendedAWKSyntax>, whose structure is very similar to L<AWK|https://books.google.com/books/about/The_AWK_Programming_Language.html?id=53ueQgAACAAJ>, but extends beyond the capability of AWK.
+
+I<B<Sidenote:>> Incidentally, AWK is L<one of the ancestors of Perl|http://history.perl.org/PerlTimeline.html>! One would have expected Perl to do way better than AWK. But while you can use Perl to do what AWK already does, that is usually limited to one-liners like C<perl -lane>. Even C<perl -lan script.pl> is not meant for serious projects. And it seems that L<some people still prefer AWK to Perl|https://aplawrence.com/Unixart/awk-vs.perl.html>. This is not looking good.
+
 =head1 OVERVIEW
 
-With C<Text::Parser>, you focus on just specifying a grammar in intuitive rules. C<Text::Parser> handles the rest. The C<L<read|/read>> method automatically runs the rules for each line, collecting records from the text input into an internal array. And then, you may use C<L<get_records|/get_records>> to retrieve the records.
+With C<Text::Parser>, a developer can focus on specifying a grammar and then simply C<read> the file. The C<L<read|/read>> method automatically runs each rule collecting records from the text input into an internal array. Finally, C<L<get_records|/get_records>> can retrieve the records.
 
-Since C<Text::Parser> is a class, you may subclass it to parse very complex file formats. L<Text::Parser::RuleSpec> provides intuitive syntax sugar to specify rules in a subclass. Use of L<Moose> is encouraged. Data from parsed files can be turned into very complex data-structures or even objects.
+Since C<Text::Parser> is a class, a programmer can subclass it to parse very complex file formats. L<Text::Parser::RuleSpec> provides intuitive rule sugar. Use of L<Moose> is encouraged. And data from parsed files can be turned into very complex data-structures or even objects.
 
-With B<L<Text::Parser>> you have the power of Perl combined with the elegance of AWK.
+With B<L<Text::Parser>> programmers have the power of Perl combined with the elegance and simplicity of AWK to parse any text file they wish.
 
 =head1 CONSTRUCTOR
 
@@ -603,13 +611,15 @@ L<Text::Parser::Multiline> shows another example with C<join_next> type.
 
 The following methods should never be called in the C<::main> program. They may be overridden (or re-defined) in a subclass.
 
-Starting version 0.925, users should never need to override any of these methods to make their own parser. But in case someone wants to ...
+Starting version 0.925, users should never need to override any of these methods to make their own parser.
 
 =head2 save_record
 
 The default implementation takes a single argument, runs any rules, and saves the returned value as a record in an internal array. If nothing is returned from the rule, C<undef> is stored as a record.
 
 B<Note>: Starting C<0.925> version of C<Text::Parser> it is not required to override this method in your derived class. In most cases, you should use the rules.
+
+B<Importnant Note:> Starting version C<1.0> of C<Text::Parser> this method will be deprecated to improve performance. So avoid inheriting this method.
 
 =head2 is_line_continued
 
@@ -628,14 +638,6 @@ In earlier versions of L<Text::Parser> you had no way but to subclass L<Text::Pa
 The default implementation of this routine takes two string arguments, joins them without any C<chomp> or any other operation, and returns that result.
 
 In earlier versions of L<Text::Parser> you had no way but to subclass L<Text::Parser> to select a line-unwrapping routine. Now you can instead select from a list of known C<line_wrap_style>s, or even set custom methods for this.
-
-=head1 RATIONALTE
-
-The L<motivation|Text::Parser::Manual/MOTIVATION> for this class stems from the fact that text parsing is the most common thing that programmers do, and yet there is no lean, simple way to do it efficiently. Most programmers still write boilerplate code with a C<while> loop.
-
-Instead C<Text::Parser> allows programmers to parse text with simple, self-explanatory L<rules|Text::Parser::Manual::ExtendedAWKSyntax>, whose structure is very similar to L<AWK|https://books.google.com/books/about/The_AWK_Programming_Language.html?id=53ueQgAACAAJ>, but extends beyond the capability of AWK.
-
-I<B<Sidenote:>> Incidentally, AWK is L<one of the ancestors of Perl|http://history.perl.org/PerlTimeline.html>! One would have expected Perl to do way better than AWK. But while you can use Perl to do what AWK already does, that is usually limited to one-liners like C<perl -lane>. Even C<perl -lan script.pl> is not meant for serious projects. And it seems that L<some people still prefer AWK to Perl|https://aplawrence.com/Unixart/awk-vs.perl.html>. This is not looking good.
 
 =head1 THINGS TO DO FURTHER
 
@@ -679,7 +681,7 @@ When C<read> reads each line of text, it looks for any trailing backslash and un
     way to wrap long lines. In general, line-wrapping \
     can be much easier on the reader's eyes.
 
-When C<read> runs any rules in C<$parser>, the text above appears as a single line in C<$_> to each rule in C<$parser>.
+When C<read> runs any rules in C<$parser>, the text above appears as a single line to the rules.
 
 =head2 Specifying custom line-unwrap routines
 
@@ -703,7 +705,15 @@ L<Here|/"custom_line_unwrap_routines"> is an example with C<join_last> value for
 
 You may subclass C<Text::Paser> to parse your specific text format. And that format may support some line-wrapping. To handle the known common line-wrapping styles, set a default value for C<line_wrap_style>. For example: 
 
-    package MyParser;
+=over 4
+
+=item *
+
+Set a default value for C<line_wrap_style>. For example, the following uses one of the supported common line-unwrap methods. has '+line_wrap_style' => (  default => 'spice',  );
+
+=back
+
+* Setup custom line-unwrap routines with C<unwraps_lines> from L<Text::Parser::RuleSpec>.
 
     use Text::Parser::RuleSpec;
     extends 'Text::Parser';
@@ -741,10 +751,6 @@ L<Text::Parser::Manual> - Read this manual to learn how to do cool things with t
 =item *
 
 L<The AWK Programming Language|https://books.google.com/books/about/The_AWK_Programming_Language.html?id=53ueQgAACAAJ> - by B<A>ho, B<W>einberg, and B<K>ernighan.
-
-=item *
-
-L<Text::Parser::Errors> - documentation of the exceptions this class throws
 
 =item *
 

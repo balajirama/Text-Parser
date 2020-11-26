@@ -48,24 +48,24 @@ lives_ok {
 package DisablerClass;
 
 use Test::Exception;
-use Text::Parser::Errors;
 use Text::Parser::RuleSpec;
 extends 'AnotherClass';
 
 throws_ok {
     disables_superclass_rules;
 }
-BadDisableRulespecArg(), 'Fails to disable - no args';
+'Text::Parser::Error', 'Fails to disable - no args';
 
 throws_ok {
     disables_superclass_rules 'empty_rule';
 }
-RulenameForDisableMustHaveClassname(),
+'Text::Parser::Error',
     'Fails to disable - no classname in arg';
 
 throws_ok {
     disables_superclass_rules 'DisablerClass/some_rule';
-} CantDisableSameClassRules(), 'Fails to disable same class rules';
+}
+'Text::Parser::Error', 'Fails to disable same class rules';
 
 lives_ok {
     disables_superclass_rules qr/AnotherClass/, 'RandomClass/some_rule',
@@ -75,7 +75,8 @@ lives_ok {
 
 lives_ok {
     disables_superclass_rules 'Parser2/empty_rule';
-} 'Disables even the last remaining one';
+}
+'Disables even the last remaining one';
 
 package main;
 use Test::Exception;

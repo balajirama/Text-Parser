@@ -1195,14 +1195,6 @@ sub _prep_for_custom_unwrap_routines {
 
 my $unwrap_prefix = "Bad call to custom_line_unwrap_routines: ";
 
-sub _check_custom_unwrap_args {
-    parser_exception("$unwrap_prefix Need 4 arguments")
-        if @_ != 4;
-    _test_fields_unwrap_rtn(@_);
-    my (%opt) = (@_);
-    return ( $opt{is_wrapped}, $opt{unwrap_routine} );
-}
-
 sub _test_fields_unwrap_rtn {
     my (%opt) = (@_);
     parser_exception(
