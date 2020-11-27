@@ -545,7 +545,8 @@ sub applies_cloned_rule {
     my ( $meta, $orule ) = ( shift, shift );
     _first_things_on_applies_cloned_rule( $meta, $orule, @_ );
     my $nrule = _gen_new_rule_name_from( $meta, $orule );
-    _register_cloned_rule( _full_rule_name( $meta, $nrule ), $orule, @_ );
+    _register_cloned_rule( _full_rule_name( $meta, $nrule ),
+        _qualified_rulename( $orule, $meta ), @_ );
     _set_correct_rule_order( $meta, $nrule, @_ );
 }
 
@@ -561,7 +562,7 @@ sub _excepts_apply_cloned_rule {
     _must_have_named_super( $meta, $name );
     _check_args_hash_stuff( $meta, "applies_cloned_rule $name", @_ );
     parser_exception("$name is not an existing rule ; can\'t clone it")
-        if not Text::Parser::RuleSpec->is_known_rule($name);
+        if not _is_existing_rule( $name, $meta );
 }
 
 my %clone_options = ( %rule_options, add_precondition => 1, );
@@ -574,9 +575,25 @@ sub _must_have_named_super {
         or ( exists $clone_options{$name} );
 }
 
+sub _is_existing_rule {
+    my ( $rname, $meta ) = ( shift, shift );
+    return 1 if Text::Parser::RuleSpec->is_known_rule($rname);
+    return 0 if $rname =~ /\//;
+    return Text::Parser::RuleSpec->is_known_rule(
+        $meta->name . '/' . $rname );
+}
+
+sub _qualified_rulename {
+    my ( $r, $meta ) = ( shift, shift );
+    return $meta->name . '/' . $r
+        if not Text::Parser::RuleSpec->is_known_rule($r);
+    return $r;
+}
+
 sub _gen_new_rule_name_from {
     my ( $meta, $oname ) = ( shift, shift );
     my ( $cls,  $rname ) = split( /\//, $oname, 2 );
+    $rname = $cls if not defined $rname;
     my $nname = $meta->name . '/' . $rname;
     return $rname if not Text::Parser::RuleSpec->is_known_rule($nname);
     my $incr = 2;
