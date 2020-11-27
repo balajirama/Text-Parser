@@ -16,19 +16,21 @@ The following prints the content of the file (named in the first argument) to C<
     $parser->read(shift);
     print $parser->get_records, "\n";
 
-The earlier code prints after reading the whole file, this one prints immediately. Also, the third line there allows this program to read from a file name specified on command-line, or C<STDIN>. In effect, this makes this Perl code a good replica of the UNIX C<cat>.
+The above code prints after reading the whole file, which can be slow if you have large fules. This following prints contents immediately.
 
     my $parser = Text::Parser->new();
     $parser->add_rule(do => 'print', dont_record => 1);
     ($#ARGV > 0) ? $parser->filename(shift) : $parser->filehandle(\*STDIN);
     $parser->read();       # Runs the rule for each line of input file
 
+Also, the third line there allows this program to read from a file name specified on command-line, or C<STDIN>. In effect, this makes this Perl code a good replica of the UNIX C<cat>.
+
 Here is an example with a simple rule that extracts the first error in the logfile and aborts reading further:
 
     my $parser = Text::Parser->new();
     $parser->add_rule(
         if => '$1 eq "ERROR:"',
-            # $1 is a positional identifier for first field on the line
+            # $1 is a positional identifier for first 'field' on the line
         do => '$this->abort_reading; return $_;'
             # $this is copy of $parser accessible from within the rule
             # abort_reading() tells parser to stop reading further
@@ -36,13 +38,35 @@ Here is an example with a simple rule that extracts the first error in the logfi
             # $_ contains the full line as string, including any whitespaces
     );
     
-    # Reads all lines until it encounters "ERROR:"
+    # Returns the first line starting with "ERROR:"
     $parser->read('/path/to/logfile');
 
-    # Print a message if ...
     print "Some errors were found:\n" if $parser->get_records();
 
-A more complex file-formats can be read and contents stored in a data-structure:
+Here is an example that parses a table with field separators indicated by C<|> character:
+
+    use Data::Dumper 'Dumper';
+    my $table_parser = Text::Parser->new( FS => qr/\s*[|]\s*/ );
+    $table_parser->add_rule(if => '($this->NF == 0) or ($1 =~ /^[#]/)', dont_record => 1);
+    $table_parser->add_rule(
+        if => '$this->lines_parsed == 1',
+        do => '~columns = [$this->fields()];'
+    );
+    $table_parser->add_rule(
+        if => '$this->lines_parsed > 1',
+        do =>  'my %rec = ();
+                foreach my $i (0..$#{~columns}) {
+                    my $k = ~columns->[$i];
+                    $rec{$k} = $this->field($i);
+                }
+                return \%rec;',
+    );
+    $table_parser->read('table.txt');
+    print Dumper($table_parser->get_records()), "\n";
+
+In the above example you see the use of a L<stashed variable|/"METHODS FOR ACCESSING STASHED VARIABLES"> named C<~columns>. Note that the sigil used here is not a Perl sigil, but is converted to native Perl code. In the above case, each record is a hash with fixed number of fields.
+
+More complex file-formats can be read and contents stored in a data-structure or an object. Here is an example:
 
     use strict;
     use warnings;
@@ -91,9 +115,9 @@ I<B<Sidenote:>> Incidentally, AWK is L<one of the ancestors of Perl|http://histo
 
 With C<Text::Parser>, a developer can focus on specifying a grammar and then simply C<read> the file. The C<L<read|/read>> method automatically runs each rule collecting records from the text input into an internal array. Finally, C<L<get_records|/get_records>> can retrieve the records.
 
-Since C<Text::Parser> is a class, a programmer can subclass it to parse very complex file formats. L<Text::Parser::RuleSpec> provides intuitive rule sugar. Use of L<Moose> is encouraged. And data from parsed files can be turned into very complex data-structures or even objects.
+Since C<Text::Parser> is a class, a programmer can subclass it to parse very complex file formats. L<Text::Parser::RuleSpec> provides intuitive rule sugar. Use of L<Moose> is encouraged. And data from parsed files can be turned into very complex data-structures or even objects. In this case, you wouldn't need to use C<get_records>.
 
-With B<L<Text::Parser>> programmers have the power of Perl combined with the elegance and simplicity of AWK to parse any text file they wish.
+With B<L<Text::Parser>> programmers have the elegance and simplicity of AWK combined with the power of Perl at their disposal.
 
 =head1 THINGS TO DO FURTHER
 
@@ -142,13 +166,9 @@ has _origclass => (
 
 Takes optional attributes as in example below. See section L<ATTRIBUTES|/ATTRIBUTES> for a list of the attributes and their description.
 
-    my $parser = Text::Parser->new(
-        auto_chomp      => 0,
-        line_wrap_style => 'just_next_line',
-        auto_trim       => 'b',
-        auto_split      => 1,
-        FS              => qr/\s+/,
-    );
+    my $parser = Text::Parser->new();
+
+    my $parser2 = Text::Parser->new( line_wrap_style => 'trailing_backslash' );
 
 =cut
 
@@ -236,6 +256,8 @@ Read-write attribute which can be set to a custom subroutine that trims each lin
 
     $parser->custom_line_trimmer(\&_cust_trimmer);
 
+B<Note:> If you set this attribute, you are entirely responsible for the trimming. Poorly written routines could causing the C<auto_split> operation to misbehave.
+
 By default it is undefined.
 
 =cut
@@ -249,13 +271,13 @@ has custom_line_trimmer => (
 
 =attr FS
 
-Read-write attribute that can be used to specify the field separator to be used by the C<auto_split> feature. It must be a regular expression reference enclosed in the C<qr> function, like C<qr/\s+|[,]/> which will split across either spaces or commas. The default value for this argument is C<qr/\s+/>.
+Read-write attribute that can be used to specify the field separator to be used by the C<auto_split> feature. It must be a regular expression reference enclosed in the C<qr> function, like C<qr/\s+|[,]/> which will split across either spaces or commas. The default value for this attribute is C<qr/\s+/>.
 
 The name for this attribute comes from the built-in C<FS> variable in the popular L<GNU Awk program|https://www.gnu.org/software/gawk/gawk.html>. The ability to use a regular expression is an upgrade from AWK.
 
     $parser->FS( qr/\s+\(*|\s*\)/ );
 
-C<FS> I<can> be changed. Changes can be made even within a rule, but it would take effect only on the next line.
+C<FS> I<can> be changed from within a rule. Changes made even within a rule would take effect on the immediately next line read.
 
 =cut
 
@@ -290,8 +312,8 @@ Allowed values are:
     trailing_backslash - very common style ending lines with \
                          and continuing on the next line
 
-    spice              - used for SPICE syntax, where on the
-                         + next line the (+) continues previous line
+    spice              - used for SPICE syntax, where the (+)
+                         + symbol continues content of last line
 
     just_next_line     - used in simple text files written to be
                          humanly-readable. New paragraphs start
@@ -653,7 +675,7 @@ sub _get_valid_text_filename {
     return;
 }
 
-# Don't touch: Override this is Text::Parser::AutoUncompress
+# Don't touch: Override this in Text::Parser::AutoUncompress
 sub _throw_invalid_file_exception {
     my ( $self, $fname ) = ( shift, shift );
     parser_exception("Invalid filename $fname") if not -f $fname;
@@ -833,9 +855,10 @@ sub _singlechar_indent {
 
 sub _line_manip {
     my ( $self, $line ) = ( shift, shift );
+    return $self->_def_line_manip($line)
+        if not defined $self->custom_line_trimmer;
     my $cust = $self->custom_line_trimmer;
-    $line = $cust->($line) if defined $cust;
-    return $self->_def_line_manip($line);
+    return $cust->($line);
 }
 
 sub _def_line_manip {
@@ -966,11 +989,11 @@ Inside rules, you could simply C<delete> the stashed variable like this:
 
 The above C<delete> statement works because the stashed variable C<~forget_me> is just a hash key named C<forget_me> internally. Using this on pre-stashed variables, will only temporarily delete the variable. It will be present in subsequent calls to C<read>. If you want to delete it completely call C<forget> with the pre-stashed variable name as an argument.
 
-When no arguments are passed, it clears the stash of variables, or forgets all previously recorded stashed variables, if any.
+When no arguments are passed, it clears all stashed variables (not pre-stashed).
 
     $parser->forget;
 
-Note that when C<forget> is called with no arguments, pre-stashed variables are not deleted and are still accessible in subsequent calls to C<read>. But when a pre-stashed variable is explicitly named in a call to forget, then it is forgotten even for subsequent calls to C<read>.
+Note that when C<forget> is called with no arguments, pre-stashed variables are not deleted and are still accessible in subsequent calls to C<read>. To forget a pre-stashed variable, it needs to be explicitly named in a call to forget. Then it is forgotten.
 
 A call to C<forget> method is done without any arguments, right before C<read> starts reading a new text input. That is how we can reset the values of stashed variables, but still retain pre-stashed variables.
 
