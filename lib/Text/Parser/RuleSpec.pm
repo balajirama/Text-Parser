@@ -299,7 +299,7 @@ Takes a string argument expected to be fully-qualified name of a rule. Returns a
 
 =method populate_class_rules
 
-Takes a parser class name as string argument. It populates the class rules according to the latest order of rules. This is useful if you modify a class rule order through your own code.
+Takes a parser class name as string argument. It populates the class rules according to the latest order of rules.
 
     Text::Parser::RuleSpec->populate_class_rules('MyFavorite::Parser');
 
@@ -364,10 +364,16 @@ sub _full_rule_name {
 
 sub _excepts_apply_rule {
     my ( $meta, $name ) = ( shift, shift );
-    parser_exception("Rule $name cannot be applied by main.")
-        if $meta->name eq 'main';
+    _rulespec_cant_be_in_main( $meta, $name, 'applies_rule' );
     _rule_must_have_name( $meta, $name );
-    _check_args_hash_stuff( $meta, $name, @_ );
+    _check_args_hash_stuff( $meta, "applies_rule $name", @_ );
+}
+
+sub _rulespec_cant_be_in_main {
+    my ( $meta, $name, $funcname ) = ( shift, shift, shift );
+    my $follow = defined $name ? ": $name" : '.';
+    parser_exception("$funcname cannot be called in main$follow")
+        if $meta->name eq 'main';
 }
 
 my %rule_options = (
@@ -381,17 +387,17 @@ my %rule_options = (
 
 sub _rule_must_have_name {
     my ( $meta, $name ) = ( shift, shift );
-    parser_exception("A rulespec must have a name")
+    parser_exception("applies_rule requires rule name argument")
         if not defined $name
         or ( '' ne ref($name) )
         or ( exists $rule_options{$name} );
 }
 
 sub _check_args_hash_stuff {
-    my ( $meta, $name ) = ( shift, shift );
-    my (%opt) = _check_arg_is_hash( $name, @_ );
+    my ( $meta, $funccall ) = ( shift, shift );
+    my (%opt) = _check_arg_is_hash( $funccall, @_ );
     _if_empty_prepopulate_rules_from_superclass($meta);
-    _check_location_args( $meta, $name, %opt )
+    _check_location_args( $meta, $funccall, %opt )
         if _has_location_opts(%opt);
 }
 
@@ -401,9 +407,9 @@ sub _has_location_opts {
 }
 
 sub _check_arg_is_hash {
-    my $name = shift;
+    my $funccall = shift;
     parser_exception(
-        "Rulespec $name must have a hash specification. See documentation.")
+        "$funccall must be followed by a hash. See documentation.")
         if not @_
         or ( scalar(@_) % 2 );
     return @_;
@@ -412,20 +418,20 @@ sub _check_arg_is_hash {
 sub _check_location_args {
     my ( $meta, $name, %opt ) = ( shift, shift, @_ );
     parser_exception(
-        "Rulespec $name may have one of \'before\' or \'after\'; not both.")
+        "\'$name\' call can have \'before\' or \'after\'; not both.")
         if exists $opt{before} and exists $opt{after};
     my $loc = exists $opt{before} ? 'before' : 'after';
     my ( $cls, $rule ) = split /\//, $opt{$loc}, 2;
     parser_exception(
-        "Clause $loc should have a value of format <classname>/<rulename>")
+        "Clause $loc must follow format <classname>/<rulename>: \'$name\'")
         if not defined $rule;
-    parser_exception("Unknown rule $opt{$loc} in clause $loc of rule $name")
+    parser_exception("Unknown rule $opt{$loc} in clause $loc: \'$name\'")
         if not Text::Parser::RuleSpec->is_known_rule( $opt{$loc} );
     my (@r) = Text::Parser::RuleSpec->class_rule_order( $meta->name );
     my $is_super_rule = grep { $_ eq $opt{$loc} } @r;
     parser_exception(
-        "Use \'$loc\' clause only with superclass rules ; not this class.")
-        if $cls eq $meta->name or not $is_super_rule;
+        "Use \'$loc\' clause only with superclass rules ; not this class: \'$name\'"
+    ) if $cls eq $meta->name or not $is_super_rule;
 }
 
 sub _register_rule {
@@ -537,6 +543,53 @@ The new cloned rule created is automatically renamed by C<applies_cloned_rule>. 
 
 sub applies_cloned_rule {
     my ( $meta, $orule ) = ( shift, shift );
+    _first_things_on_applies_cloned_rule( $meta, $orule, @_ );
+    my $nrule = _gen_new_rule_name_from( $meta, $orule );
+    _register_cloned_rule( _full_rule_name( $meta, $nrule ), $orule, @_ );
+    _set_correct_rule_order( $meta, $nrule, @_ );
+}
+
+sub _first_things_on_applies_cloned_rule {
+    my ( $meta, $name ) = ( shift, shift );
+    _excepts_apply_cloned_rule( $meta, $name, @_ );
+    _set_default_of_attributes( $meta, auto_split => 1 );
+}
+
+sub _excepts_apply_cloned_rule {
+    my ( $meta, $name ) = ( shift, shift );
+    _rulespec_cant_be_in_main( $meta, $name, 'applies_cloned_rule' );
+    _must_have_named_super( $meta, $name );
+    _check_args_hash_stuff( $meta, "applies_cloned_rule $name", @_ );
+    parser_exception("$name is not an existing rule ; can\'t clone it")
+        if not Text::Parser::RuleSpec->is_known_rule($name);
+}
+
+my %clone_options = ( %rule_options, add_precondition => 1, );
+
+sub _must_have_named_super {
+    my ( $meta, $name ) = ( shift, shift );
+    parser_exception("applies_cloned_rule requires original rule name")
+        if not defined $name
+        or ( '' ne ref($name) )
+        or ( exists $clone_options{$name} );
+}
+
+sub _gen_new_rule_name_from {
+    my ( $meta, $oname ) = ( shift, shift );
+    my ( $cls,  $rname ) = split( /\//, $oname, 2 );
+    my $nname = $meta->name . '/' . $rname;
+    return $rname if not Text::Parser::RuleSpec->is_known_rule($nname);
+    my $incr = 2;
+    $incr++ while Text::Parser::RuleSpec->is_known_rule("$nname\@$incr");
+    return "$rname\@$incr";
+}
+
+sub _register_cloned_rule {
+    my ( $key, $orule ) = ( shift, shift );
+    my %opts = _get_rule_opts_only(@_);
+    my $o    = Text::Parser::RuleSpec->class_rule_object($orule);
+    my $rule = $o->clone(%opts);
+    Text::Parser::RuleSpec->_add_new_rule( $key => $rule );
 }
 
 =func disables_superclass_rules
@@ -560,9 +613,7 @@ If a subroutine reference is provided, the subroutine is called for each rule in
 
 sub disables_superclass_rules {
     my $meta = shift;
-    parser_exception(
-        "main cannot create rulespecs or call any rulespec functions")
-        if $meta->name eq 'main';
+    _rulespec_cant_be_in_main( $meta, undef, 'disables_superclass_rules' );
     _check_disable_rules_args( $meta->name, @_ );
     _find_and_remove_superclass_rules( $meta, @_ );
 }
@@ -646,8 +697,7 @@ For the pair of routines to not cause unexpected C<undef> results, they should r
 
 sub unwraps_lines_using {
     my $meta = shift;
-    parser_exception("man cannot call a rulespec function")
-        if $meta->name eq 'main';
+    _rulespec_cant_be_in_main( $meta, undef, 'unwraps_lines_using' );
     my ( $is_wr, $un_wr ) = _check_custom_unwrap_args(@_);
     _set_lws_and_routines( $meta, $is_wr, $un_wr );
 }
