@@ -51,7 +51,10 @@ Here is an example that parses a table with field separators indicated by C<|> c
 
     use Data::Dumper 'Dumper';
     my $table_parser = Text::Parser->new( FS => qr/\s*[|]\s*/ );
-    $table_parser->add_rule(if => '($this->NF == 0) or ($1 =~ /^[#]/)', dont_record => 1);
+    $table_parser->add_rule(
+        if          => '$this->NF == 0',
+        dont_record => 1
+    );
     $table_parser->add_rule(
         if => '$this->lines_parsed == 1',
         do => '~columns = [$this->fields()];'
