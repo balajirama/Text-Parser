@@ -1,11 +1,17 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
-  - Simplifying the errors. Text::Parser::Error is just a child of Throwable::Error and can be handled as all Throwable::Error objects.
+  - Text::Parser::RuleSpec provides syntactical sugar to subclass Text::Parser: applies_rule, unwraps_lines_using, disables_superclass_rules
+  - New attributes line_wrap_style, track_indentation, indentation_str, and custom_line_trimmer
+  - New methods custom_line_unwrap_routines, and this_indent in Text::Parser
+  - Replaces many error classes in Text::Parser::Errors with a single class Text::Parser::Error.
+    - Text::Parser::Error is just a child of Throwable::Error and can be handled as all Throwable::Error objects.
+    - This is not backward compatible with previous versions which were throwing objects of Text::Parser::Errors.
   - Text::Parser::RuleSpec provides syntactical sugar to subclass Text::Parser
   - New attribute line_wrap_style, new method custom_line_unwrap_routines
   - Removed confusing POD documentation
   - Improved POD documentation to reflect latest features
+  - Improved the Text::Parser manual
 
 0.927     2019-06-22 20:35:56-07:00 America/Los_Angeles
   - Speed improvement: reduced runtime of read() calls to about 50% of original runtime.

@@ -16,13 +16,14 @@ The following prints the content of the file (named in the first argument) to C<
     $parser->read(shift);
     print $parser->get_records, "\n";
 
-The earlier code prints after reading the whole file, this one prints immediately.
+The earlier code prints after reading the whole file, this one prints immediately. Also, the third line there allows this program to read from a file name specified on command-line, or C<STDIN>. In effect, this makes this Perl code a good replica of the UNIX C<cat>.
 
     my $parser = Text::Parser->new();
     $parser->add_rule(do => 'print', dont_record => 1);
-    $parser->read(shift);       # Runs the rule for each line of input file
+    ($#ARGV > 0) ? $parser->filename(shift) : $parser->filehandle(\*STDIN);
+    $parser->read();       # Runs the rule for each line of input file
 
-Here is a more common example:
+Here is an example with a simple rule that extracts the first error in the logfile and aborts reading further:
 
     my $parser = Text::Parser->new();
     $parser->add_rule(
@@ -41,7 +42,7 @@ Here is a more common example:
     # Print a message if ...
     print "Some errors were found:\n" if $parser->get_records();
 
-Much more complex file-formats can be read and data in it could be stored in a data-structure:
+A more complex file-formats can be read and contents stored in a data-structure:
 
     use strict;
     use warnings;
@@ -78,13 +79,15 @@ Much more complex file-formats can be read and data in it could be stored in a d
     my $p = ComplexFormatParser->new();
     $p->read('myfile.complex.fmt');
 
-=head1 OVERVIEW
+=head1 RATIONALE
 
 The L<need|Text::Parser::Manual/MOTIVATION> for this class stems from the fact that text parsing is the most common thing that programmers do, and yet there is no lean, simple way to do it in Perl. Most programmers still write boilerplate code with a C<while> loop.
 
 Instead C<Text::Parser> allows programmers to parse text with simple, self-explanatory L<rules|Text::Parser::Manual::ExtendedAWKSyntax>, whose structure is very similar to L<AWK|https://books.google.com/books/about/The_AWK_Programming_Language.html?id=53ueQgAACAAJ>, but extends beyond the capability of AWK.
 
 I<B<Sidenote:>> Incidentally, AWK is L<one of the ancestors of Perl|http://history.perl.org/PerlTimeline.html>! One would have expected Perl to do way better than AWK. But while you can use Perl to do what AWK already does, that is usually limited to one-liners like C<perl -lane>. Even C<perl -lan script.pl> is not meant for serious projects. And it seems that L<some people still prefer AWK to Perl|https://aplawrence.com/Unixart/awk-vs.perl.html>. This is not looking good.
+
+=head1 OVERVIEW
 
 With C<Text::Parser>, a developer can focus on specifying a grammar and then simply C<read> the file. The C<L<read|/read>> method automatically runs each rule collecting records from the text input into an internal array. Finally, C<L<get_records|/get_records>> can retrieve the records.
 
@@ -115,11 +118,15 @@ use String::Util qw(trim ltrim rtrim eqq);
 use Text::Parser::Error;
 use Text::Parser::Rule;
 use Text::Parser::RuleSpec;
+use List::MoreUtils qw(natatime first_index);
 
 enum 'Text::Parser::Types::MultilineType' => [qw(join_next join_last)];
 enum 'Text::Parser::Types::LineWrapStyle' =>
     [qw(trailing_backslash spice just_next_line slurp custom)];
 enum 'Text::Parser::Types::TrimType' => [qw(l r b n)];
+
+subtype 'NonEmptyStr', as 'Str', where { length $_ > 0 },
+    message {"$_ is an empty string"};
 
 no Moose::Util::TypeConstraints;
 use FileHandle;
@@ -137,7 +144,7 @@ Takes optional attributes as in example below. See section L<ATTRIBUTES|/ATTRIBU
 
     my $parser = Text::Parser->new(
         auto_chomp      => 0,
-        line_wrap       => 'just_next_line',
+        line_wrap_style => 'just_next_line',
         auto_trim       => 'b',
         auto_split      => 1,
         FS              => qr/\s+/,
@@ -156,26 +163,9 @@ around BUILDARGS => sub {
 
 sub BUILD {
     my $self = shift;
-    $self->_collect_any_class_rules;
     ensure_all_roles $self, 'Text::Parser::AutoSplit' if $self->auto_split;
     return if not defined $self->multiline_type;
     ensure_all_roles $self, 'Text::Parser::Multiline';
-}
-
-sub _collect_any_class_rules {
-    my $self = shift;
-    my $cls  = $self->_origclass;
-    my $h    = Text::Parser::RuleSpec->_class_rule_order;
-    return if not exists $h->{$cls};
-    $self->_find_class_rules_and_set_auto_split( $h, $cls );
-}
-
-sub _find_class_rules_and_set_auto_split {
-    my ( $self, $h, $cls ) = ( shift, shift, shift );
-    my (@r)
-        = map { Text::Parser::RuleSpec->_get_rule($_); } ( @{ $h->{$cls} } );
-    $self->_class_rules( \@r );
-    $self->auto_split(1) if not $self->auto_split;
 }
 
 =head1 ATTRIBUTES
@@ -201,7 +191,7 @@ has auto_chomp => (
 
 Read-write boolean attribute. Defaults to C<0> (false). Indicates if the parser will automatically split every line into fields.
 
-If it is set to a true value, each line will be split into fields, and L<a set of methods|/"USE ONLY IN RULES AND SUBCLASS"> become accessible to C<L<save_record|/save_record>> or the rules.
+If it is set to a true value, each line will be split into fields, and L<a set of methods|/"METHODS USED ONLY IN RULES AND SUBCLASSES"> become accessible to C<L<save_record|/save_record>> or the rules.
 
 =cut
 
@@ -234,6 +224,29 @@ has auto_trim => (
     default => 'n',
 );
 
+=attr custom_line_trimmer
+
+Read-write attribute which can be set to a custom subroutine that trims each line before applying any rules or saving any records. The function is expected to take a single argument containing the complete un-trimmed line, and is expected to return a manipulated line.
+
+    sub _cust_trimmer {
+        my $line = shift;
+        chomp $line;
+        return $line;
+    }
+
+    $parser->custom_line_trimmer(\&_cust_trimmer);
+
+By default it is undefined.
+
+=cut
+
+has custom_line_trimmer => (
+    is      => 'rw',
+    isa     => 'CodeRef|Undef',
+    lazy    => 1,
+    default => undef,
+);
+
 =attr FS
 
 Read-write attribute that can be used to specify the field separator to be used by the C<auto_split> feature. It must be a regular expression reference enclosed in the C<qr> function, like C<qr/\s+|[,]/> which will split across either spaces or commas. The default value for this argument is C<qr/\s+/>.
@@ -253,6 +266,19 @@ has FS => (
     default => sub {qr/\s+/},
 );
 
+=attr indentation_str
+
+This can be used to set the indentation character or string. By default it is a single space C< >. But you may want to set it to be a tab (C<\t>) or perhaps some other character like a hyphen (C<->) or even a string (C<   -E<gt>>). This attribute is used only if C<L<track_indentation|/track_indentation>> is set.
+
+=cut
+
+has indentation_str => (
+    is      => 'rw',
+    isa     => 'NonEmptyStr',
+    lazy    => 1,
+    default => ' ',
+);
+
 =attr line_wrap_style
 
 Read-write attribute used as a quick way to select from commonly known line-wrapping styles. If the target text format allows line-wrapping this attribute allows the programmer to write rules as if they were on a single line.
@@ -263,18 +289,24 @@ Allowed values are:
 
     trailing_backslash - very common style ending lines with \
                          and continuing on the next line
+
     spice              - used for SPICE syntax, where on the
                          + next line the (+) continues previous line
+
     just_next_line     - used in simple text files written to be
                          humanly-readable. New paragraphs start
                          on a new line after a blank line.
+
     slurp              - used to "slurp" the whole file into
                          a single line.
-    custom             - user-defined style. User must specify
-                         value of multiline_type when custom is
-                         chosen.
 
-Read more about L<handling the common line-wrapping styles|/"Common line-wrapping styles">.
+    custom             - user-defined style. User must specify
+                         value of multiline_type and define
+                         two custom unwrap routines using the
+                         custom_line_unwrap_routines method
+                         when custom is chosen.
+
+When C<line_wrap_style> is set to one of these values, the value of C<multiline_type> is automatically set to an appropriate value. Read more about L<handling the common line-wrapping styles|/"Common line-wrapping styles">.
 
 =cut
 
@@ -299,16 +331,15 @@ sub _on_line_unwrap {
     my ( $self, $val, $oldval ) = (@_);
     return           if not defined $val and not defined $oldval;
     $val = 'default' if not defined $val;
+    return           if $val eq 'custom' and defined $self->multiline_type;
     $self->multiline_type( $MULTILINE_VAL{$val} );
 }
 
 =attr multiline_type
 
-Read-write attribute used mainly if the programmer wishes to specify custom line-unwrapping methods.
+Read-write attribute used mainly if the programmer wishes to specify custom line-unwrapping methods. By default, this attribute is C<undef>, i.e., the target text format will not have wrapped lines.
 
-By default, this attribute is C<undef>, i.e., the target text format will not have wrapped lines. It gets automatically changed when C<line_wrap_style> is set to one of the known line-wrapping styles, except if C<line_wrap_style> is set to C<custom>.
-
-    $parser->line_wrap_style(custom);
+    $parser->line_wrap_style('custom');
     $parser->multiline_type('join_next');
 
     my $mult = $parser->multiline_type;
@@ -346,11 +377,30 @@ sub __newval_multi_line {
     return $orig->( $self, $newval );
 }
 
-=head1 METHODS
+=attr track_indentation
+
+This boolean attribute enables tracking of the number of indentation characters are there at the beginning of each line. In some text formats, this is a very important information that can indicate the depth of some data. By default, this is false. When set to a true value, you can get the number of indentation characters on a given line with the C<L<this_indent|/this_indent>> method.
+
+    $parser->track_indentation(1);
+
+Now you can use C<this_indent> method in the rules:
+
+    $parser->add_rule(if => '$this->this_indent > 0', do => '~num_indented ++;')
+
+=cut
+
+has track_indentation => (
+    is      => 'rw',
+    isa     => 'Bool',
+    lazy    => 1,
+    default => 0,
+);
+
+=head1 METHODS FOR SPECIFYING RULES
 
 These are meant to be called from the C<::main> program or within subclasses.
 
-=method add_rule
+=rules_meth add_rule
 
 Takes a hash as input. The keys of this hash must be the attributes of the L<Text::Parser::Rule> class constructor and the values should also meet the requirements of that constructor.
 
@@ -361,18 +411,6 @@ Takes a hash as input. The keys of this hash must be the attributes of the L<Tex
 Calling this method without any arguments will throw an exception. The method internally sets the C<auto_split> attribute.
 
 =cut
-
-has _class_rules => (
-    is      => 'rw',
-    isa     => 'ArrayRef[Text::Parser::Rule]',
-    lazy    => 1,
-    default => sub { [] },
-    traits  => ['Array'],
-    handles => {
-        _has_no_rules => 'is_empty',
-        _get_rules    => 'elements',
-    },
-);
 
 has _obj_rules => (
     is      => 'rw',
@@ -394,7 +432,7 @@ sub add_rule {
     $self->_push_obj_rule($rule);
 }
 
-=method clear_rules
+=rules_meth clear_rules
 
 Takes no arguments, returns nothing. Clears the rules that were added to the object.
 
@@ -411,7 +449,7 @@ sub clear_rules {
     $self->_clear_end_rule;
 }
 
-=method BEGIN_rule
+=rules_meth BEGIN_rule
 
 Takes a hash input like C<add_rule>, but C<if> and C<continue_to_next> keys will be ignored.
 
@@ -419,7 +457,7 @@ Takes a hash input like C<add_rule>, but C<if> and C<continue_to_next> keys will
 
 =for :list
 * Since any C<if> key is ignored, the C<do> key is required. Multiple calls to C<BEGIN_rule> will append to the previous calls; meaning, the actions of previous calls will be included.
-* The C<BEGIN> block is mainly used to initialize some variables.
+* The C<BEGIN_rule> is mainly used to initialize some variables.
 * By default C<dont_record> is set true. User I<can> change this and set C<dont_record> as false, thus forcing a record to be saved even before reading the first line of text.
 
 =cut
@@ -460,7 +498,7 @@ sub _append_rule_lines {
     $opt->{do} = $old->action . $opt->{do};
 }
 
-=method END_rule
+=rules_meth END_rule
 
 Takes a hash input like C<add_rule>, but C<if> and C<continue_to_next> keys will be ignored. Similar to C<BEGIN_rule>, but the actions in the C<END_rule> will be executed at the end of the C<read> method.
 
@@ -468,7 +506,7 @@ Takes a hash input like C<add_rule>, but C<if> and C<continue_to_next> keys will
 
 =for :list
 * Since any C<if> key is ignored, the C<do> key is required. Multiple calls to C<END_rule> will append to the previous calls; meaning, the actions of previous calls will be included.
-* The C<END> block is mainly used to do final processing of collected records.
+* The C<END_rule> is mainly used to do final processing of collected records.
 * By default C<dont_record> is set true. User I<can> change this and set C<dont_record> as false, thus forcing a record to be saved after the end rule is processed.
 
 =cut
@@ -487,112 +525,79 @@ sub END_rule {
     $self->_modify_rule( '_end_rule', %opt );
 }
 
-=method read
+=head1 METHODS USED ONLY IN RULES AND SUBCLASSES
 
-Takes a single optional argument that can be either a string containing the name of the file, or a filehandle reference (a C<GLOB>) like C<\*STDIN> or an object of the C<L<FileHandle>> class.
+These methods can be used only inside rules, or methods of a subclass. Some of these methods are available only when C<auto_split> is on. They are listed as follows:
 
-    $parser->read($filename);         # Read the file
-    $parser->read(\*STDIN);           # Read the filehandle
+=for :list
+* L<NF|Text::Parser::AutoSplit/NF> - number of fields on this line
+* L<fields|Text::Parser::AutoSplit/fields> - all the fields as an array of strings ; trailing C<\n> removed
+* L<field|Text::Parser::AutoSplit/field> - access individual elements of the array above ; negative arguments count from back
+* L<field_range|Text::Parser::AutoSplit/field_range> - array of fields in the given range of indices ; negative arguments allowed
+* L<join_range|Text::Parser::AutoSplit/join_range> - join the fields in the range of indices ; negative arguments allowed
+* L<find_field|Text::Parser::AutoSplit/find_field> - returns field for which a given subroutine is true ; each field is passed to the subroutine in C<$_>
+* L<find_field_index|Text::Parser::AutoSplit/find_field_index> - similar to above, except it returns the index of the field instead of the field itself
+* L<splice_fields|Text::Parser::AutoSplit/splice_fields> - like the native Perl C<splice>
 
-The above could also be done in two steps if the developer so chooses.
+Other methods described below are also to be used only inside a rule, or inside methods called by the rules.
 
-    $parser->filename($filename);
-    $parser->read();                  # equiv: $parser->read($filename)
+=sub_use_method abort_reading
 
-    $parser->filehandle(\*STDIN);
-    $parser->read();                  # equiv: $parser->read(\*STDIN)
+Takes no arguments. Returns C<1>. Aborts C<read>ing any more lines, and C<read> method exits gracefully as if nothing unusual happened.
 
-The method returns once all records have been read, or if an exception is thrown, or if reading has been aborted with the C<L<abort_reading|/abort_reading>> method.
+    $parser->add_rule(
+        do          => '$this->abort_reading;',
+        if          => '$1 eq "EOF"', 
+        dont_record => 1, 
+    );
 
-Any C<close> operation will be handled (even if any exception is thrown), as long as C<read> is called with a file name parameter - not if you call with a file handle or C<GLOB> parameter.
+=sub_use_method this_indent
 
-    $parser->read('myfile.txt');      # Will close file automatically
+Takes no arguments, and returns the number of indentation characters found at the front of the current line. This can be called from within a rule:
 
-    open MYFH, "<myfile.txt" or die "Can't open file myfile.txt at ";
-    $parser->read(\*MYFH);            # Will not close MYFH
-    close MYFH;
+    $parser->add_rule( if => '$this->this_indent > 0', );
 
 =cut
 
-sub read {
-    my $self = shift;
-    return if not defined $self->_handle_read_inp(@_);
-    $self->_run_begin_end_block('_begin_rule');
-    $self->__read_and_close_filehandle;
-    $self->_run_begin_end_block('_end_rule');
-    $self->_ExAWK_symbol_table( {} );
-}
-
-sub _handle_read_inp {
-    my $self = shift;
-    return $self->filehandle   if not @_;
-    return                     if not ref( $_[0] ) and not $_[0];
-    return $self->filename(@_) if not ref( $_[0] );
-    return $self->filehandle(@_);
-}
-
-has _ExAWK_symbol_table => (
-    is      => 'rw',
-    isa     => 'HashRef[Any]',
-    default => sub { {} },
+has _indent_level => (
+    is      => 'ro',
+    isa     => 'Int|Undef',
     lazy    => 1,
+    default => undef,
+    writer  => '_set_indent_level',
+    reader  => 'this_indent',
 );
 
-sub _run_begin_end_block {
-    my ( $self, $func ) = ( shift, shift );
-    my $pred = '_has' . $func;
-    return if not $self->$pred();
-    my $rule = $self->$func();
-    $rule->_run( $self, 0 );
-}
+=sub_use_method this_line
 
-sub __read_and_close_filehandle {
-    my $self = shift;
-    $self->_prep_to_read_file;
-    $self->__read_file_handle;
-    $self->_close_filehandles if $self->_has_filename;
-    $self->_clear_this_line;
-}
+Takes no arguments, and returns the current line being parsed. For example:
 
-sub _prep_to_read_file {
-    my $self = shift;
-    $self->_reset_line_count;
-    $self->_empty_records;
-    $self->_clear_abort;
-}
+    $parser->add_rule(
+        if => 'length($this->this_line) > 256', 
+    );
+    ## Saves all lines longer than 256 characters
 
-sub __read_file_handle {
-    my $self = shift;
-    my $fh   = $self->filehandle();
-    while (<$fh>) {
-        last if not $self->__parse_line($_);
-    }
-}
+Inside rules, instead of using this method, one may also use C<$_>:
 
-sub __parse_line {
-    my ( $self, $line ) = ( shift, shift );
-    $self->_next_line_parsed();
-    $line = $self->_def_line_manip($line);
-    $self->_set_this_line($line);
-    $self->save_record($line);
-    return not $self->has_aborted;
-}
+    $parser->add_rule(
+        if => 'length($_) > 256', 
+    );
 
-sub _def_line_manip {
-    my ( $self, $line ) = ( shift, shift );
-    chomp $line if $self->auto_chomp;
-    return $self->_trim_line($line);
-}
+=cut
 
-sub _trim_line {
-    my ( $self, $line ) = ( shift, shift );
-    return $line        if $self->auto_trim eq 'n';
-    return trim($line)  if $self->auto_trim eq 'b';
-    return ltrim($line) if $self->auto_trim eq 'l';
-    return rtrim($line);
-}
+has _current_line => (
+    is       => 'ro',
+    isa      => 'Str|Undef',
+    init_arg => undef,
+    writer   => '_set_this_line',
+    reader   => 'this_line',
+    clearer  => '_clear_this_line',
+    default  => undef,
+);
 
-=method filename
+=head1 METHODS FOR READING INPUT
+
+=read_meth filename
 
 Takes an optional string argument containing the name of a file. Returns the name of the file that was last opened if any. Returns C<undef> if no file has been opened.
 
@@ -656,7 +661,7 @@ sub _throw_invalid_file_exception {
     parser_exception("Not a plain text file $fname");
 }
 
-=method filehandle
+=read_meth filehandle
 
 Takes an optional argument, that is a filehandle C<GLOB> (such as C<\*STDIN>) or an object of the C<FileHandle> class. Returns the filehandle last saved, or C<undef> if none was saved.
 
@@ -689,34 +694,174 @@ sub filehandle {
     return $self->_get_filehandle;
 }
 
-=method lines_parsed
+=read_meth read
 
-Takes no arguments. Returns the number of lines last parsed. Every call to C<read>, causes the value to be auto-reset.
+Takes a single optional argument that can be either a string containing the name of the file, or a filehandle reference (a C<GLOB>) like C<\*STDIN> or an object of the C<L<FileHandle>> class.
 
-    print $parser->lines_parsed, " lines were parsed\n";
+    $parser->read($filename);         # Read the file
+    $parser->read(\*STDIN);           # Read the filehandle
+
+The above could also be done in two steps if the developer so chooses.
+
+    $parser->filename($filename);
+    $parser->read();                  # equiv: $parser->read($filename)
+
+    $parser->filehandle(\*STDIN);
+    $parser->read();                  # equiv: $parser->read(\*STDIN)
+
+The method returns once all records have been read, or if an exception is thrown, or if reading has been aborted with the C<L<abort_reading|/abort_reading>> method.
+
+Any C<close> operation will be handled (even if any exception is thrown), as long as C<read> is called with a file name parameter - not if you call with a file handle or C<GLOB> parameter.
+
+    $parser->read('myfile.txt');      # Will close file automatically
+
+    open MYFH, "<myfile.txt" or die "Can't open file myfile.txt at ";
+    $parser->read(\*MYFH);            # Will not close MYFH
+    close MYFH;
 
 =cut
 
-has lines_parsed => (
-    is       => 'ro',
-    isa      => 'Int',
-    lazy     => 1,
-    init_arg => undef,
-    default  => 0,
-    traits   => ['Counter'],
-    handles  => {
-        _next_line_parsed => 'inc',
-        _reset_line_count => 'reset',
+sub read {
+    my $self = shift;
+    return if not defined $self->_handle_read_inp(@_);
+    $self->_run_begin_end_block('_begin_rule');
+    $self->__read_and_close_filehandle;
+    $self->_run_begin_end_block('_end_rule');
+}
+
+sub _handle_read_inp {
+    my $self = shift;
+    return $self->filehandle   if not @_;
+    return                     if not ref( $_[0] ) and not $_[0];
+    return $self->filename(@_) if not ref( $_[0] );
+    return $self->filehandle(@_);
+}
+
+sub _before_begin {
+    my $self = shift;
+    $self->forget;
+    $self->_preset_vars( $self->_all_preset ) if not $self->_has_no_prestash;
+}
+
+sub _after_end {
+    my $self = shift;
+    my $h    = $self->_hidden_stash;
+    $h->{$_} = $self->stashed($_) for ( keys %{$h} );
+}
+
+sub _run_begin_end_block {
+    my ( $self, $func ) = ( shift, shift );
+    $self->_before_begin if $func eq '_begin_rule';
+    $self->_run_beg_end__($func);
+    $self->_after_end if $func eq '_end_rule';
+}
+
+sub _run_beg_end__ {
+    my ( $self, $func ) = ( shift, shift );
+    my $pred = '_has' . $func;
+    return if not $self->$pred();
+    my $rule = $self->$func();
+    $rule->_run( $self, 0 );
+}
+
+sub __read_and_close_filehandle {
+    my $self = shift;
+    $self->_prep_to_read_file;
+    $self->__read_file_handle;
+    $self->_final_operations_after_read;
+}
+
+sub _prep_to_read_file {
+    my $self = shift;
+    $self->_reset_line_count;
+    $self->_empty_records;
+    $self->_clear_abort;
+}
+
+sub __read_file_handle {
+    my $self = shift;
+    my $fh   = $self->filehandle();
+    while (<$fh>) {
+        last if not $self->__parse_line($_);
     }
-);
+}
 
-=method push_records
+sub __parse_line {
+    my ( $self, $line ) = ( shift, shift );
+    $line = $self->_prep_line_for_parsing($line);
+    $self->_set_this_line($line);
+    $self->save_record($line);
+    return not $self->has_aborted;
+}
 
-Takes an array as input, and stores each element as a separate record. Returns the number of elements in the new array.
+sub _prep_line_for_parsing {
+    my ( $self, $line ) = ( shift, shift );
+    $self->_next_line_parsed();
+    $self->_find_indent_level($line) if $self->track_indentation;
+    $line = $self->_line_manip($line);
+}
 
-    $parser->push_records(qw(insert these as separate records));
+sub _find_indent_level {
+    my ( $self, $line ) = ( shift, shift );
+    chomp $line;
+    length( $self->indentation_str ) >= 2
+        ? $self->_find_long_indent_level($line)
+        : $self->_singlechar_indent($line);
+}
 
-=method get_records
+sub _find_long_indent_level {
+    my ( $self, $line ) = ( shift, shift );
+    my $n = _num_matching( $self->indentation_str, $line );
+    $self->_set_indent_level($n);
+}
+
+sub _num_matching {
+    my ( $ch, $line ) = ( shift, shift );
+    my $it = natatime( length($ch), ( split //, $line ) );
+    my ( $i, @x ) = ( 0, $it->() );
+    while ( $ch eq join( '', @x ) ) {
+        ( $i, @x ) = ( $i + 1, $it->() );
+    }
+    return $i;
+}
+
+sub _singlechar_indent {
+    my ( $self, $line ) = ( shift, shift );
+    my $n = first_index { $_ ne $self->indentation_str } ( split //, $line );
+    $self->_set_indent_level($n);
+}
+
+sub _line_manip {
+    my ( $self, $line ) = ( shift, shift );
+    my $cust = $self->custom_line_trimmer;
+    $line = $cust->($line) if defined $cust;
+    return $self->_def_line_manip($line);
+}
+
+sub _def_line_manip {
+    my ( $self, $line ) = ( shift, shift );
+    chomp $line if $self->auto_chomp;
+    return $self->_trim_line($line);
+}
+
+sub _trim_line {
+    my ( $self, $line ) = ( shift, shift );
+    return $line        if $self->auto_trim eq 'n';
+    return trim($line)  if $self->auto_trim eq 'b';
+    return ltrim($line) if $self->auto_trim eq 'l';
+    return rtrim($line);
+}
+
+sub _final_operations_after_read {
+    my $self = shift;
+    $self->_close_filehandles if $self->_has_filename;
+    $self->_clear_this_line;
+    $self->_set_indent_level(undef) if $self->track_indentation;
+}
+
+=head1 METHODS FOR HANDLING RECORDS
+
+=records_meth get_records
 
 Takes no arguments. Returns an array containing all the records saved by the parser.
 
@@ -725,11 +870,32 @@ Takes no arguments. Returns an array containing all the records saved by the par
         print "Record: $i: ", $record, "\n";
     }
 
-=method pop_record
+=records_meth last_record
+
+Takes no arguments and returns the last saved record. Leaves the saved records untouched.
+
+    my $last_rec = $parser->last_record;
+
+=cut
+
+sub last_record {
+    my $self  = shift;
+    my $count = $self->_num_records();
+    return if not $count;
+    return $self->_access_record( $count - 1 );
+}
+
+=records_meth pop_record
 
 Takes no arguments and pops the last saved record.
 
     my $last_rec = $parser->pop_record;
+
+=records_meth push_records
+
+Takes an array as input, and stores each element as a separate record. Returns the number of elements in the new array.
+
+    $parser->push_records(qw(insert these as separate records));
 
 =cut
 
@@ -752,22 +918,196 @@ has records => (
     },
 );
 
-=method last_record
+=head1 METHODS FOR ACCESSING STASHED VARIABLES
 
-Takes no arguments and returns the last saved record. Leaves the saved records untouched.
+Stashed variables can be data structures or simple scalar variables stored as elements in the parser object. Hence they are accessible across different rules. Stashed variables start with a tilde (~). So you could set up rules like these:
 
-    my $last_rec = $parser->last_record;
+    $parser->BEGIN_rule( do => '~count=0;' );
+    $parser->add_rule( if => '$1 eq "SECTION"', do => '~count++;' );
+
+In the above rule C<~count> is a stashed variable. Internally this is just a hash element with key named C<count>. After the C<read> call is over, this variable can be accessed.
+
+    $parser->read('some_text_file.txt');
+    print "Found ", $parser->stashed('count'), " sections in file.\n";
+
+Stashed variables that are created entirely within the rules are forgotten at the beginning of the next C<read> call. This means, you can C<read> another text file and don't have to bother to clear out the stashed variable C<~count>.
+
+    $parser->read('another_text_file.txt');
+    print "Found ", $parser->stashed('count'), " sections in file.\n";
+
+In contrast, stashed variables created by calling C<prestash> continue to persist for subsequent calls of C<read>, unless an explicit call to C<forget> names these pre-stashed variables.
+
+    $parser->prestash( max_err => 100 );
+    $parser->BEGIN_rule( do => '~err_count = 0;' );
+    $parser->add_rule(
+        if               => '$1 eq "ERROR:" && ~err_count < ~max_err',
+        do               => '~err_count++;', 
+        continue_to_next => 1, 
+    );
+    $parser->add_rule(
+        if => '$1 eq "ERROR:" && ~err_count == ~max_err',
+        do => '$this->abort_reading;', 
+    );
+    $parser->read('first.log');
+    print "Top 100 errors:\n", $parser->get_records, "\n";
+    
+    $parser->read('another.log');         # max_err is still set to 100, but err_count is forgotten and reset to 0 by the BEGIN_rule
+    print "Top 100 errors:\n", $parser->get_records, "\n";
+
+=stash_meth forget
+
+Takes an optional list of string arguments which must be the names of stashed variables. This method forgets those stashed variables for ever. So be sure you really intend to do this. In list context, this method returns the values of the variables whose names were passed to the method. In scalar context, it returns the last value of the last stashed variable passed.
+
+    my $pop_and_forget_me = $parser->forget('forget_me_totally', 'pop_and_forget_me');
+
+Inside rules, you could simply C<delete> the stashed variable like this:
+
+    $parser->add_rule( do => 'delete ~forget_me;' );
+
+The above C<delete> statement works because the stashed variable C<~forget_me> is just a hash key named C<forget_me> internally. Using this on pre-stashed variables, will only temporarily delete the variable. It will be present in subsequent calls to C<read>. If you want to delete it completely call C<forget> with the pre-stashed variable name as an argument.
+
+When no arguments are passed, it clears the stash of variables, or forgets all previously recorded stashed variables, if any.
+
+    $parser->forget;
+
+Note that when C<forget> is called with no arguments, pre-stashed variables are not deleted and are still accessible in subsequent calls to C<read>. But when a pre-stashed variable is explicitly named in a call to forget, then it is forgotten even for subsequent calls to C<read>.
+
+A call to C<forget> method is done without any arguments, right before C<read> starts reading a new text input. That is how we can reset the values of stashed variables, but still retain pre-stashed variables.
+
+=stash_meth has_empty_stash
+
+Takes no arguments and returns a true value if the stash of variables is empty (i.e., no stashed variables are present). If not, it returns a boolean false.
+
+    if ( not $parser->has_empty_stash ) {
+        my $myvar = $parser->stashed('myvar');
+        print "myvar = $myvar\n";
+    }
+
+=stash_meth has_stashed
+
+Takes a single string argument and returns a boolean indicating if there is a stashed variable with that name or not:
+
+    if ( $parser->has_stashed('stashed_var') ) {
+        print "Here is what stashed_var contains: ", $parser->stashed('stashed_var');
+    }
+
+Inside rules you could check this with the C<exists> keyword:
+
+    $parser->add_rule( if => 'exists ~stashed_var' );
+
+=stash_meth prestash
+
+Takes an even number of arguments, or a hash, with variable name and value as pairs. This is useful to preset some stash variables before C<read> is called so that the rules have some variables accessible inside them. The main difference between pre-stashed variables created via C<prestash> and those created in the rules or using C<stashed> is that the pre-stashed ones are static.
+
+    $parser->prestash(pattern => 'string');
+    $parser->add_rule( if => 'my $patt = ~pattern; m/$patt/;' );
+
+You may change the value of a C<prestash>ed variable inside any of the rules.
+
+=stash_meth stashed
+
+Takes an optional list of string arguments each with the name of a stashed variable you want to query, i.e., get the value of. In list context, it returns their values in the same order as the queried variables, and in scalar context it returns the value of the last variable queried.
+
+    my (%var_vals) = $parser->stashed;
+    my (@vars)     = $parser->stashed( qw(first second third) );
+    my $third      = $parser->stashed( qw(first second third) ); # returns value of last variable listed
+    my $myvar      = $parser->stashed('myvar');
+
+Or you could do this:
+
+    use Data::Dumper 'Dumper';
+
+    if ( $parser->has_empty_stash ) {
+        print "Nothing on my stash\n";
+    } else {
+        my %stash = $parser->stashed;
+        print Dumper(\%stash), "\n";
+    }
 
 =cut
 
-sub last_record {
-    my $self  = shift;
-    my $count = $self->_num_records();
-    return if not $count;
-    return $self->_access_record( $count - 1 );
+has _stashed_vars => (
+    is      => 'ro',
+    isa     => 'HashRef[Any]',
+    default => sub { {} },
+    lazy    => 1,
+    traits  => ['Hash'],
+    handles => {
+        _clear_stash    => 'clear',
+        _stashed        => 'elements',
+        _has_stashed    => 'exists',
+        _forget         => 'delete',
+        has_empty_stash => 'is_empty',
+        _get_vars       => 'get',
+        _preset_vars    => 'set',
+    }
+);
+
+sub forget {
+    my $self = shift;
+    return $self->_forget_stashed(@_) if @_;
+    $self->_clear_stash;
 }
 
-=method has_aborted
+sub _forget_stashed {
+    my $self = shift;
+    foreach my $s (@_) {
+        $self->_forget($s)       if $self->_has_stashed($s);
+        $self->_del_prestash($s) if $self->_has_prestash($s);
+    }
+}
+
+sub stashed {
+    my $self = shift;
+    return $self->_get_vars(@_) if @_;
+    return $self->_stashed;
+}
+
+sub has_stashed {
+    my $self = shift;
+    return 1 if $self->_has_stashed(@_);
+    return $self->_has_prestash(@_);
+}
+
+has _hidden_stash => (
+    is      => 'ro',
+    isa     => 'HashRef[Any]',
+    default => sub { {} },
+    lazy    => 1,
+    traits  => ['Hash'],
+    handles => {
+        prestash         => 'set',
+        _all_preset      => 'elements',
+        _has_prestash    => 'exists',
+        _has_no_prestash => 'is_empty',
+        _del_prestash    => 'delete',
+    }
+);
+
+=head1 MISCELLANEOUS METHODS
+
+=misc_meth lines_parsed
+
+Takes no arguments. Returns the number of lines last parsed. Every call to C<read>, causes the value to be auto-reset.
+
+    print $parser->lines_parsed, " lines were parsed\n";
+
+=cut
+
+has lines_parsed => (
+    is       => 'ro',
+    isa      => 'Int',
+    lazy     => 1,
+    init_arg => undef,
+    default  => 0,
+    traits   => ['Counter'],
+    handles  => {
+        _next_line_parsed => 'inc',
+        _reset_line_count => 'reset',
+    }
+);
+
+=misc_meth has_aborted
 
 Takes no arguments, returns a boolean to indicate if text reading was aborted in the middle.
 
@@ -788,7 +1128,7 @@ has abort => (
     },
 );
 
-=method custom_line_unwrap_routines
+=misc_meth custom_line_unwrap_routines
 
 This method should be used only when the line-wrapping supported by the text format is not already among the L<known line-wrapping styles supported|/"Common line-wrapping styles">.
 
@@ -800,7 +1140,6 @@ Here is an example of setting custom line-unwrapping routines:
     $parser->custom_line_unwrap_routines(
         is_wrapped => sub {     # A method that detects if this line is wrapped or not
             my ($self, $this_line) = @_;
-            return 0 if not defined $self->multiline_type;
             $this_line =~ /^[~]/;
         }, 
         unwrap_routine => sub { # A method to unwrap the line by joining it with the last line
@@ -840,102 +1179,36 @@ has _unwrap_routine => (
 
 sub custom_line_unwrap_routines {
     my $self = shift;
-    my ( $is_wrapped, $unwrap_routine ) = _check_custom_unwrap_args(@_);
-    $self->_is_wrapped($is_wrapped);
-    $self->_unwrap_routine($unwrap_routine);
+    $self->_prep_for_custom_unwrap_routines;
+    my ( $is_wr, $un_wr ) = _check_custom_unwrap_args(@_);
+    $self->_is_wrapped($is_wr);
+    $self->_unwrap_routine($un_wr);
+}
+
+sub _prep_for_custom_unwrap_routines {
+    my $self = shift;
+    my $s    = $self->line_wrap_style();
+    parser_exception("Line wrap style already set to $s")
+        if defined $s and 'custom' ne $s;
+    $self->line_wrap_style('custom');
 }
 
 my $unwrap_prefix = "Bad call to custom_line_unwrap_routines: ";
 
-sub _check_custom_unwrap_args {
-    parser_exception("$unwrap_prefix Need 4 arguments")
-        if @_ != 4;
-    _test_fields_unwrap_rtn(@_);
-    my (%opt) = (@_);
-    return ( $opt{is_wrapped}, $opt{unwrap_routine} );
-}
-
-sub _test_fields_unwrap_rtn {
-    my (%opt) = (@_);
-    parser_exception(
-        "$unwrap_prefix must have keys is_wrapped, unwrap_routine")
-        if not( exists $opt{is_wrapped} and exists $opt{unwrap_routine} );
-    _is_arg_a_code( $_, %opt ) for (qw(is_wrapped unwrap_routine));
-}
-
-sub _is_arg_a_code {
-    my ( $arg, %opt ) = (@_);
-    parser_exception("$unwrap_prefix $arg key must reference code")
-        if 'CODE' ne ref( $opt{$arg} );
-}
-
-=head1 USE ONLY IN RULES AND SUBCLASS
-
-These methods can be used only inside rules, or methods of a subclass. One class of these methods are available only when C<auto_split> is on:
-
-=for :list
-* L<NF|Text::Parser::AutoSplit/NF>
-* L<fields|Text::Parser::AutoSplit/fields>
-* L<field|Text::Parser::AutoSplit/field>
-* L<field_range|Text::Parser::AutoSplit/field_range>
-* L<join_range|Text::Parser::AutoSplit/join_range>
-* L<find_field|Text::Parser::AutoSplit/find_field>
-* L<find_field_index|Text::Parser::AutoSplit/find_field_index>
-* L<splice_fields|Text::Parser::AutoSplit/splice_fields>
-
-The other methods described below may also be used inside a rule, or inside methods called by the rules.
-
-=sub_use_method this_line
-
-Takes no arguments, and returns the current line being parsed. For example:
-
-    $parser->add_rule(
-        if => 'length($this->this_line) > 256', 
-    );
-    ## Saves all lines longer than 256 characters
-
-Inside rules, instead of using this method, one may also use C<$_>:
-
-    $parser->add_rule(
-        if => 'length($_) > 256', 
-    );
-
-=cut
-
-has _current_line => (
-    is       => 'ro',
-    isa      => 'Str|Undef',
-    init_arg => undef,
-    writer   => '_set_this_line',
-    reader   => 'this_line',
-    clearer  => '_clear_this_line',
-    default  => undef,
-);
-
-=sub_use_method abort_reading
-
-Takes no arguments. Returns C<1>. Aborts C<read>ing any more lines, and C<read> method exits gracefully as if nothing unusual happened.
-
-    $parser->add_rule(
-        do          => '$this->abort_reading;',
-        if          => '$1 eq "EOF"', 
-        dont_record => 1, 
-    );
-
 =head1 HANDLING LINE-WRAPPING
 
-These methods are meant to handle target text formats that support line-wrapping (wrapping content of one line into multiple lines). Different text formats sometimes allow line-wrapping to make their content more human-readable.
+Different text formats sometimes allow line-wrapping to make their content more human-readable. Handling this can be rather complicated if you use native Perl, but extremely easy with L<Text::Parser>.
 
 =head2 Common line-wrapping styles
 
-L<Text::Parser> supports some commonly-used line-unwrapping routines which can be selected using the C<line_wrap_style> attribute. The C<line_wrap_style> attribute automatically sets up the parser to handle line-unwrapping for that specific text format.
+L<Text::Parser> supports a range of commonly-used line-unwrapping routines which can be selected using the C<L<line_wrap_style|Text::Parser/"line_wrap_style">> attribute. The attribute automatically sets up the parser to handle line-unwrapping for that specific text format.
 
     $parser->line_wrap_style('trailing_backslash');
     # Now when read runs the rules, all the back-slash
     # line-wrapped lines are auto-unwrapped to a single
     # line, and rules are applied on that single line
 
-Once this setting is done, a call to C<read> will automatically unwrap the multiple lines with trailing back-slashes (i.e., join them) and then apply the rules. So say the content of a line is like this:
+When C<read> reads each line of text, it looks for any trailing backslash and unwraps the line. The next line may have a trailing back-slash too, and that too is unwrapped. Once the fully-unwrapped line has been identified, the rules are run on that unwrapped line, as if the file had no line-wrapping at all. So say the content of a line is like this:
 
     This is a long line wrapped into multiple lines \
     with a back-slash character. This is a very common \
@@ -948,17 +1221,19 @@ When C<read> runs any rules in C<$parser>, the text above appears as a single li
 
 =head2 Specifying custom line-unwrap routines
 
-To specify a custom line-unwrapping style:
+I have included the common types of line-wrapping styles known to me. But obviously there can be more. To specify a custom line-unwrapping style follow these steps:
 
 =for :list
-* Set the C<L<multiline_type|/"multiline_type">> attribute appropriately
-* Call C<L<custom_line_unwrap_routines|/"custom_line_unwrap_routines">> method
+* Set the C<L<multiline_type|/"multiline_type">> attribute appropriately. If you do not set this, your custom unwrapping routines won't have any effect.
+* Call C<L<custom_line_unwrap_routines|/"custom_line_unwrap_routines">> method. If you forget to call this method, or if you don't provide appropriate arguments, then an exception is thrown.
+
+L<Here|/"custom_line_unwrap_routines"> is an example with C<join_last> value for C<multiline_type>. And L<here|Text::Parser::Multiline/"SYNOPSIS"> is an example using C<join_next>. You'll notice that in both examples, you need to specify both routines. In fact, if you don't 
 
 =cut
 
-=head2 Line-unwrap feature in a subclass
+=head2 Line-unwrapping in a subclass
 
-In a subclass, you may do one of the following:
+You may subclass C<Text::Paser> to parse your specific text format. And that format may support some line-wrapping. To handle the known common line-wrapping styles, set a default value for C<line_wrap_style>. For example: 
 
 =for :list
 * Set a default value for C<line_wrap_style>. For example, the following uses one of the supported common line-unwrap methods.
@@ -968,11 +1243,36 @@ In a subclass, you may do one of the following:
 
 * Setup custom line-unwrap routines with C<unwraps_lines> from L<Text::Parser::RuleSpec>.
 
-=cut
+    use Text::Parser::RuleSpec;
+    extends 'Text::Parser';
 
-=head1 OVERRIDE IN SUBCLASS
+    has '+line_wrap_style' => ( default => 'slurp', is => 'ro');
+    has '+multiline_type'  => ( is => 'ro' );
 
-The following methods should never be called in the C<main> program. They may be overridden (or re-defined) in a subclass. One would never have to override any of these methods at all.
+Of course, you don't I<have> to make them read-only.
+
+To setup custom line-unwrapping routines in a subclass, you can use the C<L<unwraps_lines_using|Text::Parser::RuleSpec/"unwraps_lines_using">> syntax sugar from L<Text::Parser::RuleSpec>. For example:
+
+    package MyParser;
+
+    use Text::Parser::RuleSpec;
+    extends 'Text::Parser';
+
+    has '+multiline_type' => (
+        default => 'join_next',
+        is => 'ro', 
+    );
+
+    unwraps_lines_using(
+        is_wrapped     => \&_my_is_wrapped_routine, 
+        unwrap_routine => \&_my_unwrap_routine, 
+    );
+
+=head1 METHODS THAT MAY BE OVERRIDDEN IN SUBCLASSES
+
+The following methods should never be called in the C<::main> program. They may be overridden (or re-defined) in a subclass.
+
+Starting version 0.925, users should never need to override any of these methods to make their own parser.
 
 =inherit save_record
 
@@ -986,14 +1286,21 @@ B<Importnant Note:> Starting version C<1.0> of C<Text::Parser> this method will 
 
 sub save_record {
     my ( $self, $record ) = ( shift, shift );
-    ( $self->_has_no_rules and $self->_has_no_obj_rules )
+    ( $self->_has_no_rules )
         ? $self->push_records($record)
         : $self->_run_through_rules;
 }
 
+sub _has_no_rules {
+    my $self = shift;
+    return 0 if Text::Parser::RuleSpec->class_has_rules( $self->_origclass );
+    return $self->_has_no_obj_rules;
+}
+
 sub _run_through_rules {
     my $self = shift;
-    foreach my $rule ( $self->_get_rules, $self->_get_obj_rules ) {
+    my (@crules) = Text::Parser::RuleSpec->class_rules( $self->_origclass );
+    foreach my $rule ( @crules, $self->_get_obj_rules ) {
         next if not $rule->_test($self);
         $rule->_run( $self, 0 );
         last if not $rule->continue_to_next;
@@ -1016,7 +1323,7 @@ In earlier versions of L<Text::Parser> you had no way but to subclass L<Text::Pa
 
 The default implementation of this routine takes two string arguments, joins them without any C<chomp> or any other operation, and returns that result.
 
-In earlier versions of L<Text::Parser> you had no way but to subclass L<Text::Parser> to select a line-unwrapping routine.
+In earlier versions of L<Text::Parser> you had no way but to subclass L<Text::Parser> to select a line-unwrapping routine. Now you can instead select from a list of known C<line_wrap_style>s, or even set custom methods for this.
 
 =cut
 
@@ -1125,14 +1432,11 @@ sub _jnl_join_last_line {
     return $last . $line;
 }
 
-=head1 EXAMPLES
-
-You can find example code in L<Text::Parser::Manual::ComparingWithNativePerl>.
-
 =head1 SEE ALSO
 
 =for :list
-* L<Text::Parser::Manual> - Read this manual
+* L<Text::Parser::Manual> - Read this manual to learn how to do cool things with this class
+* L<Text::Parser::Error> - there is a change in how exceptions are thrown by this class. Read this page for more information.
 * L<The AWK Programming Language|https://books.google.com/books/about/The_AWK_Programming_Language.html?id=53ueQgAACAAJ> - by B<A>ho, B<W>einberg, and B<K>ernighan.
 * L<Text::Parser::Multiline> - how to read line-wrapped text input
 

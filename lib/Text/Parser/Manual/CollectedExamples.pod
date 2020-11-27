@@ -1,0 +1,40 @@
+
+# PODNAME: Text::Parser::Manual::CollectedExamples
+
+# ABSTRACT: A collection of examples using Text::Parser
+
+=head1 SIMPLE EXAMPLES
+
+=head2 Log statistics
+
+    use strict;
+    use Text::Parser;
+
+    my $parser = Text::Parser->new();
+    $parser->BEGIN_rule(
+        do => '~errors = 0; ~warnings = 0; ~fatal = 0; ~info = 0;'
+    );
+    $parser->add_rule(
+        if          => '$1 eq "ERROR:"', 
+        do          => '~errors++;', 
+        dont_record => 1, 
+    );
+    $parser->add_rule(
+        if          => '$1 eq "WARNING:"', 
+        do          => '~warnings++;', 
+        dont_record => 1, 
+    );
+    $parser->add_rule(
+        if          => '$1 eq "INFO:"', 
+        do          => '~info++;', 
+        dont_record => 1, 
+    );
+    $parser->add_rule(
+        if          => '$1 eq "FATAL:"', 
+        do          => '~fatal++;', 
+        dont_record => 1, 
+    );
+    $parser->read('/path/to/logfile.log');
+    my (%log_stats) = $parser->stashed;
+
+

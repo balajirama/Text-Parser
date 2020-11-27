@@ -23,7 +23,6 @@ The code required to unwrap this:
     $parser->custom_line_unwrap_routines(
         is_wrapped => sub {  # A method to detect if this line is wrapped
             my ($self, $this_line) = @_;
-            return 0 if not defined $self->multiline_type;
             $this_line =~ /\%\s*$/;
         }, 
         unwrap_routine => sub { # Method to unwrap line, gets called only on line after % sign
@@ -35,6 +34,10 @@ The code required to unwrap this:
     );
 
 When C<$parser> gets to C<read> the input text, those three lines get unwrapped and processed by the rules as if it were a single line.
+
+=head1 DESCRIPTION
+
+You should not C<use> this module directly in your code. The functionality of this L<role|Moose::Role> is accessed through L<Text::Parser>. The purpose of this L<role|Moose::Role> is to write custom routines to unwrap line-wrapped text input, using an object of L<Text::Parser>.
 
 =cut
 
