@@ -210,7 +210,6 @@ Read-write attribute. Takes a boolean value as parameter. Defaults to C<0>.
 has auto_chomp => (
     is      => 'rw',
     isa     => 'Bool',
-    lazy    => 1,
     default => 0,
 );
 
@@ -225,7 +224,6 @@ If it is set to a true value, each line will be split into fields, and L<a set o
 has auto_split => (
     is      => 'rw',
     isa     => 'Bool',
-    lazy    => 1,
     default => 0,
     trigger => \&__newval_auto_split,
 );
@@ -247,7 +245,6 @@ Read-write attribute. The values this can take are shown under the C<L<new|/new>
 has auto_trim => (
     is      => 'rw',
     isa     => 'Text::Parser::Types::TrimType',
-    lazy    => 1,
     default => 'n',
 );
 
@@ -272,7 +269,6 @@ By default it is undefined.
 has custom_line_trimmer => (
     is      => 'rw',
     isa     => 'CodeRef|Undef',
-    lazy    => 1,
     default => undef,
 );
 
@@ -421,7 +417,6 @@ Now you can use C<this_indent> method in the rules:
 has track_indentation => (
     is      => 'rw',
     isa     => 'Bool',
-    lazy    => 1,
     default => 0,
 );
 
@@ -807,8 +802,6 @@ sub __read_and_close_filehandle {
 
 sub _prep_to_read_file {
     my $self = shift;
-
-    #$self->_reset_line_count;
     $self->_empty_records;
     $self->_clear_abort;
 }
@@ -831,6 +824,7 @@ sub __read_file_handle {
     my $self = shift;
     my $fh   = $self->filehandle();
     $self->_record_fast_info;
+    $self->{_reading} = 1;
     while (<$fh>) {
         last if not $self->__parse_line($_);
     }
@@ -846,7 +840,6 @@ sub __parse_line {
 
 sub _prep_line_for_parsing {
     my ( $self, $line ) = ( shift, shift );
-    $self->_next_line_parsed();
     $self->_find_indent_level($line) if $fast_info{track_indentation};
     if ( defined $fast_info{custom_line_trimmer} ) {
         my $cust = $self->custom_line_trimmer;
@@ -898,6 +891,7 @@ sub _def_line_manip {
 
 sub _final_operations_after_read {
     my $self = shift;
+    $self->_save_lines_parsed_at_end;
     $self->_close_filehandles if $self->_has_filename;
     $self->_clear_this_line;
     $self->_set_indent_level(undef) if $self->track_indentation;
@@ -1140,18 +1134,14 @@ Takes no arguments. Returns the number of lines last parsed. Every call to C<rea
 
 sub lines_parsed {
     my $self = shift;
-    return 0 if not exists $self->{lines_parsed};
-    return $self->{lines_parsed};
+    return $NR if exists $self->{_reading};
+    exists $self->{lines_parsed} ? $self->{lines_parsed} : 0;
 }
 
-sub _next_line_parsed {
+sub _save_lines_parsed_at_end {
     my $self = shift;
     $self->{lines_parsed} = $NR;
-}
-
-sub _reset_line_count {
-    my $self = shift;
-    $self->{lines_parsed} = 0;
+    delete $self->{_reading};
 }
 
 =misc_meth has_aborted
