@@ -257,7 +257,7 @@ When you L<sub-class Text::Parser|Text::Parser::RuleSpec> you can get some very 
         lazy => 1,
     );
 
-    has names => (
+    has ids => (
         is      => 'ro',
         isa     => 'HashRef[ArrayRef[Str]]',
         default => sub {return {};},
@@ -269,7 +269,7 @@ When you L<sub-class Text::Parser|Text::Parser::RuleSpec> you can get some very 
         },
     );
 
-    sub add_name {
+    sub add_id {
         my $self = shift;
         my $names = $self->get_section($self->section);
         push @{$names}, shift;
@@ -277,13 +277,15 @@ When you L<sub-class Text::Parser|Text::Parser::RuleSpec> you can get some very 
 
     applies_rule find_section => (
         if => '$1 eq "SECTION:"',
-        do => '$this->section($2);',
+        do => '$this->section($2); $this->set_section($2 => []);',
     );
 
     applies_rule name_in_section => (
-        if => '$1 eq "NAME"',
-        do => '$this->add_name($2);'
+        if => '$1 eq "ID"',
+        do => '$this->add_id($2);'
     );
+
+You can see a lot more examples in L<Text::Parser::RuleSpec>;
 
 This allows you to write your own parser. In fact, because you can now use inheritance to create a sub-class, you can sub-class that sub-class also, thereby making a variant of a given parser.
 

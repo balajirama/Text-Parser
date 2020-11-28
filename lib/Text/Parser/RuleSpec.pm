@@ -46,13 +46,13 @@ package Text::Parser::RuleSpec;
 
 =head2 Primary usage
 
-The primary purpose of this class is to enable users to create their own parser classes for a known text file format. Sometimes, there is a relatively complex text file format and a parser for that could be written allowing for code to be shared across multiple programs. The basic steps are as following:
+This class enables users to create their own parser classes for a known text file format, and facilitates code-sharing across multiple variants of the same basic text format. The basic steps are as follows:
 
     package MyFavorite::Parser;
     use Text::Parser::RuleSpec;
     extends 'Text::Parser';
 
-That's it! This is the basic / bare-minimum requirement to make your own text parser. But it is not particularly useful at this point without any rules of its own.
+That's it! This is the bare-minimum required to make your own text parser. But it is not particularly useful at this point without any rules of its own.
 
     applies_rule comment_char => (
         if          => '$1 =~ /^#/;', 
@@ -748,6 +748,14 @@ sub _set_lws_and_routines {
     _set_default_of_attributes( $meta, _is_wrapped     => sub { $is_wr; } );
     _set_default_of_attributes( $meta, _unwrap_routine => sub { $unwr; } );
 }
+
+=head1 SEE ALSO
+
+=for :list
+* L<Text::Parser::Manual::ExtendedAWKSyntax> - Read this manual to learn how to do cool things with this class
+* L<Text::Parser::Error> - there is a change in how exceptions are thrown by this class. Read this page for more information.
+
+=cut
 
 __PACKAGE__->meta->make_immutable;
 
