@@ -1,11 +1,13 @@
-#!/usr/bin/env perl
 
 use strict;
 use warnings;
-use utf8;
-use FindBin '$Bin';
-use lib "$Bin/../lib";
-use Text::Parser;
+
+use Test::More;
+use Test::Exception;
+
+BEGIN {
+    use_ok 'Text::Parser';
+}
 
 my $parser = Text::Parser->new( FS => qr/\s+\=\s+|,\s+/ );
 
@@ -61,10 +63,8 @@ sub read_with_native_perl {
 
 use Benchmark;
 
-timethese(
-    20000,
-    {   'Native Perl'  => \&read_with_native_perl,
-        'Text::Parser' => \&read_with_text_parser
-    }
-);
-
+my $iter        = 1000;
+my $native_time = timeit( $iter, \&read_with_native_perl );
+my $t_parser    = timeit( $iter, \&read_with_text_parser );
+ok( $native_time <= $t_parser, "Currently slower than native Perl" );
+done_testing;
