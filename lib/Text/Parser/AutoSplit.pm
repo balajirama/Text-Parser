@@ -216,7 +216,7 @@ sub find_field {
         local $_ = $e;
         return $e if $sub->();
     }
-    return undef;
+    return;
 }
 
 =auto_split_meth find_field_index
