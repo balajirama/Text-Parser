@@ -71,7 +71,7 @@ Here is an example that parses a table with field separators indicated by C<|> c
 
 In the above example you see the use of a L<stashed variable|/"METHODS FOR ACCESSING STASHED VARIABLES"> named C<~columns>. Note that the sigil used here is not a Perl sigil, but is converted to native Perl code. In the above case, each record is a hash with fixed number of fields.
 
-More complex file-formats can be read and contents stored in a data-structure or an object. Here is an example:
+More complex file-formats can be read and contents stored in a data-structure or an object. You can see more on this at L<Text::Parser::RuleSpec>. Here is an example:
 
     use strict;
     use warnings;
@@ -1464,9 +1464,9 @@ sub _jnl_join_last_line {
 
 =for :list
 * L<Text::Parser::Manual> - Read this manual to learn how to do cool things with this class
+* L<Text::Parser::RuleSpec> - extending Text::Parser to make your own parser.
 * L<Text::Parser::Error> - there is a change in how exceptions are thrown by this class. Read this page for more information.
 * L<The AWK Programming Language|https://books.google.com/books/about/The_AWK_Programming_Language.html?id=53ueQgAACAAJ> - by B<A>ho, B<W>einberg, and B<K>ernighan.
-* L<Text::Parser::Multiline> - how to read line-wrapped text input
 
 =cut
 

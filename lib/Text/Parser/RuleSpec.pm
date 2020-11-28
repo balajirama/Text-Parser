@@ -13,23 +13,6 @@ package Text::Parser::RuleSpec;
     use Text::Parser::RuleSpec;
     extends 'Text::Parser';
 
-    has '+multiline_type'  => (default => 'join_next');
-
-    unwraps_lines_using (
-        is_wrapped     => sub {
-            my $self = shift;
-            $_ = shift;
-            chomp;
-            m/\s+[~]\s*$/;
-        }, 
-        unwrap_routine => sub {
-            my ($self, $last, $current) = @_;
-            chomp $last;
-            $last =~ s/\s+[~]\s*$//g;
-            "$last $current";
-        }, 
-    );
-
     applies_rule get_emails => (
         if => '$1 eq "EMAIL:"', 
         do => '$2;'
