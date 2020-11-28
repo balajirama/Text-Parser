@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+1.000     2020-11-27 20:38:18-08:00 America/Los_Angeles
   - Replaces many error classes in Text::Parser::Errors with a single class Text::Parser::Error.
     - Text::Parser::Error is just a child of Throwable::Error and can be handled as all Throwable::Error objects.
     - This is not backward compatible with previous versions which were throwing objects of Text::Parser::Errors.
