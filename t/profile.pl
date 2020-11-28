@@ -1,5 +1,15 @@
 #!/usr/bin/env perl -d:NYTProf
 
+# Once run, you can do the following:
+#
+#   nytprofhtml
+#
+# Then you can:
+#
+#   echo $PWD/nytprof/index.html
+#
+# Now load it into a browser
+
 use strict;
 use warnings;
 use utf8;
