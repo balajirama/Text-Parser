@@ -271,8 +271,8 @@ When you L<sub-class Text::Parser|Text::Parser::RuleSpec> you can get some very 
 
     sub add_id {
         my $self = shift;
-        my $names = $self->get_section($self->section);
-        push @{$names}, shift;
+        my $ids = $self->get_section($self->section);
+        push @{$ids}, shift;
     }
 
     applies_rule find_section => (
