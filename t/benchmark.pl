@@ -62,7 +62,7 @@ sub read_with_native_perl {
 use Benchmark;
 
 timethese(
-    10000,
+    20000,
     {   'Native Perl'  => \&read_with_native_perl,
         'Text::Parser' => \&read_with_text_parser
     }

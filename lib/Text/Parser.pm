@@ -138,6 +138,7 @@ Contributions and suggestions are welcome and properly acknowledged.
 =cut
 
 use Moose;
+use English;
 use MooseX::CoverableModifiers;
 use MooseX::StrictConstructor;
 use namespace::autoclean;
@@ -189,6 +190,7 @@ around BUILDARGS => sub {
 sub BUILD {
     my $self = shift;
     ensure_all_roles $self, 'Text::Parser::AutoSplit' if $self->auto_split;
+    $self->_clear_this_line;
     return if not defined $self->multiline_type;
     ensure_all_roles $self, 'Text::Parser::Multiline';
 }
@@ -612,15 +614,20 @@ Inside rules, instead of using this method, one may also use C<$_>:
 
 =cut
 
-has _current_line => (
-    is       => 'ro',
-    isa      => 'Str|Undef',
-    init_arg => undef,
-    writer   => '_set_this_line',
-    reader   => 'this_line',
-    clearer  => '_clear_this_line',
-    default  => undef,
-);
+sub this_line {
+    my $self = shift;
+    return $self->{_current_line};
+}
+
+sub _set_this_line {
+    my $self = shift;
+    $self->{_current_line} = shift;
+}
+
+sub _clear_this_line {
+    my $self = shift;
+    $self->{_current_line} = undef;
+}
 
 =head1 METHODS FOR READING INPUT
 
@@ -800,14 +807,30 @@ sub __read_and_close_filehandle {
 
 sub _prep_to_read_file {
     my $self = shift;
-    $self->_reset_line_count;
+
+    #$self->_reset_line_count;
     $self->_empty_records;
     $self->_clear_abort;
+}
+
+my %fast_info = (
+    track_indentation   => 0,
+    custom_line_trimmer => undef,
+    auto_chomp          => 0,
+    auto_trim           => 'n',
+);
+
+sub _record_fast_info {
+    my $self = shift;
+    foreach my $attr ( keys %fast_info ) {
+        $fast_info{$attr} = $self->$attr();
+    }
 }
 
 sub __read_file_handle {
     my $self = shift;
     my $fh   = $self->filehandle();
+    $self->_record_fast_info;
     while (<$fh>) {
         last if not $self->__parse_line($_);
     }
@@ -824,8 +847,14 @@ sub __parse_line {
 sub _prep_line_for_parsing {
     my ( $self, $line ) = ( shift, shift );
     $self->_next_line_parsed();
-    $self->_find_indent_level($line) if $self->track_indentation;
-    $line = $self->_line_manip($line);
+    $self->_find_indent_level($line) if $fast_info{track_indentation};
+    if ( defined $fast_info{custom_line_trimmer} ) {
+        my $cust = $self->custom_line_trimmer;
+        $line = $cust->($line);
+    } else {
+        $line = $self->_def_line_manip($line);
+    }
+    return $line;
 }
 
 sub _find_indent_level {
@@ -858,25 +887,12 @@ sub _singlechar_indent {
     $self->_set_indent_level($n);
 }
 
-sub _line_manip {
-    my ( $self, $line ) = ( shift, shift );
-    return $self->_def_line_manip($line)
-        if not defined $self->custom_line_trimmer;
-    my $cust = $self->custom_line_trimmer;
-    return $cust->($line);
-}
-
 sub _def_line_manip {
     my ( $self, $line ) = ( shift, shift );
-    chomp $line if $self->auto_chomp;
-    return $self->_trim_line($line);
-}
-
-sub _trim_line {
-    my ( $self, $line ) = ( shift, shift );
-    return $line        if $self->auto_trim eq 'n';
-    return trim($line)  if $self->auto_trim eq 'b';
-    return ltrim($line) if $self->auto_trim eq 'l';
+    chomp $line         if $fast_info{auto_chomp};
+    return $line        if $fast_info{auto_trim} eq 'n';
+    return trim($line)  if $fast_info{auto_trim} eq 'b';
+    return ltrim($line) if $fast_info{auto_trim} eq 'l';
     return rtrim($line);
 }
 
@@ -1122,18 +1138,21 @@ Takes no arguments. Returns the number of lines last parsed. Every call to C<rea
 
 =cut
 
-has lines_parsed => (
-    is       => 'ro',
-    isa      => 'Int',
-    lazy     => 1,
-    init_arg => undef,
-    default  => 0,
-    traits   => ['Counter'],
-    handles  => {
-        _next_line_parsed => 'inc',
-        _reset_line_count => 'reset',
-    }
-);
+sub lines_parsed {
+    my $self = shift;
+    return 0 if not exists $self->{lines_parsed};
+    return $self->{lines_parsed};
+}
+
+sub _next_line_parsed {
+    my $self = shift;
+    $self->{lines_parsed} = $NR;
+}
+
+sub _reset_line_count {
+    my $self = shift;
+    $self->{lines_parsed} = 0;
+}
 
 =misc_meth has_aborted
 

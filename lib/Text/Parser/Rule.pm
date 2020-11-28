@@ -485,7 +485,7 @@ sub run {
 
 sub _run {
     my ( $self, $parser ) = ( shift, shift );
-    return if nocontent( $self->action );
+    return if not( exists $self->{action} and $self->{action} );
     my (@res) = $self->_call_act_sub( $parser, @_ );
     return if $self->dont_record;
     $parser->push_records(@res);

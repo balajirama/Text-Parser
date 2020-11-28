@@ -16,7 +16,7 @@ sub save_record {
     throws_ok {
         my (@arr) = $self->field_range('some text');
     }
-    'Moose::Exception::InvalidArgumentToMethod',
+    'Text::Parser::Error',
         'String argument to field_range is not right';
     lives_ok {
         is_deeply(

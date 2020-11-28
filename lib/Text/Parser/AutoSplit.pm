@@ -7,7 +7,8 @@ package Text::Parser::AutoSplit;
 
 use Moose::Role;
 use MooseX::CoverableModifiers;
-use String::Util qw(trim);
+use List::Util qw(first);
+use List::SomeUtils qw(first_index);
 use Text::Parser::Error;
 use English;
 
@@ -30,32 +31,25 @@ When the C<auto_split> attribute is set to a true value, the object of C<Text::P
 
 =cut
 
-has _fields => (
-    is       => 'ro',
-    isa      => 'ArrayRef[Str]',
-    lazy     => 1,
-    init_arg => undef,
-    default  => sub { [] },
-    traits   => ['Array'],
-    writer   => '_set_fields',
-    clearer  => '_clear_all_fields',
-    handles  => {
-        'NF'               => 'count',
-        'fields'           => 'elements',
-        'field'            => 'get',
-        'find_field'       => 'first',
-        'find_field_index' => 'first_index',
-        'splice_fields'    => 'splice',
-    },
-);
-
 requires '_set_this_line', 'FS', '_clear_this_line', 'this_line',
     'auto_split';
+
+sub _set_fields {
+    my $self = shift;
+    $self->{_fields} = shift;
+}
+
+sub _clear_all_fields {
+    my $self = shift;
+    $self->{_fields} = [];
+}
 
 after _set_this_line => sub {
     my $self = shift;
     return if not $self->auto_split;
-    $self->_set_fields( [ split $self->FS, trim( $self->this_line ) ] );
+    my $str = $self->{_current_line};
+    $str =~ s/^\s+|\s+$//g;
+    $self->_set_fields( [ split $self->FS, $str ] );
 };
 
 after _clear_this_line => sub {
@@ -88,11 +82,25 @@ If your rule contains any positional identifiers (like C<$1>, C<$2>, C<$3> etc.,
 
 It has the same results.
 
+=cut
+
+sub NF {
+    my $self = shift;
+    return $#{ $self->{_fields} } + 1;
+}
+
 =auto_split_meth fields
 
 Takes no argument and returns all the fields as an array. The C<FS> field separator controls how fields are defined. Leading and trailing spaces are trimmed.
 
     $parser->add_rule( do => 'return [ $this->fields ];' );
+
+=cut
+
+sub fields {
+    my $self = shift;
+    return ( @{ $self->{_fields} } );
+}
 
 =auto_split_meth field
 
@@ -109,6 +117,14 @@ You can specify negative elements to start counting from the end. For example in
     THIS           IS          SOME           TEXT
     field(0)      field(1)    field(2)      field(3)
     field(-4)    field(-3)   field(-2)     field(-1)
+
+=cut
+
+sub field {
+    my ( $self, $i ) = ( shift, shift );
+    parser_exception("Field index must be numeric") if $i !~ /\d+/;
+    return $self->{_fields}->[$i];
+}
 
 =auto_split_meth field_range
 
@@ -141,7 +157,6 @@ sub field_range {
 
 sub __validate_index_range {
     my $self = shift;
-
     $self->field($_) for (@_);
     map { _pos_index( $_, $self->NF ) } __set_defaults(@_);
 }
@@ -161,7 +176,9 @@ sub _pos_index {
 sub _sub_field_range {
     my ( $self, $start, $end ) = ( shift, shift, shift );
     my (@range)
-        = ( $start <= $end ) ? ( $start .. $end ) : reverse( $end .. $start );
+        = ( $start <= $end )
+        ? ( $start .. $end )
+        : reverse( $end .. $start );
     map { $self->field($_) } @range;
 }
 
@@ -191,36 +208,46 @@ sub join_range {
 
 This method finds an element matching a given criterion. The match is done by a subroutine reference passed as argument to this method. The subroutine will be called against each field on the line, until one matches or all elements have been checked. Each field will be available in the subroutine as C<$_>. Its behavior is the same as the C<first> function of L<List::Util>.
 
-    sub save_record {
-        my $self = shift;
-        my $param = $self->find_field(
-            sub { $_ =~ /[=]/ }
-        );
+=cut
+
+sub find_field {
+    my ( $self, $sub ) = ( shift, shift );
+    foreach my $e ( @{ $self->{_fields} } ) {
+        local $_ = $e;
+        return $e if $sub->();
     }
+    return undef;
+}
 
 =auto_split_meth find_field_index
 
 This is similar to the C<L<find_field|/find_field>> method above, except that it returns the index of the element instead of the element itself.
 
-    sub save_record {
-        my $self = shift;
-        my $idx = $self->find_field_index(
-            sub { $_ =~ /[=]/ }
-        );
+=cut
+
+sub find_field_index {
+    my ( $self, $sub ) = ( shift, shift );
+    for my $i ( 0 .. $#{ $self->{_fields} } ) {
+        local $_ = $self->{_fields}->[$i];
+        return $i if $sub->();
     }
+    return -1;
+}
 
 =auto_split_meth splice_fields
 
 Just like Perl's built-in C<splice> function.
 
-    ## Inside your own save_record method ...
-    my (@removed1) = $self->splice_fields($offset, $length, @values);
-    my (@removed2) = $self->splice_fields($offset, $length);
-    my (@removed3) = $self->splice_fields($offset);
-
 The offset above is a required argument and can be negative.
 
 B<WARNING:> This is a destructive function. It I<will> remove elements just like Perl's built-in C<splice> does, and the removed will be returned. If you only want to get the elements in a specific range of indices, try the C<L<field_range|/field_range>> method instead.
+
+=cut
+
+sub splice_fields {
+    my $self = shift;
+    splice @{ $self->{_fields} }, @_;
+}
 
 =head1 SEE ALSO
 
