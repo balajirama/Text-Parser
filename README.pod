@@ -47,6 +47,8 @@ Here is an example with a simple rule that extracts the first error in the logfi
 
     print "Some errors were found:\n" if $parser->get_records();
 
+See L<this important note|Text::Parser::Manual::ExtendedAWKSyntax/"Important note about quotes"> about using single quotes instead of double quotes.
+
 Here is an example that parses a table with field separators indicated by C<|> character:
 
     use Data::Dumper 'Dumper';
