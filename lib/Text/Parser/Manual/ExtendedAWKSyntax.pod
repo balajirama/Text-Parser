@@ -15,14 +15,16 @@ Parsing rules may be specified using the C<L<add_rule|Text::Parser/add_rule>>, C
 
 The basic form of the ExAWK rule is like this:
 
-    if => 'condition', do => 'task'
+    if => 'condition', do => 'action'
             ## options: 
             ##   dont_record => 0|1
             ##   continue_to_next => 0|1
 
 AWK programmers would recognize that it is similar to the basic syntax of AWK:
 
-    condition { task; }
+    condition { action; }
+
+Pay attention to the single quotes in the value of the C<if> and C<do> keys. This is important as you'll see below.
 
 =head2 Similarities with AWK
 
@@ -34,55 +36,88 @@ Just as in AWK the C<condition> can be as simple as a regular expression, or a c
 
 In ExAWK you could write something like this to get something equivalent (Note the need for C<"\n">):
 
-    if => 'm/EMAIL:/', do => 'print $2, "\n"'
+    $parser->add_rule(
+        if => 'm/EMAIL:/', do => 'print $2, "\n"'
+    );
 
-Similar to AWK, in the Extended AWK language too, if the C<condition> is specified, then the C<task> is optional, and if the C<task> is specified, then the C<condition> is optional. The default C<condition> in ExAWK is just like in AWK: true for each input line. So the following will simply print every line in a file:
+Similar to AWK, in the Extended AWK language too, if the C<condition> is specified, then the C<action> is optional, and if the C<action> is specified, then the C<condition> is optional. The default C<condition> in ExAWK is just like in AWK: true for each input line. So the following will simply print every line in a file:
 
-    do => 'print'                   # The default condition is true for all lines
+    $parser->add_rule(
+        do => 'print'       # The default 'if' is true for all lines
+    );
 
 Or else:
 
-    if => 'm/^SPECIAL_LINE:/'       # The task is optional, but it does not default to printing. See next section.
+    $parser->add_rule(
+        if => 'm/^\d+/' # The default 'do' stores the whole line.
+    );
 
 =head3 Field identifiers, and line identifier
 
 AWK is very popular for its intuitive field identifiers C<$1>, C<$2>, C<$3> etc. ExAWK provides the same and much more.
 
-Like AWK, C<$0> identifies the whole line. In ExAWK too, C<$0> identifies the whole line. But in addition, the Perl in-built variable C<$_> also contains the line. So any in-built functions that take a missing parameter to be C<$_> will behave accordingly. This is how a terse rule like C<do =E<gt> 'print'> happens to work. The important difference between C<$0> and C<$_> is that C<$0> is just an identifier (i.e., you cannot change its value), whereas C<$_> is an actual variable which you can change.
+In AWK, C<$0> identifies the whole line. The same is true in ExAWK. But in addition, the Perl in-built variable C<$_> also contains the line. So any in-built functions that take a missing parameter to be C<$_> will behave accordingly. This is how a terse rule like C<do =E<gt> 'print'> happens to work. The important difference between C<$0> and C<$_> is that C<$0> is just an identifier (i.e., you cannot change its value), whereas C<$_> is an actual variable which you can change. By changing C<$_>, you cannot change the value of the current line, or the value of C<$0>.
 
 Similarly, other positional field identifiers like C<$1>, C<$2>, etc., are not variables. Even in AWK, they are not variables. They are just I<positional field identifiers>. They represent an Rvalue and cannot be modified. So for example
 
     $ awk '// {$1 = "something";}' file.txt
 
-will not accomplish anything. The first field in each line remains what it is.
+will not change anything. In the same way:
 
-Similarly, ExAWK identifiers C<$1>, C<$2> etc., are also not variables. In particular they are I<not> the same as the native Perl regular expression field identifiers C<$1>, C<$2> etc., which are used in regexp substitutions.
+    $parser->add_rule(do => '$1 = "something";');
+
+In particular they are I<not> the same as the native Perl regular expression field identifiers C<$1>, C<$2> etc., which are used in regexp substitutions.
 
 The I<positional field identifiers> C<$1>, C<$2> etc. mean something else inside the I<string> expressions of ExAWK. Like AWK, C<$1> represents the first field, C<$2> represents the second field, and so on.
 
-B<Note>: You should always use single quotes (C<''>) for your rule strings, and not double quotes (C<"">). This is because sigils line C<$> get dereferenced inside double quotes.
+B<Note:> In the UNIX implementation of AWK, the positional identifiers are limited to C<$9>. In POSIX implementations this limitation has already been removed. In ExAWK also there is no limit to the number of positional identifiers.
+
+=head4 Important note about quotes
+
+You should always use single quotes (C<''>) for your rule strings, and not double quotes (C<"">). This is because sigils like C<$> get dereferenced inside double quotes, and C<$0>, C<$1>, etc., have no value in your main code.
 
 =head2 Differences with AWK
 
 =head3 Language
 
-The first difference with AWK is that, in ExAWK the language of the C<condition> and C<task> strings should be Perl. So for example, to compare strings you should use C<eq> and not C<==> like you would in AWK. If the C<condition> and C<task> strings are transformed into regular Perl and compiled. So if they fail to compile, L<Text::Parser> will throw an exception.
+The first difference with AWK is the language. ExAWK C<condition> and C<action> strings are Perl. So for example, to compare strings you should use C<eq> and not C<==> like you would in AWK. The C<condition> and C<action> strings are transformed into regular Perl and compiled. So if they fail to compile, L<add_rule|Text::Parser/add_rule> method will throw an exception.
 
 =head3 Execution loop
 
 In AWK, each rule is run for each line, even if the C<condition> for a previous rule may be true. If the C<condition> of a rule is true, the C<action> is performed.
 
-But in ExAWK, rules are executed until the C<condition> of one rule is true. By default, the execution of further rules stops at that point. But when the C<continue_to_next> attribute is true, the execution continues to the next loop, until the C<condition> for another rule is true.
+But in ExAWK, rules are executed until the C<condition> of one rule is true. By default, the execution of further rules stops at that point. For example:
 
-This means that in ExAWK we can control the execution loop.
+    $parser->add_rule(if => '$1 =~ /^[#]/', dont_record => 1);
 
-=head3 Default task
+In this case, the moment a line leading with C<#> is encountered, it is ignored, and no other rules are executed. But see the following code:
 
-We saw that only one of C<condition> or C<task> is required, the other may be omitted. The default C<condition> is same as AWK. But the default C<task> is different. The default C<task> in AWK is C<print>. Thus:
+    $parser->add_rule(if => '$1 =~ /^[#][!]/', continue_to_next => 1);
+    $parser->add_rule(
+        if => '$1 =~ /perl$/',
+        do => '$this->abort_reading; print "This is a perl script.\n";'
+    );
+    $parser->add_rule(
+        if => '$1 =~ /bash$/',
+        do => '$this->abort_reading; print "This is a bash script.\n";'
+    );
+    $parser->add_rule(
+        if          => '$1 =~ /^[#]/ or $this->lines_parsed > 0',
+        do          => '$this->abort_reading; print "Neither perl nor bash.\n";',
+        dont_record => 1
+    );
+
+Now if a file starts with C<#!>, the condition for the first rule is met, and it immediately tests the next rule. If that condition is met, it will abort reading at that point and print the message. But if the condition for the second rule is not met, it will test the next rule. If that condition is also not met, then it will test the fourth rule. In it will surely meet the condition for the fourth rule (we could have skipped it), and will execute that rule. At this point it will stop because there is no C<continue_to_next> option.
+
+So in this way we can control the execution sequence.
+
+=head3 Default action
+
+We saw that only one of C<condition> or C<action> is required, the other may be omitted. The default C<condition> is same as AWK. But the default C<action> is different. The default C<action> in AWK is C<print>. Thus:
 
     $ awk '/li/' file.txt
 
-will print all the lines with C<'li'> somewhere in it. But in ExAWK, since it integrates with the L<Text::Parser> class, the default task is to C<return> the whole line.
+will print all the lines with C<'li'> somewhere in it. But in ExAWK, since it integrates with the L<Text::Parser> class, the default action is to C<return> the whole line.
 
     if => 'm/li/'
         # returns each line containing 'li', to the parser
@@ -103,11 +138,11 @@ To access fields from the end of the line, use identifiers C<${-1}>, C<${-2}>, e
 
 Sometimes, we want to access all the fields starting from the 2nd, or 3rd, leaving all the earlier ones. So we have a set of shortcuts to do all that. Below are some shortcut examples:
 
-    SHORTCUT                              MEANING
-    ========                              =======
-    ${2+}                                 $this->join_range(1, -1)
-    @{3+}                                 $this->field_range(2, -1)
-    \@{2+}                                [ $this->field_range(2, -1) ]
+    SHORTCUT     CODE EQUIVALENT                    MEANING
+    ========     ================                   ========
+    ${2+}        $this->join_range(1, -1)           Everything from second field as a string. Spaces will be collapsed to one space.
+    @{3+}        $this->field_range(2, -1)          Everything from third field as an array.
+    \@{2+}       [ $this->field_range(2, -1) ]      Arrayref containing everything from second field.
 
 =head2 Automatic checks for NF
 
@@ -123,7 +158,7 @@ But in ExAWK this is unnecessary. So the rule:
 
     do => 'return $4;'
 
-automatically sets up a pre-condition for the number of fields C<NF> and ensures that each line being read has at least 4 fields. Of course, this works even for negative positional indicators. So the rule:
+automatically sets up a pre-condition for the number of fields C<NF> and ensures that each line being read has at least 4 fields. This works even for negative positional indicators. So the rule:
 
     do => 'return ${-4};'
 
@@ -133,9 +168,9 @@ This ensures you don't run into C<undef> records being saved in the parser.
 
 You can use any Perl local variables you want. For example:
 
-    do => 'my (@numbers) = ${3+}; # do something with @numbers'
+    do => 'my (@numbers) = @{3+};'
 
-Note that C<@numbers> above is accessible only within that rule task. It is not accessible outside of that C<do> string.
+Note that C<@numbers> above is accessible only within that rule action. It is not accessible outside of that C<do> string.
 
 Use any variable other than C<$this>.
 
@@ -171,18 +206,19 @@ If you could use the parser object itself to store data, this would open up many
 
 To access the parser object, you can use C<$this> inside the rule strings. Remember again, that the rule strings should be in single quotes (C<''>). Here is an example rule using the C<$this> variable to refer to the parser:
 
-    do => '$this->{data_struct} = {first => $1, second => $2, third => $3};'
+    $parser->add_rule(
+        if          => '$this->lines_parsed > 10',
+        do          => '$this->abort_reading;',
+        dont_record => 1,
+    );
 
-So now you can access specific attributes of your parser class, or maybe you want to call a method. The C<$this> variable is accessible in both the C<condition> and the C<task> strings. Here is an example:
+=head3 Important Note on $this
 
-    if => '$this->field_index( sub{ m/\S+[=]\S+/ } ) != -1',
-    do => 'my $ind = $this->field_index( sub{ m/\S+[=]\S+/ } ); return $this->join_range(0, $ind-1);'
-
-B<Important Note:> C<$this> is a real variable. If you modify its value, it will change. So be careful what you do with C<$this>. If you save the C<$this> to another variable in the hope that you can retrieve it later, remember that all positional field indicators and range shortcuts are entirely dependent on the C<this> variable. If this variable is tampered with, you could get garbage results. You have been forewarned.
+C<$this> is a real variable. If you modify its value, it will change. So be careful what you do with C<$this>. If you save the C<$this> to another variable in the hope that you can retrieve it later, remember that all positional field indicators and range shortcuts are entirely dependent on the C<this> variable. If this variable is tampered with, you could get garbage results. You have been forewarned.
 
 =head2 Stashed variables
 
-The idea of storing data in the C<$this> variable is so cool that I had to make it easier to use. So you get what are called I<"stashed variable">s. Internally these variables are just stored in a hash, but it is as if you are stashing away useful data. You can store any scalar, hashref or arrayref. Notice that all of them must be references.
+The idea of storing data in the C<$this> variable is the obvious next step. You get what are called I<"stashed variable">s. Internally these variables are just stored in a hash, but it is as if you are stashing away useful data. You can store any scalar, hashref or arrayref. Note that you can't store an array or hash itself, only arrayref or hashref.
 
 Stashed variables begin with the tilde (C<~>) character, followed by an alphabet or underscore (C<_>. So for example:
 
@@ -203,14 +239,60 @@ All stashed variables are forgotten right before C<read> starts reading the inpu
     $parser->read('/another/logfile.log');
     print "Whereas, the other one had ", $parser->stashed('count'), " errors\n";
 
+You can also have pre-stashed variables that persist across multiple C<read> method calls. Read more about that L<here|Text::Parser/"METHODS FOR ACCESSING STASHED VARIABLES">.
+
+=head2 Adding and using new class attributes
+
+When you L<sub-class Text::Parser|Text::Parser::RuleSpec> you can get some very powerful features. You can do something like this:
+
+    package MyClass::Parser;
+
+    use Moose;
+    extends 'Text::Parser';
+    use Text::Parser::RuleSpec;
+
+    has section => (
+        is   => 'ro',
+        isa  => 'Str',
+        lazy => 1,
+    );
+
+    has names => (
+        is      => 'ro',
+        isa     => 'HashRef[ArrayRef[Str]]',
+        default => sub {return {};},
+        lazy    => 1,
+        handles => {
+            get_section => 'get',
+            set_section => 'set',
+            has_section => 'exists',
+        },
+    );
+
+    sub add_name {
+        my $self = shift;
+        my $names = $self->get_section($self->section);
+        push @{$names}, shift;
+    }
+
+    applies_rule find_section => (
+        if => '$1 eq "SECTION:"',
+        do => '$this->section($2);',
+    );
+
+    applies_rule name_in_section => (
+        if => '$1 eq "NAME"',
+        do => '$this->add_name($2);'
+    );
+
+This allows you to write your own parser. In fact, because you can now use inheritance to create a sub-class, you can sub-class that sub-class also, thereby making a variant of a given parser.
+
 =head1 SUMMARY
 
 =for :list
-* AWK has a limited set of built-in functions. Perl is superior here and we want to leverage that.ExAWK is in Perl language, and includes a whole arsenal of utility string functions. It also allows one to use the whole spectrum of CPAN packages when one wants.
-* In AWK every rule will be tested and executed, even if conditions of previous rules are true. In ExAWK, by default only the first rule where the condition is true, runs. But C<continue_to_next> allows the execution to continue to the next rule.
-* In the UNIX implementation of AWK, the positional variables are limited to C<$9>. In POSIX implementations this limitation has already been removed. Following POSIX, we also remove this limit.
-* In AWK there are no reverse positional variables for positions counted from the end. In ExAWK, you have C<${-1}>, C<${-2}>, C<${-3}> etc.
-* In AWK if you use a positional identifier like C<$8> when there are only 7 fields on a line, it evaluates to empty string. In ExAWK, if you use C<$8> in either the condition or task strings, an automatic pre-condition is generated to check that there must be at least 8 fields on the input line.
-
-L<Table of contents|Text::Parser::Manual> | L<Previous|Text::Parser::Manual::ComparingWithNativePerl> | L<Next|Text::Parser::Manual::CollectedExamples>
+* ExAWK is in Perl language, and includes a whole arsenal of utility functions, and also the power to use any functions from any desired CPAN package.
+* Execution of rules can be controlled and not all rules need to be run.
+* In ExAWK, you may use identifiers like C<${-1}>, C<${2+}>, C<@{3+}> etc. Using any positional identifier automatically adds a condition that tests if the line has the minimum number of fields required.
+* You can use regular Perl variables inside rules, or you may use L<stashed variables|/"Stashed variables">.
+* You can sub-class C<Text::Parser> to make your own parser class. And then you can sub-class that further to re-use your code and create multiple variants.
 

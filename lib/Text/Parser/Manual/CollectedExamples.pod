@@ -37,4 +37,11 @@
     $parser->read('/path/to/logfile.log');
     my (%log_stats) = $parser->stashed;
 
+=head1 COMPLEX EXAMPLES
+
+This is a stub...
+
+=head1 INVITATION TO CONTRIBUTE
+
+You're invited to contribute your examples of how you use this package. Contributions will be acknowledged.
 

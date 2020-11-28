@@ -66,4 +66,4 @@ This manual is divided into chapters:
 =for :list
 * L<Comparing with native Perl|Text::Parser::Manual::ComparingWithNativePerl> - compares native Perl solutions against L<Text::Parser> lists some of the pros and cons of both.
 * L<The Extended AWK Syntax|Text::Parser::Manual::ExtendedAWKSyntax> - this chapter outlines the syntax for the rules
-* L<Collected Examples|Text::Parser::Manual::CollectedExamples> - a collection of examples using L<Text::Parser>
+* L<Collected Examples|Text::Parser::Manual::CollectedExamples> - a collection of examples using L<Text::Parser>. This will need to be expanded.
