@@ -3,6 +3,8 @@ use warnings;
 
 package Text::Parser::Rule;
 
+# VERSION
+
 # ABSTRACT: Makes it possible to write AWK-style parsing rules for Text::Parser
 
 use Moose;

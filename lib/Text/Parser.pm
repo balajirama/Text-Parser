@@ -4,6 +4,8 @@ use feature ':5.14';
 
 package Text::Parser;
 
+# VERSION
+
 # ABSTRACT: Simplifies text parsing. Easily extensible to parse any text format.
 
 =head1 SYNOPSIS

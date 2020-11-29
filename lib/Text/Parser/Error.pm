@@ -1,6 +1,9 @@
-package Text::Parser::Error;
 use strict;
 use warnings;
+
+package Text::Parser::Error;
+
+# VERSION
 
 # ABSTRACT: Exceptions for Text::Parser
 

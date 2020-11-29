@@ -180,11 +180,13 @@ By default it is undefined.
 
 Read-write attribute that can be used to specify the field separator to be used by the C<auto_split> feature. It must be a regular expression reference enclosed in the C<qr> function, like C<qr/\s+|[,]/> which will split across either spaces or commas. The default value for this attribute is C<qr/\s+/>.
 
-The name for this attribute comes from the built-in C<FS> variable in the popular L<GNU Awk program|https://www.gnu.org/software/gawk/gawk.html>. The ability to use a regular expression is an upgrade from AWK.
+The name for this attribute comes from the built-in C<FS> variable in the popular L<GNU Awk program|https://www.gnu.org/software/gawk/gawk.html>. The ability to use a regular expression is inspired by AWK.
 
     $parser->FS( qr/\s+\(*|\s*\)/ );
 
 C<FS> I<can> be changed from within a rule. Changes made even within a rule would take effect on the immediately next line read.
+
+B<Note:> Surprisingly, Perl lacks a variable to hold an automatic splitting pattern. In perl one-liners you can use the C<-F> command-line option and set the separator, but what if you want one separator for one piece of code, and another for another piece of code?
 
 =head2 indentation_str
 

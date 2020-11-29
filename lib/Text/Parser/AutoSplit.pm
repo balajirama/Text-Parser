@@ -3,6 +3,8 @@ use warnings;
 
 package Text::Parser::AutoSplit;
 
+# VERSION
+
 # ABSTRACT: A role that adds the ability to auto-split a line into fields
 
 use Moose::Role;
