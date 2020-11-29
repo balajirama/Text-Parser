@@ -39,24 +39,6 @@ sub _set_fields {
     $self->{_fields} = shift;
 }
 
-sub _clear_all_fields {
-    my $self = shift;
-    $self->{_fields} = [];
-}
-
-after _set_this_line => sub {
-    my $self = shift;
-    return if not $self->auto_split;
-    my $str = $self->{_current_line};
-    $str =~ s/^\s+|\s+$//g;
-    $self->_set_fields( [ split $self->FS, $str ] );
-};
-
-after _clear_this_line => sub {
-    my $self = shift;
-    $self->_clear_all_fields;
-};
-
 =head1 METHODS AVAILABLE ON AUTO-SPLIT
 
 These methods become available when C<auto_split> attribute is true. A runtime error will be thrown if they are called without C<auto_split> being set. They can be used inside a subclass or in the rules.

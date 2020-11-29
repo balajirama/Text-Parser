@@ -75,7 +75,8 @@ use Getopt::Long::Descriptive;
 my ( $opt, $usage ) = describe_options(
     '%c %o',
     [ 'iter|n=i', 'Number of iterations',    { default      => 20000 } ],
-    [ 'help',     'print this help message', { shortcircuit => 1 } ],
+    [ 'help|h',     'print this help message', { shortcircuit => 1 } ],
+    { show_defaults => 1, },
 );
 
 print( $usage->text ), exit if $opt->help;

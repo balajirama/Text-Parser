@@ -63,8 +63,10 @@ sub read_with_native_perl {
 
 use Benchmark;
 
-my $iter        = 1000;
-my $native_time = timeit( $iter, \&read_with_native_perl );
-my $t_parser    = timeit( $iter, \&read_with_text_parser );
-ok( $native_time <= $t_parser, "Currently slower than native Perl" );
+my $iter     = 10000;
+my $native_t = timeit( $iter, \&read_with_native_perl )->real;
+my $t_parser = timeit( $iter, \&read_with_text_parser )->real;
+
+ok( $native_t <= $t_parser,
+    "t_parser ($t_parser s) >= native_t ($native_t s)" );
 done_testing;
