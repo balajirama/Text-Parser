@@ -3,6 +3,8 @@ use warnings;
 
 package Text::Parser::AutoSplit;
 
+# VERSION
+
 # ABSTRACT: A role that adds the ability to auto-split a line into fields
 
 use Moose::Role;
@@ -38,24 +40,6 @@ sub _set_fields {
     my $self = shift;
     $self->{_fields} = shift;
 }
-
-sub _clear_all_fields {
-    my $self = shift;
-    $self->{_fields} = [];
-}
-
-after _set_this_line => sub {
-    my $self = shift;
-    return if not $self->auto_split;
-    my $str = $self->{_current_line};
-    $str =~ s/^\s+|\s+$//g;
-    $self->_set_fields( [ split $self->FS, $str ] );
-};
-
-after _clear_this_line => sub {
-    my $self = shift;
-    $self->_clear_all_fields;
-};
 
 =head1 METHODS AVAILABLE ON AUTO-SPLIT
 
@@ -216,7 +200,7 @@ sub find_field {
         local $_ = $e;
         return $e if $sub->();
     }
-    return undef;
+    return;
 }
 
 =auto_split_meth find_field_index

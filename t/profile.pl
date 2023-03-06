@@ -1,5 +1,15 @@
 #!/usr/bin/env perl -d:NYTProf
 
+# Once run, you can do the following:
+#
+#   nytprofhtml
+#
+# Then you can:
+#
+#   echo $PWD/nytprof/index.html
+#
+# Now load it into a browser
+
 use strict;
 use warnings;
 use utf8;
@@ -59,8 +69,22 @@ sub read_with_native_perl {
     }
 }
 
-for my $i ( 0 .. 1000 ) {
-    read_with_text_parser;
-    read_with_native_perl;
-}
+use Benchmark;
+use Getopt::Long::Descriptive;
+
+my ( $opt, $usage ) = describe_options(
+    '%c %o',
+    [ 'iter|n=i', 'Number of iterations',    { default      => 20000 } ],
+    [ 'help|h',     'print this help message', { shortcircuit => 1 } ],
+    { show_defaults => 1, },
+);
+
+print( $usage->text ), exit if $opt->help;
+
+timethese(
+    $opt->iter,
+    {   'Native Perl'  => \&read_with_native_perl,
+        'Text::Parser' => \&read_with_text_parser
+    }
+);
 

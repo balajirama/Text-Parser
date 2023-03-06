@@ -3,9 +3,12 @@ use warnings;
 
 package Text::Parser::Rule;
 
+# VERSION
+
 # ABSTRACT: Makes it possible to write AWK-style parsing rules for Text::Parser
 
 use Moose;
+use English;
 use MooseX::StrictConstructor;
 use Text::Parser::Error;
 use Scalar::Util 'blessed', 'looks_like_number';

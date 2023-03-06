@@ -3,6 +3,8 @@ use warnings;
 
 package Text::Parser::Multiline;
 
+# VERSION
+
 # ABSTRACT: To be used to add custom line-unwrapping routines to the Text::Parser object.
 
 use Moose::Role;

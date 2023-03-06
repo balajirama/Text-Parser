@@ -4,6 +4,8 @@ use feature ':5.14';
 
 package Text::Parser;
 
+# VERSION
+
 # ABSTRACT: Simplifies text parsing. Easily extensible to parse any text format.
 
 =head1 SYNOPSIS
@@ -231,7 +233,7 @@ has auto_split => (
 sub __newval_auto_split {
     my ( $self, $newval, $oldval ) = ( shift, shift, shift );
     ensure_all_roles $self, 'Text::Parser::AutoSplit' if $newval;
-    $self->_clear_all_fields if not $newval and $oldval;
+    $self->{_fields} = [] if not $newval and $oldval;
 }
 
 =attr auto_trim
@@ -276,18 +278,19 @@ has custom_line_trimmer => (
 
 Read-write attribute that can be used to specify the field separator to be used by the C<auto_split> feature. It must be a regular expression reference enclosed in the C<qr> function, like C<qr/\s+|[,]/> which will split across either spaces or commas. The default value for this attribute is C<qr/\s+/>.
 
-The name for this attribute comes from the built-in C<FS> variable in the popular L<GNU Awk program|https://www.gnu.org/software/gawk/gawk.html>. The ability to use a regular expression is an upgrade from AWK.
+The name for this attribute comes from the built-in C<FS> variable in the popular L<GNU Awk program|https://www.gnu.org/software/gawk/gawk.html>. The ability to use a regular expression is inspired by AWK.
 
     $parser->FS( qr/\s+\(*|\s*\)/ );
 
 C<FS> I<can> be changed from within a rule. Changes made even within a rule would take effect on the immediately next line read.
+
+B<Note:> Surprisingly, Perl lacks a variable to hold an automatic splitting pattern. In perl one-liners you can use the C<-F> command-line option and set the separator, but what if you want one separator for one piece of code, and another for another piece of code?
 
 =cut
 
 has FS => (
     is      => 'rw',
     isa     => 'RegexpRef',
-    lazy    => 1,
     default => sub {qr/\s+/},
 );
 
@@ -300,7 +303,6 @@ This can be used to set the indentation character or string. By default it is a 
 has indentation_str => (
     is      => 'rw',
     isa     => 'NonEmptyStr',
-    lazy    => 1,
     default => ' ',
 );
 
@@ -617,11 +619,16 @@ sub this_line {
 sub _set_this_line {
     my $self = shift;
     $self->{_current_line} = shift;
+    return if not $self->{auto_split};
+    my $str = $self->{_current_line};
+    $str =~ s/^\s+|\s+$//g;
+    $self->_set_fields( [ split $self->{FS}, $str ] );
 }
 
 sub _clear_this_line {
     my $self = shift;
     $self->{_current_line} = undef;
+    $self->{_fields} = [] if $self->{auto_split};
 }
 
 =head1 METHODS FOR READING INPUT

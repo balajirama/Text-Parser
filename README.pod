@@ -8,7 +8,7 @@ Text::Parser - Simplifies text parsing. Easily extensible to parse any text form
 
 =head1 VERSION
 
-version 1.000
+version 1.001
 
 =head1 SYNOPSIS
 
@@ -75,7 +75,7 @@ Here is an example that parses a table with field separators indicated by C<|> c
 
 In the above example you see the use of a L<stashed variable|/"METHODS FOR ACCESSING STASHED VARIABLES"> named C<~columns>. Note that the sigil used here is not a Perl sigil, but is converted to native Perl code. In the above case, each record is a hash with fixed number of fields.
 
-More complex file-formats can be read and contents stored in a data-structure or an object. Here is an example:
+More complex file-formats can be read and contents stored in a data-structure or an object. You can see more on this at L<Text::Parser::RuleSpec>. Here is an example:
 
     use strict;
     use warnings;
@@ -180,11 +180,13 @@ By default it is undefined.
 
 Read-write attribute that can be used to specify the field separator to be used by the C<auto_split> feature. It must be a regular expression reference enclosed in the C<qr> function, like C<qr/\s+|[,]/> which will split across either spaces or commas. The default value for this attribute is C<qr/\s+/>.
 
-The name for this attribute comes from the built-in C<FS> variable in the popular L<GNU Awk program|https://www.gnu.org/software/gawk/gawk.html>. The ability to use a regular expression is an upgrade from AWK.
+The name for this attribute comes from the built-in C<FS> variable in the popular L<GNU Awk program|https://www.gnu.org/software/gawk/gawk.html>. The ability to use a regular expression is inspired by AWK.
 
     $parser->FS( qr/\s+\(*|\s*\)/ );
 
 C<FS> I<can> be changed from within a rule. Changes made even within a rule would take effect on the immediately next line read.
+
+B<Note:> Surprisingly, Perl lacks a variable to hold an automatic splitting pattern. In perl one-liners you can use the C<-F> command-line option and set the separator, but what if you want one separator for one piece of code, and another for another piece of code?
 
 =head2 indentation_str
 
@@ -777,15 +779,15 @@ L<Text::Parser::Manual> - Read this manual to learn how to do cool things with t
 
 =item *
 
+L<Text::Parser::RuleSpec> - extending Text::Parser to make your own parser.
+
+=item *
+
 L<Text::Parser::Error> - there is a change in how exceptions are thrown by this class. Read this page for more information.
 
 =item *
 
 L<The AWK Programming Language|https://books.google.com/books/about/The_AWK_Programming_Language.html?id=53ueQgAACAAJ> - by B<A>ho, B<W>einberg, and B<K>ernighan.
-
-=item *
-
-L<Text::Parser::Multiline> - how to read line-wrapped text input
 
 =back
 
@@ -804,7 +806,7 @@ Balaji Ramasubramanian <balajiram@cpan.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2018-2019 by Balaji Ramasubramanian.
+This software is copyright (c) 2016 by Balaji Ramasubramanian.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.

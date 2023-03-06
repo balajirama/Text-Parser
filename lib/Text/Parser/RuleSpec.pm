@@ -4,6 +4,8 @@ use warnings;
 
 package Text::Parser::RuleSpec;
 
+# VERSION
+
 # ABSTRACT: Syntax sugar for rule specification while subclassing Text::Parser or derivatives
 
 =head1 SYNOPSIS
