@@ -154,6 +154,10 @@ Read-write boolean attribute. Defaults to C<0> (false). Indicates if the parser 
 
 If it is set to a true value, each line will be split into fields, and L<a set of methods|/"METHODS USED ONLY IN RULES AND SUBCLASSES"> become accessible to C<L<save_record|/save_record>> or the rules.
 
+=head2 auto_uncompress
+
+Read-write boolean attribute. Defaults to C<0> (false).
+
 =head2 auto_trim
 
 Read-write attribute. The values this can take are shown under the C<L<new|/new>> constructor also. Defaults to C<'n'> (neither side spaces will be trimmed).
@@ -483,6 +487,14 @@ Takes an array as input, and stores each element as a separate record. Returns t
 
     $parser->push_records(qw(insert these as separate records));
 
+=head2 clear_records
+
+Takes no arguments and clears all records, making the parser ready to read another file.
+
+    $parser->clear_records();
+
+In general, every call to C<read> auto-clears the records. So this call is not necessary if you're only trying to read a new file with the same parser.
+
 =head1 METHODS FOR ACCESSING STASHED VARIABLES
 
 Stashed variables can be data structures or simple scalar variables stored as elements in the parser object. Hence they are accessible across different rules. Stashed variables start with a tilde (~). So you could set up rules like these:
@@ -794,7 +806,7 @@ L<The AWK Programming Language|https://books.google.com/books/about/The_AWK_Prog
 =head1 BUGS
 
 Please report any bugs or feature requests on the bugtracker website
-L<http://github.com/balajirama/Text-Parser/issues>
+L<https://github.com/balajirama/Text-Parser/issues>
 
 When submitting a bug or request, please include a test-file or a
 patch to an existing test-file that illustrates the bug or desired
@@ -813,9 +825,13 @@ the same terms as the Perl 5 programming language system itself.
 
 =head1 CONTRIBUTORS
 
-=for stopwords H.Merijn Brand - Tux Mohammad S Anwar
+=for stopwords Gabor Szabo H.Merijn Brand - Tux Mohammad S Anwar
 
 =over 4
+
+=item *
+
+Gabor Szabo <gabor@szabgab.com>
 
 =item *
 
