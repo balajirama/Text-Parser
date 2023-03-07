@@ -7,7 +7,7 @@ environment:
   APPVEYOR_SAVE_CACHE_ON_ERROR: true
 install:
 - cmd: >-
-    cpanm -q --notest Dist::Zilla Devel::Cover::Report::Codecov Pod::Weaver::Section::Contributors Pod::Elemental::Transformer::List Dist::Zilla Dist::Zilla::App::Command::cover Dist::Zilla::App::Command::kwalitee Perl::Tidy
+    cpanm -q --notest CPAN Dist::Zilla Devel::Cover::Report::Codecov Pod::Weaver::Section::Contributors Pod::Elemental::Transformer::List Dist::Zilla Dist::Zilla::App::Command::cover Dist::Zilla::App::Command::kwalitee Perl::Tidy
 
     dzil authordeps --missing | cpanm -q --notest
 

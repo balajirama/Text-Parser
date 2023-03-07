@@ -8,4 +8,4 @@ BEGIN {
 
 use Test::More;
 use Test::MinimumVersion;
-all_minimum_version_ok( '5.014000' );
+all_minimum_version_ok( '5.021008' );

@@ -2,6 +2,7 @@ Revision history for {{$dist->name}}
 
 {{$NEXT}}
   - Minor changes to documentation
+  - Add the auto_uncompress attribute and enable automatic uncompression
 
 1.000     2020-11-27 20:38:18-08:00 America/Los_Angeles
   - Replaces many error classes in Text::Parser::Errors with a single class Text::Parser::Error.

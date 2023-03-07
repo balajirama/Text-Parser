@@ -151,6 +151,7 @@ use Text::Parser::Error;
 use Text::Parser::Rule;
 use Text::Parser::RuleSpec;
 use List::MoreUtils qw(natatime first_index);
+use IO::Uncompress::AnyUncompress qw(anyuncompress $AnyUncompressError);
 
 enum 'Text::Parser::Types::MultilineType' => [qw(join_next join_last)];
 enum 'Text::Parser::Types::LineWrapStyle' =>
@@ -235,6 +236,18 @@ sub __newval_auto_split {
     ensure_all_roles $self, 'Text::Parser::AutoSplit' if $newval;
     $self->{_fields} = [] if not $newval and $oldval;
 }
+
+=attr auto_uncompress
+
+Read-write boolean attribute. Defaults to C<0> (false).
+
+=cut
+
+has auto_uncompress => (
+    is      => 'rw',
+    isa     => 'Bool',
+    default => 0,
+);
 
 =attr auto_trim
 
@@ -628,7 +641,7 @@ sub _set_this_line {
 sub _clear_this_line {
     my $self = shift;
     $self->{_current_line} = undef;
-    $self->{_fields} = [] if $self->{auto_split};
+    $self->{_fields}       = [] if $self->{auto_split};
 }
 
 =head1 METHODS FOR READING INPUT
@@ -676,12 +689,33 @@ sub __get_valid_fh {
     my $self  = shift;
     my $fname = $self->_get_valid_text_filename;
     return FileHandle->new( $fname, 'r' ) if defined $fname;
-    $fname = $self->filename;
+    return $self->_filehandle_non_textfile;
+}
+
+sub _filehandle_non_textfile {
+    my $self  = shift;
+    my $fname = $self->filename;
+    return $self->_try_uncompressing($fname) if $self->auto_uncompress;
     $self->_clear_filename;
     $self->_throw_invalid_file_exception($fname);
 }
 
-# Don't touch: Override this in Text::Parser::AutoUncompress
+sub _try_uncompressing {
+    my ( $self, $fname ) = ( shift, shift );
+    _validate_compressed_file($fname);
+    my ( $rfh, $wfh ) = FileHandle::pipe();
+    my $ret = anyuncompress( $fname => $wfh, AutoClose => 1 );
+    return $rfh;
+}
+
+sub _validate_compressed_file {
+    my $fname = shift;
+    my $z     = IO::Uncompress::AnyUncompress->new($fname);
+    return 1 if defined $z and $z->getHeaderInfo;
+    parser_exception(
+        "$fname neither text nor compressed: $AnyUncompressError");
+}
+
 sub _get_valid_text_filename {
     my $self  = shift;
     my $fname = $self->filename;
@@ -689,7 +723,6 @@ sub _get_valid_text_filename {
     return;
 }
 
-# Don't touch: Override this in Text::Parser::AutoUncompress
 sub _throw_invalid_file_exception {
     my ( $self, $fname ) = ( shift, shift );
     parser_exception("Invalid filename $fname") if not -f $fname;
@@ -809,7 +842,7 @@ sub __read_and_close_filehandle {
 
 sub _prep_to_read_file {
     my $self = shift;
-    $self->_empty_records;
+    $self->clear_records;
     $self->_clear_abort;
 }
 
@@ -942,6 +975,14 @@ Takes an array as input, and stores each element as a separate record. Returns t
 
     $parser->push_records(qw(insert these as separate records));
 
+=records_meth clear_records
+
+Takes no arguments and clears all records, making the parser ready to read another file.
+
+    $parser->clear_records();
+
+In general, every call to C<read> auto-clears the records. So this call is not necessary if you're only trying to read a new file with the same parser.
+
 =cut
 
 has records => (
@@ -957,7 +998,7 @@ has records => (
         get_records    => 'elements',
         push_records   => 'push',
         pop_record     => 'pop',
-        _empty_records => 'clear',
+        clear_records  => 'clear',
         _num_records   => 'count',
         _access_record => 'accessor',
     },
