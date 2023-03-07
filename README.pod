@@ -794,7 +794,7 @@ L<The AWK Programming Language|https://books.google.com/books/about/The_AWK_Prog
 =head1 BUGS
 
 Please report any bugs or feature requests on the bugtracker website
-L<http://github.com/balajirama/Text-Parser/issues>
+L<https://github.com/balajirama/Text-Parser/issues>
 
 When submitting a bug or request, please include a test-file or a
 patch to an existing test-file that illustrates the bug or desired
@@ -813,9 +813,13 @@ the same terms as the Perl 5 programming language system itself.
 
 =head1 CONTRIBUTORS
 
-=for stopwords H.Merijn Brand - Tux Mohammad S Anwar
+=for stopwords Gabor Szabo H.Merijn Brand - Tux Mohammad S Anwar
 
 =over 4
+
+=item *
+
+Gabor Szabo <gabor@szabgab.com>
 
 =item *
 
